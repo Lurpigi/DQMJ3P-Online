@@ -1,0 +1,15 @@
+# Binari del gioco (copyright Square Enix/Nintendo): non distribuire
+re/bin/
+*.cia
+*.3ds
+*.cci
+*.cxi
+__pycache__/
+.env
+# Contenuti originali Nintendo/Square Enix scaricati (non ridistribuire nel repo)
+re/data/
+# Dati runtime dei server
+server/sil/data/
+server/data/
+server/nex/build/
+server/nex/.env

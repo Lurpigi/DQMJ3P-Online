@@ -1,0 +1,14 @@
+# Local test stack: only the database. The NEX server runs on the host in DEV mode.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dqmj3p
+      POSTGRES_PASSWORD: dqmj3p
+      POSTGRES_DB: dqmj3p
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - dqmj3p-pg:/var/lib/postgresql/data
+volumes:
+  dqmj3p-pg:

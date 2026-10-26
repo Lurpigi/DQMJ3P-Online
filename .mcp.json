@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "ghidra": {
+      "type": "stdio",
+      "command": "C:\\Users\\Luigi\\tools\\ghidra-venv\\Scripts\\pyghidra-mcp.exe",
+      "args": [
+        "--transport", "stdio",
+        "--project-path", "C:\\Users\\Luigi\\ghidra_projects\\DQMJ3P.gpr"
+      ],
+      "env": {
+        "GHIDRA_INSTALL_DIR": "C:\\Users\\Luigi\\tools\\ghidra_12.2_PUBLIC",
+        "JAVA_HOME": "C:\\Users\\Luigi\\tools\\jdk-25.0.4.1+1"
+      }
+    }
+  }
+}
