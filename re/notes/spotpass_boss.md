@@ -134,6 +134,24 @@ Stessa dimensione (0x54) e struttura del corpo type4 PassingMonster, ma con 8 B 
 funzione StreetPass "Passing Official" (messaggi MenuMessagePassingOfficial*, FindOfficial). Quasi certamente
 asset di debug non usati in produzione. Il server SpotPass non deve fornirli.
 
+## 6. Download in Azahar con il nostro server [CERTO, verificato 2026-10-28]
+
+- Azahar qui usa i moduli online LLE: il modulo `boss` vero (0004013000003402) scarica i task da solo.
+  Il task FGONLYT viene registrato con la base URL a VA `0x86a0c4` (file `0x76A0C4`):
+  `make_url_patch.py --spotpass-url http://127.0.0.1:8380/p01/nsa/H7btVjYWs7p5dGj6` + `server/spotpass/serve_spotpass.py`
+  (porta 8380, file originali in `re/data/spotpass_archive/canonical`). Il modulo accetta `http://` e decifra i `.boss`
+  originali; richiede `.../FGONLYT/BossPresentDisc.bin?tm=4`.
+- Il BOSS scarta il task in ~0,1 s senza HTTP se il gioco non ha aperto la connessione AC: la schermata di connessione
+  della piazza (0x5e) non va saltata.
+- Schermata 0x5e (update `0x3879ac`, stato in `+0x68`): 0 gia' connesso? / 4 "Vuoi connetterti?" / 2-3 connessione AC
+  (`FUN_005f3c94`, `FUN_0066e42c`, `FUN_00453d0c`) / 6 "WaitConnection" / 7 (8) task di login in `+0x80` (`+0x84`),
+  errore -> `FUN_005f3b74` (006-0000 senza NEX) -> 9 / 10 fine. Dopo la schermata regali (`FUN_00439e58`) e negozio
+  monete (`FUN_002ca3b8`) proseguono solo se `FUN_00445fb8` (NEX connesso).
+- `--skip-nasc` quindi: stati 7/8 -> sempre stato 10 (`0x388044`, `0x3880ac`), `FUN_00445fb8` forzato a 1 solo alle
+  chiamate `0x439ec4` (regali) e `0x2ca434` (negozio). Risultato: "Hai ricevuto il Disco Conclavio sacro!" e, nel negozio monete, "Inventario aggiornato." con lo stock
+  originale (`BossWiFiShopTbl.bin?tm=4`).
+- Con il BOSS HLE (senza moduli LLE) servono invece `spotpass_azahar.py` (NsData nell'extdata) e `--azahar-hle-boss`.
+
 ## Incertezze principali
 Semantica di p5=0x15 e della property 5=2 nella TaskPolicy; maschere 2/4/8/0x20 di GetNsDataIdList; campi interni
 record B e anno in PresentDisc; semantica seed/FUN_0012f254; campi f2..f5 degli slot WiFiShop.

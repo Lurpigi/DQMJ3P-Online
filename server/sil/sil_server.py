@@ -232,6 +232,38 @@ USER_PACK, USER_PACK_HEAD, USER_PACK_MODE = 0x2698, 0x110, 0x12C4
 USER_PACK_NEIGHBOURS = 0x88    # mode block: 10 ranking entries around the user ("your ranking")
 USER_PACK_PREVIOUS = 0x1098    # mode block: result in the previous contest (same layout as +0)
 CHAMPION_ENTRY, CHAMPION_MAX = 0x34, 100
+GP_LIMIT_FILE = "018_LimitSetting.bin"
+GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
+
+# Challengers GP rules (018_LimitSetting, re/notes/grandprix_formats.md 3.4), one set per contest,
+# in rotation. A rule (type, value) must hold for every monster of the team (FUN_002f7e9c):
+#   0 size: species table +0x30 (0/1 small, 2 medium, 3 giga, 4 mega; value 0 also accepts 1)
+#   1 family: species table +0x23 (1 Slime, 2 Dragon, 3 Beast, 4 Nature, 5 Demon, 6 Undead, 7 Material)
+#   4 rank: species rank 1..8 (F..SS), raised by level (25-49 -> C, 50-99 -> A, 100 -> SS)
+#   5 team grade cap: whole-team strength grade (<4000 -> 1, ..., >=74000 -> 8) must be <= value
+LIMIT_RULE_SETS = [
+    ([], "Nessuna regola: porta la tua squadra migliore!", "Tema: tutti contro tutti!"),
+    ([(1, 1)], "Regola: solo mostri della famiglia Slime.", "Tema: il torneo degli Slime!"),
+    ([(5, 4)], "Regola: grado della squadra al massimo 4\n(forza totale sotto 18000).", "Tema: squadre leggere!"),
+    ([(0, 0)], "Regola: solo mostri di taglia piccola.", "Tema: piccoli ma forti!"),
+    ([(1, 2)], "Regola: solo mostri della famiglia Drago.", "Tema: il torneo dei Draghi!"),
+    ([(5, 6)], "Regola: grado della squadra al massimo 6\n(forza totale sotto 46000).", "Tema: squadre equilibrate!"),
+    ([(1, 5)], "Regola: solo mostri della famiglia Demone.", "Tema: il torneo dei Demoni!"),
+    ([(4, 8)], "Regola: solo mostri di rango SS\n(o qualsiasi mostro al livello 100).", "Tema: campioni al massimo livello!"),
+]
+
+
+def utf16_field(text, size):
+    return text.encode("utf-16-le")[:size - 2].ljust(size, b"\0")
+
+
+def limit_setting(contest):
+    """018_LimitSetting (0x848) for contest N: 3 rules (u32 type, u32 value; 9 = none), rule text
+    (UTF-16LE, 0x520 B) and theme announcement (UTF-16LE, 0x310 B)."""
+    rules, text, theme = LIMIT_RULE_SETS[(contest - 1) % len(LIMIT_RULE_SETS)]
+    rules = (list(rules) + [(9, 0)] * 3)[:3]
+    return (b"".join(struct.pack("<II", *r) for r in rules)
+            + utf16_field(text, 0x520) + utf16_field(theme, 0x310))
 
 
 class GpCalendar:
@@ -313,7 +345,10 @@ def rank_block(players, previous=None):
 def write_user_result(b, at, p, players, contest):
     """23_UserPackData mode block (or its previous-contest copy at +0x1098): +0 u32 rank, +4 u32
     players, +8 u32 position, +0x10 u32 contest, +0x14 win, +0x18 popularity, +0x1c strength,
-    +0x20 evaluation points, +0x24 battles, +0x28 wins (FUN_005b4a2c, FUN_005a4548, FUN_005cb584)."""
+    +0x20 evaluation points, +0x24 battles, +0x28 wins (FUN_005b4a2c, FUN_005a4548, FUN_005cb584).
+    Previous-contest copy only: +0x44 u16 3 = certificate + Network Coins at the end-of-contest
+    announcement (FUN_005cb39c, FUN_005cb0ac), +0x48 u16 platinum, +0x4a gold, +0x4c silver,
+    +0x4e bronze coins (FUN_002f84d0 -> FUN_0065baa0, MenuMessageNetworkCoinGet01..04)."""
     struct.pack_into("<III", b, at, p["rank"], players, p["position"])
     struct.pack_into("<I6I", b, at + 0x10, contest, p["win"], p["pop"], p["strength"], p["eval"],
                      p["battles"], p["wins"])
@@ -336,6 +371,8 @@ class Handler(BaseHTTPRequestHandler):
     self_opponents = False  # also offer players their own team (testing with a single player)
     calendar: GpCalendar = None
     prize_champion = prize_top10 = 0  # item ids of the end-of-contest Special Present (0 = none)
+    coins_champion = coins_top10 = None  # (bronze, silver, gold, platinum) Network Coins, None = none
+    limit_rotation = True  # Challengers GP rules from LIMIT_RULE_SETS (False: public 018_LimitSetting.bin)
     timeout = 15  # seconds; a stuck read must not outlive the client's 60 s request timeout
 
     def log_message(self, fmt, *args):
@@ -607,19 +644,27 @@ class Handler(BaseHTTPRequestHandler):
                 me = next((p for p in final if p["friend_code"] == friend_code), None)
                 if me:
                     write_user_result(b, base + USER_PACK_PREVIOUS, me, len(final), n - 1)
+                    coins = self.coins_champion if me["rank"] == 1 else self.coins_top10 if me["rank"] <= 10 else None
+                    if coins:  # end-of-contest certificate + Network Coins (bronze, silver, gold, platinum)
+                        struct.pack_into("<H", b, base + USER_PACK_PREVIOUS + 0x44, 3)
+                        struct.pack_into("<4H", b, base + USER_PACK_PREVIOUS + 0x48, *reversed(coins))
         return bytes(b)
 
     def _opponent_pack(self, friend_code, mode):
         """*_PrivateDlBattle built from the teams other players used in their last Grand Prix
         battle of this mode; rounds with no player team keep the public Def_DLBattle team.
         None (=> stored file or template, i.e. the client falls back to Def_DLBattle) when the
-        user is not registered or there is no team to offer."""
+        user is not registered or there is no team to offer. Challengers GP teams only count from
+        the current contest: earlier ones were built for other rules."""
         if not self._registered(friend_code):
             return None
+        since = "0000-00-00"
+        if mode == "limit":
+            since = self.calendar.first_day(self.calendar.contest(self.calendar.today())[0]).isoformat()
         rows = self.store.q(
             "SELECT g.friend_code, g.data, u.data FROM gp_results g "
-            "JOIN (SELECT friend_code, MAX(id) AS id FROM gp_results WHERE mode = ? GROUP BY friend_code) last ON g.id = last.id "
-            "LEFT JOIN private_files u ON u.friend_code = g.friend_code AND u.name = ?", mode, GP_REGISTRATION_FILE)
+            "JOIN (SELECT friend_code, MAX(id) AS id FROM gp_results WHERE mode = ? AND day >= ? GROUP BY friend_code) last ON g.id = last.id "
+            "LEFT JOIN private_files u ON u.friend_code = g.friend_code AND u.name = ?", mode, since, GP_REGISTRATION_FILE)
         own, pool = None, []
         for owner, result, user_data in rows:
             record = result[RESULT_TEAM:RESULT_TEAM + TEAM_RECORD]
@@ -661,6 +706,11 @@ class Handler(BaseHTTPRequestHandler):
         name = os.path.basename(fields.get("File-Name", b"").decode("ascii", "replace"))
         if name == GP_HELD_FILE:
             return name, self.calendar.held_record()
+        if name == GP_LIMIT_FILE and self.limit_rotation:
+            return name, limit_setting(self.calendar.contest(self.calendar.today())[0])
+        if name == GP_LIMIT_NEWS_FILE and self.limit_rotation:  # Notizie -> ULTIME INFORMAZIONI
+            _, text, theme = LIMIT_RULE_SETS[(self.calendar.contest(self.calendar.today())[0] - 1) % len(LIMIT_RULE_SETS)]
+            return name, utf16_field(theme + "\n" + text, 0x600)
         if name in GP_RANKING_FILES:
             return name, self._ranking_pack(GP_RANKING_FILES[name])
         if name in GP_CHAMPION_FILES:
@@ -712,10 +762,22 @@ def main():
     ap.add_argument("--gp-utc-offset", type=float,
                     help="Grand Prix: day boundary as hours from UTC (default: this computer's time zone; Japan = 9)")
     ap.add_argument("--gp-today", type=day, help="Grand Prix: pretend today is this date (testing)")
-    ap.add_argument("--gp-prize-champion", type=int, default=0, metavar="ITEM",
-                    help="Grand Prix: item id given to last contest's champions (0 = none)")
-    ap.add_argument("--gp-prize-top10", type=int, default=0, metavar="ITEM",
-                    help="Grand Prix: item id given to last contest's top ten (0 = none)")
+    # item ids = ItemMessage.mes keys I%04d (e.g. 60 Mini Medaglia, 66 Sfera di Luce, 70 Grande Sfera di Luce)
+    ap.add_argument("--gp-prize-champion", type=int, default=70, metavar="ITEM",
+                    help="Grand Prix: item id given to last contest's champions (default %(default)s, 0 = none)")
+    ap.add_argument("--gp-prize-top10", type=int, default=66, metavar="ITEM",
+                    help="Grand Prix: item id given to last contest's top ten (default %(default)s, 0 = none)")
+    def coins(text):
+        values = tuple(int(x) for x in text.split(","))
+        if len(values) != 4 or not all(0 <= v <= 0xFFFF for v in values):
+            raise argparse.ArgumentTypeError("expected BRONZE,SILVER,GOLD,PLATINUM")
+        return values if any(values) else None
+    ap.add_argument("--gp-coins-champion", type=coins, default=(0, 0, 3, 0), metavar="B,S,G,P",
+                    help="Grand Prix: Network Coins for last contest's champions (default 0,0,3,0; 0,0,0,0 = none)")
+    ap.add_argument("--gp-coins-top10", type=coins, default=(0, 3, 0, 0), metavar="B,S,G,P",
+                    help="Grand Prix: Network Coins for last contest's top ten (default 0,3,0,0)")
+    ap.add_argument("--gp-limit-static", action="store_true",
+                    help="Grand Prix: serve DIR/public/018_LimitSetting.bin instead of the rule rotation")
     args = ap.parse_args()
     if not 1 <= args.gp_days <= 7:  # Held+0 indexes a 7-entry table
         ap.error("--gp-days must be 1..7")
@@ -729,6 +791,8 @@ def main():
     Handler.calendar = GpCalendar(args.gp_start, args.gp_days, args.gp_utc_offset, args.gp_today)
     Handler.store.date_gp_results(Handler.calendar)
     Handler.prize_champion, Handler.prize_top10 = args.gp_prize_champion, args.gp_prize_top10
+    Handler.coins_champion, Handler.coins_top10 = args.gp_coins_champion, args.gp_coins_top10
+    Handler.limit_rotation = not args.gp_limit_static
     n, idx = Handler.calendar.contest(Handler.calendar.today())
     print(f"SIL server on http://{args.host}:{args.port}/{APP_PATH}/ (data: {args.data}); "
           f"Grand Prix contest {n}, day {idx + 1}/{args.gp_days} ({Handler.calendar.today()})", flush=True)

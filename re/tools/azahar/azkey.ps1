@@ -16,12 +16,13 @@ public class K {
     i[0].type = 1;
     i[0].ki.vk = vk;
     i[0].ki.scan = (ushort)MapVirtualKey(vk, 0);
-    i[0].ki.flags = up ? 2u : 0u;
+    i[0].ki.flags = (up ? 2u : 0u) | ((vk >= 0x25 && vk <= 0x28) ? 1u : 0u);  // arrows are extended keys
     return SendInput(1, i, Marshal.SizeOf(typeof(INPUT)));
   }
 }
 "@
 $map = @{ a=0x41; b=0x53; x=0x5A; y=0x58; up=0x54; down=0x47; left=0x46; right=0x48;
+          cup=0x26; cdown=0x28; cleft=0x25; cright=0x27;
           l=0x51; r=0x57; start=0x4D; select=0x4E }
 $h = (Get-Process azahar | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1).MainWindowHandle
 [K]::SetForegroundWindow($h) | Out-Null

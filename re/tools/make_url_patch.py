@@ -5,7 +5,8 @@ existing patch (e.g. the Italian fan translation) with the URL replacements.
 
 usage (python -I):
   make_url_patch.py --code code.bin --sil-url http://example.org/00300701/ \
-      [--infra-url http://example.org/infra/] [--skip-nasc] [--skip-frd] [--azahar] [--merge other/code.ips] -o code.ips
+      [--infra-url http://example.org/infra/] [--spotpass-url http://example.org:8380/p01/nsa/H7btVjYWs7p5dGj6] \
+      [--skip-nasc] [--skip-frd] [--azahar] [--azahar-hle-boss] [--merge other/code.ips] -o code.ips
 
 Install: SD:/luma/titles/00040000001ACB00/code.ips  (3DS, "Enable game patching" on)
          <Azahar user dir>/load/mods/00040000001ACB00/exefs/code.ips
@@ -17,6 +18,8 @@ import sys
 # String slots in code.bin v1.3 (file offsets = VA - 0x100000), verified in Ghidra.
 SIL_URL = (0x76C83C, b"https://dqm32ds.sil2.square-enix.com/00300701/")
 INFRA_URL = (0x7BF6D4, b"http://wi-fi.infralib.square-enix.com/")
+# SpotPass (BOSS) base URL; tasks are "%s/%s" with "<TASK>/<file>" (re/notes/spotpass_boss.md).
+SPOTPASS_URL = (0x76A0C4, b"https://npdl.cdn.nintendowifi.net/p01/nsa/H7btVjYWs7p5dGj6")
 
 # --skip-nasc: SilAuthJob_Update (0x66cacc) logs in to NEX (NASC LOGIN) and asks NASC for a
 # service token (SVCLOC) before talking to SIL; Pretendo answers both with error 110 while the
@@ -49,6 +52,14 @@ AZAHAR_FIXES = [
     (0x504290, bytes.fromhex("020110e3"), bytes.fromhex("010aa0e3")),  # tst r0,#0x80000000 -> mov r0,#0x1000
     (0x504294, bytes.fromhex("2000001a"), bytes.fromhex("140084e5")),  # bne error -> str r0,[r4,#0x14]
 ]
+# --azahar-hle-boss: only for Azahar with the HLE BOSS service (no "required online LLE modules"),
+# which never downloads tasks and always reports task state 0 while the game waits for 6 ("done")
+# before reading NsData (gift discs FUN_00370e94, coin shop FUN_002c9a54). The NsData then come
+# from files in the BOSS extdata (re/tools/spotpass_azahar.py). With the real boss module (LLE) use
+# --spotpass-url instead.
+AZAHAR_HLE_BOSS = [
+    (0x58212C, bytes.fromhex("000051e30900a003"), bytes.fromhex("0600a0e31eff2fe1")),  # boss_vfn_68212c: mov r0,#6; bx lr
+]
 SKIP_NASC = [
     (0x56CB48, bytes.fromhex("7afcff0b"), ARM_NOP),  # case 0: bleq 0x66bd38 (queue NEX login)
     (0x56CB90, bytes.fromhex("ba00000a"), ARM_NOP),  # case 1: beq (wait for NEX logged-in flag 0x10)
@@ -60,6 +71,17 @@ SKIP_NASC = [
     # Ranking Battle connect screen (FUN_003ca8cc): after connecting it requires a live NEX session
     # (FUN_00445fb8 -> NgsFacade state 0x10001), else closes the menu silently. Skip that check.
     (0x2CA944, bytes.fromhex("1900000a"), ARM_NOP),  # beq 0x3ca9b0
+    # The plaza's generic connect screen (0x5e, update function 0x3879ac, state in +0x68): states 2/3
+    # bring up the AC connection, state 7 (8) then runs a network login task (+0x80 / +0x84) that
+    # fails without NEX and is reported through FUN_005f3b74 (006-0000). The AC connection is what
+    # the BOSS module needs for gift discs and the coin shop stock, so take the success path
+    # (state 10) whatever the task result is.
+    (0x288044, bytes.fromhex("800094e5"), bytes.fromhex("2b0000ea")),  # state 7: b 0x3880f8
+    (0x2880AC, bytes.fromhex("840094e5"), bytes.fromhex("110000ea")),  # state 8: b 0x3880f8
+    # After screen 0x5e the gift disc menu (FUN_00439e58) and the coin shop (FUN_002ca3b8) only go
+    # on to the download if FUN_00445fb8 (NEX connected) says so: force it at those two calls.
+    (0x339EC4, bytes.fromhex("3b3000eb"), bytes.fromhex("0100a0e3")),  # gift: bl -> mov r0,#1
+    (0x1CA434, bytes.fromhex("dfee05eb"), bytes.fromhex("0100a0e3")),  # coin shop: bl -> mov r0,#1
 ]
 
 
@@ -116,6 +138,10 @@ def main():
     ap.add_argument("--code", required=True, help="decompressed code.bin v1.3")
     ap.add_argument("--sil-url", required=True, help="replacement for the Square Enix SIL base URL (keep the trailing /)")
     ap.add_argument("--infra-url", help="replacement for wi-fi.infralib.square-enix.com")
+    ap.add_argument("--spotpass-url",
+                    help="replacement SpotPass base, e.g. http://host:8380/p01/nsa/H7btVjYWs7p5dGj6 (server/spotpass)")
+    ap.add_argument("--azahar-hle-boss", action="store_true",
+                    help="Azahar with the HLE BOSS service: report SpotPass tasks as done (data from spotpass_azahar.py)")
     ap.add_argument("--skip-nasc", action="store_true",
                     help="skip NEX login + NASC service token before SIL (test builds, game not on Pretendo)")
     ap.add_argument("--skip-frd", action="store_true", help="also fake the friends-server login (debugging only)")
@@ -129,6 +155,10 @@ def main():
     ours = [slot_record(code, SIL_URL, args.sil_url)]
     if args.infra_url:
         ours.append(slot_record(code, INFRA_URL, args.infra_url))
+    if args.spotpass_url:
+        ours.append(slot_record(code, SPOTPASS_URL, args.spotpass_url))
+    if args.azahar_hle_boss:
+        ours += [code_record(code, site) for site in AZAHAR_HLE_BOSS]
     if args.skip_nasc:
         ours += [code_record(code, site) for site in SKIP_NASC]
     if args.skip_frd:
@@ -137,7 +167,8 @@ def main():
         ours += [code_record(code, site) for site in AZAHAR_FIXES]
 
     # records this tool wrote into a previously merged patch are replaced, not kept
-    own_offsets = {SIL_URL[0], INFRA_URL[0]} | {off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES}
+    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0]} | {
+        off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS}
     merged = []
     for path in args.merge:
         for off, payload in read_ips(open(path, "rb").read()):
