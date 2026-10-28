@@ -90,7 +90,8 @@ In questo modo i giocatori non devono installare niente oltre a Nimbus e alla pa
 - **Login NEX vero senza NASC** (verificato in Azahar 2026-10-28): `make_url_patch.py --nex-auth 127.0.0.1:45000 --nex-password <PN_DQMJ3P_DEV_PASSWORD>` (con `--skip-nasc`, che allora non finge piu' `NexLoginJob_Start`) + `server/nex` in DEV mode (`LoginEx` accetta qualunque token). Il gioco fa LoginEx -> RequestTicket -> Register sul nostro server col PID Pretendo reale. Avvio: `docker compose -f server/docker-compose.dev.yml -p dqmj3p up -d` (Postgres 127.0.0.1:54329), poi `server/nex/build/dqmj3p-nex.exe` (porte 45000/45001).
 - **G-Cup (Ranking Race) fino all'iscrizione** (2026-10-28): 12 comunita' ufficiali G-Cup (`server/nex/sql/gcup_official_communities.sql`) e protocollo Ranking su Postgres (`server/nex/nex/ranking.go`). In gioco: ricerca coppa, iscrizione (nome squadra), coppa della settimana "Campo Prati Silenziosi", menu "Partecipa alla Corsa". Dettagli in `re/notes/nex_usage.md` 3.9.
 - **G-Cup: gara, punteggio e classifica** (2026-10-28): l'application buffer delle comunita' ufficiali e' la definizione del torneo (avversari CPU, nome, forza, percorso, evento); con avversari a 0 la gara crashava. Ora la gara parte con 4 corridori, il tempo vinto va in classifica (`UploadScore` in frame a 30 fps) e la classifica istantanea lo mostra. DataStore 115 (`server/nex/nex/datastore.go`: metadati su Postgres, file via HTTP locale) gestisce i replay; upload, download e riproduzione del replay (solo con nuovo record nei primi 3) verificati in gioco.
-- **Prossimo passo:** comunita' utente; lotte Wi-Fi (serve un secondo giocatore); eventi SpotPass sul campo (BREAK01-03).
+- **Comunita' (Sfida Comunitaria)** (verificate in Azahar 2026-10-28): creazione, "Tua Comunita' Attuale" con codice, comunita' ufficiali (`server/nex/sql/official_communities.sql`, attribs[0] = 1) e iscrizione funzionano. Le "Comunita' in Evidenza" arrivano via StreetPass, non dal server. "Cerca Avversario" si ferma dopo `ReportNATProperties` con "Errore di comunicazione" (fase Pia, come le lotte Wi-Fi). Dettagli in `re/notes/nex_usage.md` 3.8.
+- **Prossimo passo:** lotte Wi-Fi e Sfida Comunitaria (errore Pia dopo `ReportNATProperties`; per la lotta completa serve un secondo giocatore); eventi SpotPass sul campo (BREAK01-03).
 
 ## 4. Da fare
 
@@ -102,7 +103,8 @@ In questo modo i giocatori non devono installare niente oltre a Nimbus e alla pa
 - [ ] Decidere l'hosting: proposta a Pretendo (issue "feature" con title ID, game server ID, access key, versione NEX) oppure self-hosting con `pretendo-docker`.
 
 ### Fase B – Funzioni NEX mancanti
-- [ ] Comunità: `UpdateCommunity` (109/18) e `JoinCommunity` (109/19) non sono nelle implementazioni comuni di Pretendo; application buffer da 0x1b0 byte; seed delle comunità ufficiali.
+- [x] Comunità: `UpdateCommunity` (109/18) e `JoinCommunity` (109/19) implementati in `server/nex/nex/matchmake_extension`; seed delle comunità ufficiali (G-Cup e Sfida Comunitaria).
+- [ ] Regole delle comunità (0x18 byte a +0x60 del buffer) da decodificare, per comunità ufficiali con regole diverse.
 - [ ] Ranking Race:
   - Ranking 112: `UploadScore`, `UploadCommonData`, `GetCommonData`, `GetRanking`, `GetStats` (quest'ultimo manca nelle implementazioni comuni);
   - DataStore 115 per i replay `REPLAY_DATA` (DataType 3, incluso `Prepare/CompleteUpdateObject`, mancanti) con storage S3/MinIO.
