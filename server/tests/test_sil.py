@@ -199,6 +199,11 @@ def main():
         # Grand Prix rankings, from results of earlier days (today's uploads above do not count yet)
         r = c.call("file/download", {"File-Name": b"003_Held_Record.bin"})
         assert struct.unpack("<IHBBIII", r["Data"]) == (2, 2026, 1, 14, 1, 2, 0), r["Data"].hex()
+        r = c.call("file/download", {"File-Name": b"018_LimitSetting.bin"})  # contest 2: 2nd rule set
+        assert len(r["Data"]) == 0x848 and struct.unpack_from("<6I", r["Data"]) == (1, 1, 9, 0, 9, 0)
+        assert r["Data"][0x538:].decode("utf-16-le").startswith("Tema: il torneo degli Slime!")
+        r = c.call("file/download", {"File-Name": b"033_Limit_DLNewsMsg.bin"})
+        assert len(r["Data"]) == 0x600 and r["Data"].decode("utf-16-le").startswith("Tema: il torneo degli Slime!\nRegola:")
         db = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3"))
         for owner, day, pack in ((rival.friend_code, "2026-01-08", result_pack(win=900, wins=3)),  # contest 1
                                  (c.friend_code, "2026-01-09", result_pack(win=300, wins=1)),
@@ -228,6 +233,7 @@ def main():
         assert struct.unpack_from("<III4x7I", user_pack, grade) == (1, 2, 1, 2, 600, 100, 0, 200, 6, 4)
         assert struct.unpack_from("<H2xHBBII", user_pack, grade + 0x88 + 0x20) == (900, 0, 4, 2, 0, 1)  # your ranking
         assert struct.unpack_from("<III4xI", user_pack, grade + 0x1098) == (2, 2, 2, 1)  # contest 1: 2nd of 2
+        assert struct.unpack_from("<H2x4H", user_pack, grade + 0x1098 + 0x44) == (3, 0, 0, 3, 0)  # top ten: 3 silver
         assert user_pack[0x110 + 0x12c4:] == bytes(0x12c4)  # no Limit results
         with open(os.path.join(data_dir, "public", "030_GP_WallPapers.arc"), "wb") as f:
             f.write(b"x" * 1234)

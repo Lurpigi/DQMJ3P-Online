@@ -80,12 +80,12 @@ Punti per team = (win + popolarita' + differenza di forza + valutazione) * `Corr
 
 ### 3.4 018_LimitSetting.bin (0x848) [CERTO, verificato in gioco 2026-10-26]
 `+0`: 3 regole `(u32 tipo, u32 valore)` verificate da `FUN_002f7e9c` su ogni mostro della squadra (solo GP dello Sfidante); se una fallisce: "Alcuni mostri nella squadra non rientrano nei criteri di registrazione".
-- 0 = taglia (`FUN_006bfe90`: taglia della specie, o 0..4 dai tratti 0x46..0x4a; valore 0 accetta anche 1)
-- 1 = byte +0x23 della tabella specie (`FUN_00661088`, famiglia [PROBABILE])
-- 4 = classe di rango (`FUN_006bfdec`: rango specie 1..8 alzato dal livello: 25-49 -> 4, 50-99 -> 6, 100 -> 8). In gioco: 4:8 accetta una squadra SS+ al livello massimo.
+- 0 = taglia (`FUN_006bfe90`: tratto 0x46..0x4a se presente -> 0..4, altrimenti `KindParam` +0x30: 0/1 piccola, 2 media, 3 gigante, 4 mega; valore 0 accetta anche 1) [CERTO: la squadra JEJ ha il tratto 0x47 su tutti i mostri e passa 0:0 pur avendo specie di taglia 2]
+- 1 = famiglia, `KindParam` +0x23 (`FUN_00661088`): 1 Slime, 2 Drago, 3 Bestia, 4 Natura, 5 Demone, 6 Non-morto, 7 Materiale, 8, 9 [CERTO tabella, nomi dal randomizer]
+- 4 = classe di rango (`FUN_006bfdec`: rango specie `KindParam` +0x22, 1..8 = F..SS, alzato dal livello: 25-49 -> 4, 50-99 -> 6, 100 -> 8). In gioco: 4:8 accetta una squadra SS+ al livello massimo.
 - 5 = grado massimo della squadra: `FUN_002473c0` sulla forza totale (`FUN_00247444`): 1..8 per <4000, <8000, <12000, <18000, <32000, <46000, <74000, oltre. In gioco: 5:1 rifiuta la squadra SS+.
 - 9 = nessun vincolo; qualsiasi altro tipo rifiuta tutto.
-`+0x18` (R+0x90e8, 0x520 B): testo UTF-16LE con la descrizione regole (`FUN_0044b1b0`). `+0x538` (R+0x9608, 0x310 B): testo UTF-16LE del tema, mostrato entrando nel GP dello Sfidante dopo "Annuncio del titolo dei Challenger GP" [CERTO]. Generatore: `gp_files.py --only 018_LimitSetting.bin --limit-rule TIPO:VALORE ... --limit-text ... --limit-theme ...` (il server legge il file a ogni richiesta; il gioco lo scarica alla connessione).
+`+0x18` (R+0x90e8, 0x520 B): testo UTF-16LE con la descrizione regole, mostrato col tasto Y (説明) nel menu GP (`FUN_0044b1b0`) [CERTO]. Il tema compare entrando nello Sfidante solo se un flag del save e' 0 (`FUN_00572e1c` -> `FUN_006c3b5c`). Server: rotazione per torneo `LIMIT_RULE_SETS` in `sil_server.py` (anche `033_Limit_DLNewsMsg` = tema + regola); `--gp-limit-static` per servire il file statico. `+0x538` (R+0x9608, 0x310 B): testo UTF-16LE del tema, mostrato entrando nel GP dello Sfidante dopo "Annuncio del titolo dei Challenger GP" [CERTO]. Generatore: `gp_files.py --only 018_LimitSetting.bin --limit-rule TIPO:VALORE ... --limit-text ... --limit-theme ...` (il server legge il file a ogni richiesta; il gioco lo scarica alla connessione).
 
 ### 3.5 032/033_*_DLNewsMsg.bin (0x600) [CERTO]
 Testo UTF-16LE mostrato nel menu del GP: Notizie -> "ULTIME INFORMAZIONI" (verificato in gioco con la frase di `gp_files.py`).
@@ -131,7 +131,8 @@ Mostro (0xf0, formato save): `+0x1c s16 specie` (valida se `MonsterParam[specie]
 Header 0x110 + 2 blocchi modo da 0x12c4 (Grade a +0x110, Limit a +0x13d4): 
 - `+0xb9` u8: "utente registrato sul server" (`R+0xed`) [CERTO]
 - `+0xc4..0xe0` e `+0xf8/+0x114` (0x1c per modo): dati scritti nel save (`FUN_002f7714`: u32 a +0, u16 a +0x18) [INCERTO]
-- `+0xfc` u16: tipo Special Present, vedi 2.3; `+0xfe` u16 id oggetto (tipo 1) [PROBABILE]
+- `+0xfc` u16: tipo Special Present (`FUN_003cb4b0`, `FUN_003cae8c`): 1 = oggetto, id u16 a +0xfe (chiave `I%04d` di `ItemMessage.mes`) [CERTO, in gioco: "SQEX ti ha inviato un regalo speciale! Grande Sfera di Luce"]; 2 = mostro (specie +0xfe, 6 u16 a +0x102..+0x10c); 3 = schermata premio con 4 u16 a +0x100..+0x106. Consegnato una volta per torneo: flag nel save (`FUN_0036a848`, save+0x48) azzerato quando Held N supera il torneo salvato (`FUN_003caaa8`).
+- blocco precedente (+0x1098 del blocco modo) `+0x44` u16 = 3 => a fine torneo "Hai guadagnato alcune Monete di Rete!" + Monete: `+0x48` platino, `+0x4a` oro, `+0x4c` argento, `+0x4e` bronzo (`FUN_005cb39c`, `FUN_005cb0ac`, `FUN_002f84d0`, `FUN_0065baa0`) [CERTO, in gioco: "×3 Monete d'Oro"]; altrimenti "non ci sono premi per aver raggiunto questo rango".
 - blocco modo (`FUN_0041fe24`) [CERTO, verificato in gioco]: `+0` u32 rango (0 = non in classifica), `+4` u32 giocatori in classifica [PROBABILE], `+8` u32 posizione, `+0x10` u32 numero torneo, `+0x14` punti vittoria, `+0x18` popolarita', `+0x1c` forza, `+0x20` valutazione (cumulativi fino a ieri; schermata risultati `FUN_005b4a2c`: vittoria / valutazione / popolarita'+forza / totale), `+0x24` u32 round giocati, `+0x28` u32 round vinti; `+0x3c/+0x40` u32 scelte avversario evidenziate (0 = nessuna); `+0x44` ignoto (`FUN_006cd6fc`); `+0x88` 10 voci di classifica (0x44) intorno all'utente per "La tua classifica" (`FUN_002f6b80`; prima u32 != 0 = presente); `+0x1098` stessa struttura di +0 per il torneo precedente (`+0` rango <=10 => "sei nella top ten", `+0x10` numero torneo; `FUN_005cb284`, `FUN_005b4a2c`). Se file assente: tutto zero = "nessun dato" (valido per nuovi utenti).
 `PrivateSCRegister.bin` (4) [INCERTO]; `28W_Grade_Other_Countries` (0x938 = 2 team) e `171_Grade_Other_Countries` (0xdd4 = 3 team) stessi team-block, fusi nel save da `FUN_002f7a6c` (non necessari).
 
