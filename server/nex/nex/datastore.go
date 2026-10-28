@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -62,27 +61,30 @@ func initDataStoreTables() {
 }
 
 // * The file part of a multipart upload: the part named "file" or with a file name, else the
-// * last part (the form fields come first).
+// * last part (the form fields come first). Split by hand: the multipart body Azahar sends for
+// * the game is not accepted by mime/multipart ("bufio: buffer full").
 func multipartFile(contentType string, body []byte) ([]byte, error) {
 	_, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return nil, err
 	}
-	reader := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+	delimiter := []byte("--" + params["boundary"])
+	// * Azahar sends the first 32 KiB chunk of a chunked upload last: the body starts with the
+	// * middle of the file and the opening delimiter comes later. Rotate it back into order.
+	if open := bytes.Index(body, append(delimiter, '\r', '\n')); open > 0 &&
+		len(bytes.TrimSpace(body[:open])) > 0 {
+		body = append(append([]byte{}, body[open:]...), body[:open]...)
+	}
 	var last []byte
-	for {
-		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
+	for _, part := range bytes.Split(body, delimiter) {
+		// * Each part: CRLF, headers, blank line, data, CRLF. The closing delimiter leaves "--".
+		head, data, found := bytes.Cut(part, []byte("\r\n\r\n"))
+		if !found {
+			continue
 		}
-		if err != nil {
-			return nil, err
-		}
-		data, err := io.ReadAll(part)
-		if err != nil {
-			return nil, err
-		}
-		if part.FileName() != "" || part.FormName() == "file" {
+		data = bytes.TrimSuffix(data, []byte("\r\n"))
+		headers := strings.ToLower(string(head))
+		if strings.Contains(headers, "filename=") || strings.Contains(headers, `name="file"`) {
 			return data, nil
 		}
 		last = data
@@ -119,8 +121,10 @@ func serveDataStoreHTTP(listen string) {
 
 		data, err := io.ReadAll(io.LimitReader(r.Body, 16<<20))
 		if err == nil {
-			// * Raw request kept for reverse engineering the replay format.
-			_ = os.WriteFile(dataStoreUploadFile(dataID, uint32(version))+".raw", data, 0o644)
+			// * Raw request kept for reverse engineering the replay format (one file per attempt:
+			// * the client retries with an empty body).
+			raw := fmt.Sprintf("%s.%d.raw", dataStoreUploadFile(dataID, uint32(version)), time.Now().UnixNano())
+			_ = os.WriteFile(raw, data, 0o644)
 		}
 		if err == nil && strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 			data, err = multipartFile(r.Header.Get("Content-Type"), data)
@@ -157,7 +161,7 @@ func serveDataStoreHTTP(listen string) {
 type dataStoreObject struct {
 	dataID, owner, size, flag, referDataID uint64
 	name                                   string
-	dataType, permission, delPermission     uint16
+	dataType, permission, delPermission    uint16
 	period, version                        uint32
 	metaBinary                             []byte
 	tags                                   []string
