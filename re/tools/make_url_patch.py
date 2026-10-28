@@ -78,10 +78,12 @@ SKIP_NASC = [
     # (state 10) whatever the task result is.
     (0x288044, bytes.fromhex("800094e5"), bytes.fromhex("2b0000ea")),  # state 7: b 0x3880f8
     (0x2880AC, bytes.fromhex("840094e5"), bytes.fromhex("110000ea")),  # state 8: b 0x3880f8
-    # After screen 0x5e the gift disc menu (FUN_00439e58) and the coin shop (FUN_002ca3b8) only go
-    # on to the download if FUN_00445fb8 (NEX connected) says so: force it at those two calls.
+    # After screen 0x5e the gift disc menu (FUN_00439e58), the coin shop (FUN_002ca3b8) and the
+    # present code menu (FUN_00322d70, SIL login in state 8 first) only go on if FUN_00445fb8 (NEX
+    # connected) says so: force it at those calls.
     (0x339EC4, bytes.fromhex("3b3000eb"), bytes.fromhex("0100a0e3")),  # gift: bl -> mov r0,#1
     (0x1CA434, bytes.fromhex("dfee05eb"), bytes.fromhex("0100a0e3")),  # coin shop: bl -> mov r0,#1
+    (0x222DE4, bytes.fromhex("738c04eb"), bytes.fromhex("0100a0e3")),  # present code: bl -> mov r0,#1
 ]
 
 

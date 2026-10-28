@@ -85,7 +85,8 @@ In questo modo i giocatori non devono installare niente oltre a Nimbus e alla pa
 - **SpotPass: dischi regalo e negozio monete** (verificati in gioco 2026-10-28): Azahar usa il modulo `boss` vero (moduli online LLE), che scarica dal nostro `server/spotpass/serve_spotpass.py` (porta 8380, file originali) grazie a `--spotpass-url`. "Hai ricevuto il Disco Conclavio sacro!" e "Inventario aggiornato." con lo stock originale. Serve la connessione AC del gioco: `--skip-nasc` ora fa passare la schermata di connessione della piazza (0x5e) anche se il login NEX fallisce e forza "NEX connesso" solo in regali e negozio (dettagli in `re/notes/spotpass_boss.md` 6). Server: `python -I -u server/spotpass/serve_spotpass.py re/data/spotpass_archive/canonical 8380 0.0.0.0`.
   - Gli URL della patch usano `127.0.0.1`: l'IP del PC in LAN cambia (.189 -> .190). Per una console reale usare l'IP del PC.
   - Guida di Azahar delegabile a Codex: `re/tools/azahar/codex_drive.ps1 "obiettivo" -Sandbox danger-full-access` (gpt-6-luna xhigh, resoconto testuale).
-- **Prossimo passo:** freccia su/giu' da vedere in gioco; rigenerare `147/148_*_Def_DLBattle` con `gp_files.py` (ordine entry corretto: 0 = difficile); codici presente (serve la tastiera software); eventi SpotPass sul campo (BREAK01-03); funzioni NEX (lotte Wi-Fi, G-Cup, comunita').
+- **Codici presente** (verificati in gioco 2026-10-28): codice `SLIME` -> "Hai ricevuto il disco Disco Slime dorato!". I codici stanno nella tabella `present_codes` di `server/data/sil.sqlite3` (`code`, `package_id`, `single_use`), i pacchetti sono `data/public/PresentCodePackageS%02u.bin` (`gp_files.make_present_package`). La tastiera del gioco ha solo lettere: codici senza cifre.
+- **Prossimo passo:** freccia su/giu' da vedere in gioco; rigenerare `147/148_*_Def_DLBattle` con `gp_files.py` (ordine entry corretto: 0 = difficile); eventi SpotPass sul campo (BREAK01-03); funzioni NEX (lotte Wi-Fi, G-Cup, comunita').
 
 ## 4. Da fare
 
@@ -106,7 +107,7 @@ In questo modo i giocatori non devono installare niente oltre a Nimbus e alla pa
 ### Fase C – Grand Prix (Ranking Battle) via SIL
 - [ ] Decodificare i formati dei circa 30 file (`001_Server_Status.bin`, tabelle punti, `*_Ranking_Pack.bin`, `*_Def_DLBattle.bin`…). Gli originali sono persi.
 - [ ] Logica server: ricezione risultati (`GradeResultPack.bin` / `LimitResultPack.bin`), calcolo classifiche, calendario contest.
-- [ ] Codici regalo: formato dei pacchetti `PresentCodePackageS%02u.bin` (probabilmente uguale ai pacchetti locali `PresentCodePackageR###.bin`).
+- [x] Codici regalo: pacchetti `PresentCodePackageS%02u.bin` (formato BPCP dei pacchetti locali), verificati in gioco.
 
 ### Fase D – Distribuzione
 - [ ] Guida utente 3DS e Azahar, con patch generata per la versione tradotta.
