@@ -86,7 +86,8 @@ In questo modo i giocatori non devono installare niente oltre a Nimbus e alla pa
   - Gli URL della patch usano `127.0.0.1`: l'IP del PC in LAN cambia (.189 -> .190). Per una console reale usare l'IP del PC.
   - Guida di Azahar delegabile a Codex: `re/tools/azahar/codex_drive.ps1 "obiettivo" -Sandbox danger-full-access` (gpt-6-luna xhigh, resoconto testuale).
 - **Codici presente** (verificati in gioco 2026-10-28): codice `SLIME` -> "Hai ricevuto il disco Disco Slime dorato!". I codici stanno nella tabella `present_codes` di `server/data/sil.sqlite3` (`code`, `package_id`, `single_use`), i pacchetti sono `data/public/PresentCodePackageS%02u.bin` (`gp_files.make_present_package`). La tastiera del gioco ha solo lettere: codici senza cifre.
-- **Prossimo passo:** freccia su/giu' da vedere in gioco; rigenerare `147/148_*_Def_DLBattle` con `gp_files.py` (ordine entry corretto: 0 = difficile); eventi SpotPass sul campo (BREAK01-03); funzioni NEX (lotte Wi-Fi, G-Cup, comunita').
+- **Ritocchi GP** (2026-10-28): frecce su/giu' verificate in gioco con una copia di prova dei dati (`server/data_test`, ignorata da git) e due giocatori finti: al giorno 3 "Slimerex 1 su, JEJ 2 su, Draghetto 3 giu'". `147/148_*_Def_DLBattle` rigenerati nell'ordine difficile/simile/facile (`gp_files.py server/data/public --only ...`).
+- **Prossimo passo:** eventi SpotPass sul campo (BREAK01-03); funzioni NEX (lotte Wi-Fi, G-Cup, comunita').
 
 ## 4. Da fare
 

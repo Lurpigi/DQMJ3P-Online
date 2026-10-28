@@ -11,5 +11,6 @@ re/data/
 # Dati runtime dei server
 server/sil/data/
 server/data/
+server/data_test/
 server/nex/build/
 server/nex/.env

@@ -95,7 +95,7 @@ Per modo (stride 0x19998). Blocco k a `pack + k*0x808`: `k=0` classifica general
 - +0x00..0x1f: id [INCERTO]; il server mette +0 u32 = rango (non zero), +8 u32 = posizione (1..n, usata per evidenziare la riga dell'utente in "La tua classifica": indice = UserPack.mode+8 - voce0+8), +0x10 friend code SIL
 - +0x20 u16 punti (cumulativi del torneo; `FUN_005a4548` li confronta con i punti dell'utente per stimare il rango di domani)
 - +0x24 u16 localita' `loc_NNN` (bandiera), +0x26 u8 vittorie, +0x27 u8 sconfitte (colonna V/S)
-- +0x28 u32 rango precedente, +0x2c u32 rango: freccia su/giu' (`FUN_005b85a0`: prev 0 = nessuna, prev > rango = su), rango mostrato
+- +0x28 u32 rango precedente, +0x2c u32 rango: freccia su/giu' (`FUN_005b85a0`: prev 0 = nessuna, prev > rango = su) [CERTO, verificato in gioco 2026-10-28 con dati di prova: 3 giocatori, giorno 3 del torneo], rango mostrato
 - +0x30 nome UTF-16LE (0x14 B = 10 caratteri)
 
 **Calendario** (`003_Held_Record`): un torneo = 7 giorni (`Held+0` indice del giorno 0..6), N = numero del torneo, data = giorno corrente. `Held+8` = 0 il primo giorno (nessuna classifica: il gioco controlla solo N>=2 e il blocco 1 e dice "nuova competizione iniziata oggi"), 1 dagli altri giorni (serve il blocco 0: "le classifiche di oggi sono disponibili"). L'iscrizione vale per la data: se il giorno cambia prima del caricamento dei risultati il gioco dice "Verrai rimosso dal Torneo" e non carica. [CERTO, Azahar]
