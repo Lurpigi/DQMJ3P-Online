@@ -4,15 +4,18 @@ Fake 3DS clients (NintendoClients, 3DS settings, NEX 3.10.1, access key 5812c478
 game's two battle flows:
   friend battle: A CreateMatchmakeSession (gameMode 5, attribs[0]=host id), B Browse + JoinMatchmakeSessionEx
   random battle: A and B AutoMatchmakeWithSearchCriteria_Postpone (gameMode 2, two criteria) -> same gathering
-then GetSessionURLs, which Pia needs to connect the peers.
+then GetSessionURLs, which Pia needs to connect the peers. Then communities (create, join with
+password, update) and G-Cup replays (DataStore post + HTTP upload, search, get + HTTP download,
+update, delete).
 
 usage: python smoke_nex.py [host] [auth_port] [dev_password]
 """
 import random
 import sys
+import urllib.request
 
 import anyio
-from nintendo.nex import backend, common, matchmaking, secure, settings
+from nintendo.nex import backend, common, datastore, matchmaking, secure, settings
 
 HOST = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 45000
@@ -212,11 +215,93 @@ async def communities():
         tg.start_soon(logged_in, member_pid, member)
 
 
+async def replays():
+    """G-Cup replay flow: PreparePostObject + HTTP POST + CompletePostObject, then another player
+    SearchObject (by owner) + PrepareGetObject + HTTP GET, then PrepareUpdateObject + DeleteObject."""
+    owner_pid = random.randint(100000, 900000)
+    replay = bytes(random.getrandbits(8) for _ in range(300))
+    found = {}
+
+    def http(method, url, body=b"", content_type="application/octet-stream"):
+        request = urllib.request.Request(url, data=body if method == "POST" else None, method=method,
+                                         headers={"Content-Type": content_type})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.read()
+
+    def multipart(fields, data):
+        boundary = "dqmj3pboundary"
+        out = b""
+        for key, value in fields:
+            out += f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode()
+        out += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="file"\r\n'
+                f"Content-Type: application/octet-stream\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+        return out, f"multipart/form-data; boundary={boundary}"
+
+    async def owner(client):
+        store = datastore.DataStoreClient(client)
+        param = datastore.DataStorePreparePostParam()
+        param.size = len(replay)
+        param.name = "replay"
+        param.data_type = 7
+        param.meta_binary = b"meta"
+        param.flag = 0
+        param.period = 90
+        param.extra_data = []
+        param.persistence_init_param.persistence_id = 0
+        info = await store.prepare_post_object(param)
+        body, content_type = multipart([(f.key, f.value) for f in info.form], replay)
+        await anyio.to_thread.run_sync(http, "POST", info.url, body, content_type)
+        complete = datastore.DataStoreCompletePostParam()
+        complete.data_id = info.data_id
+        complete.success = True
+        await store.complete_post_object(complete)
+        found["data_id"] = info.data_id
+        print(f"[replay] {owner_pid} posted object {info.data_id} ({len(replay)} B)")
+
+    async def viewer(client):
+        store = datastore.DataStoreClient(client)
+        search = datastore.DataStoreSearchParam()
+        search.search_target = 1
+        search.owner_ids = [owner_pid]
+        search.data_type = 7
+        search.result_range.size = 10
+        search.result_option = 4
+        result = await store.search_object(search)
+        assert [m.data_id for m in result.result] == [found["data_id"]], result.result
+        assert result.result[0].meta_binary == b"meta"
+        get = datastore.DataStorePrepareGetParam()
+        get.data_id = found["data_id"]
+        info = await store.prepare_get_object(get)
+        data = await anyio.to_thread.run_sync(http, "GET", info.url)
+        assert data == replay and info.size == len(replay)
+        print(f"[replay] viewer downloaded object {found['data_id']} from {info.url}")
+
+    async def cleanup(client):
+        store = datastore.DataStoreClient(client)
+        update = datastore.DataStorePrepareUpdateParam()
+        update.data_id = found["data_id"]
+        update.size = len(replay)
+        update.update_password = 0
+        update.extra_data = []
+        info = await store.prepare_update_object(update)
+        assert info.version == 1
+        delete = datastore.DataStoreDeleteParam()
+        delete.data_id = found["data_id"]
+        delete.update_password = 0
+        await store.delete_object(delete)
+        print("[replay] update prepared (version 1), object deleted")
+
+    await logged_in(owner_pid, owner)
+    await logged_in(owner_pid + 1, viewer)
+    await logged_in(owner_pid, cleanup)
+
+
 async def main():
     with anyio.fail_after(60):
         await friend_battle()
         await random_battle()
         await communities()
+        await replays()
     print("SMOKE TEST OK")
 
 

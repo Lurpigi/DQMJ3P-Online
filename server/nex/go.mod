@@ -6,15 +6,15 @@ require (
 	github.com/PretendoNetwork/grpc/go v0.0.0-20260501210425-981c793afb28
 	github.com/PretendoNetwork/nex-go/v2 v2.3.1
 	github.com/PretendoNetwork/nex-protocols-common-go/v2 v2.6.0
-	github.com/PretendoNetwork/nex-protocols-go/v2 v2.3.5
+	github.com/PretendoNetwork/nex-protocols-go/v2 v2.3.7
 	github.com/PretendoNetwork/plogger-go v1.1.0
+	github.com/PretendoNetwork/pq-extended v1.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
 	google.golang.org/grpc v1.82.1
 )
 
 require (
-	github.com/PretendoNetwork/pq-extended v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect

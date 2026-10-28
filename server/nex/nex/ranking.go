@@ -274,22 +274,12 @@ func getRankingStats(err error, packet nex.PacketInterface, callID uint32, categ
 	return response, nil
 }
 
-// * nex-protocols-go v2.3.5: ranking.Interface declares SetHandlerGetStats with a types.UInt32 flags
-// * argument but *ranking.Protocol takes constants.StatsFlag, so the protocol does not satisfy the
-// * interface the common protocol wants. GetStats is registered on the protocol directly instead.
-type rankingProtocolAdapter struct {
-	*ranking.Protocol
-}
-
-func (rankingProtocolAdapter) SetHandlerGetStats(func(error, nex.PacketInterface, uint32, types.UInt32, ranking_types.RankingOrderParam, types.UInt32) (*nex.RMCMessage, *nex.Error)) {
-}
-
 func registerRankingProtocol() {
 	initRankingTables()
 
 	rankingProtocol := ranking.NewProtocol()
 	globals.SecureEndpoint.RegisterServiceProtocol(rankingProtocol)
-	commonRankingProtocol := commonranking.NewCommonProtocol(rankingProtocolAdapter{rankingProtocol})
+	commonRankingProtocol := commonranking.NewCommonProtocol(rankingProtocol)
 	commonRankingProtocol.InsertRankingByPIDAndRankingScoreData = insertRankingScore
 	commonRankingProtocol.UploadCommonData = uploadRankingCommonData
 	commonRankingProtocol.GetRankingsAndCountByCategoryAndRankingOrderParam = rankingRange
