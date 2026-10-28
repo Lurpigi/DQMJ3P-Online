@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"dqmj3p-online/nex/globals"
+	"github.com/PretendoNetwork/nex-go/v2"
 	"github.com/PretendoNetwork/nex-go/v2/constants"
 	"github.com/PretendoNetwork/nex-go/v2/types"
 	commonticketgranting "github.com/PretendoNetwork/nex-protocols-common-go/v2/ticket-granting"
@@ -21,6 +22,12 @@ func registerCommonAuthenticationServerProtocols() {
 	// * (NintendoClients) need the plain Login method, so allow it in DEV mode only
 	if globals.DevPassword != "" {
 		commonTicketGrantingProtocol.EnableInsecureLogin()
+
+		// * A game patched to skip NASC (make_url_patch.py --nex-auth) sends a dummy token
+		// * and logs in with the DEV password, so accept any LoginEx token too
+		commonTicketGrantingProtocol.ValidateLoginData = func(pid types.PID, loginData types.DataHolder) *nex.Error {
+			return nil
+		}
 	}
 
 	port, _ := strconv.Atoi(os.Getenv("PN_DQMJ3P_SECURE_SERVER_PORT"))

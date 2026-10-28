@@ -15,7 +15,6 @@ import (
 	matchmakingext "github.com/PretendoNetwork/nex-protocols-go/v2/match-making-ext"
 	matchmakeextension "github.com/PretendoNetwork/nex-protocols-go/v2/matchmake-extension"
 	nattraversal "github.com/PretendoNetwork/nex-protocols-go/v2/nat-traversal"
-	ranking "github.com/PretendoNetwork/nex-protocols-go/v2/ranking"
 	secure "github.com/PretendoNetwork/nex-protocols-go/v2/secure-connection"
 	utility "github.com/PretendoNetwork/nex-protocols-go/v2/utility"
 )
@@ -56,9 +55,9 @@ func registerCommonSecureServerProtocols() {
 	globals.SecureEndpoint.RegisterServiceProtocol(utilityProtocol)
 	commonutility.NewCommonProtocol(utilityProtocol)
 
-	// * DataStore (Ranking Race replays) and Ranking (Ranking Race leaderboards) are registered
-	// * without handlers for now: unimplemented methods answer NotImplemented and show up in
-	// * the RMC log. (The Grand Prix / Ranking Battle runs on the SIL server, not here.)
+	// * DataStore (Ranking Race replays) is registered without handlers for now: unimplemented
+	// * methods answer NotImplemented and show up in the RMC log. Ranking (G-Cup leaderboards) is
+	// * in ranking.go. (The Grand Prix / Ranking Battle runs on the SIL server, not here.)
 	globals.SecureEndpoint.RegisterServiceProtocol(datastore.NewProtocol())
-	globals.SecureEndpoint.RegisterServiceProtocol(ranking.NewProtocol())
+	registerRankingProtocol()
 }

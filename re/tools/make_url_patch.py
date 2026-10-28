@@ -6,7 +6,8 @@ existing patch (e.g. the Italian fan translation) with the URL replacements.
 usage (python -I):
   make_url_patch.py --code code.bin --sil-url http://example.org/00300701/ \
       [--infra-url http://example.org/infra/] [--spotpass-url http://example.org:8380/p01/nsa/H7btVjYWs7p5dGj6] \
-      [--skip-nasc] [--skip-frd] [--azahar] [--azahar-hle-boss] [--merge other/code.ips] -o code.ips
+      [--nex-auth 127.0.0.1:45000 --nex-password PW] [--skip-nasc] [--skip-frd] [--azahar] [--azahar-hle-boss]
+      [--merge other/code.ips] -o code.ips
 
 Install: SD:/luma/titles/00040000001ACB00/code.ips  (3DS, "Enable game patching" on)
          <Azahar user dir>/load/mods/00040000001ACB00/exefs/code.ips
@@ -60,6 +61,20 @@ AZAHAR_FIXES = [
 AZAHAR_HLE_BOSS = [
     (0x58212C, bytes.fromhex("000051e30900a003"), bytes.fromhex("0600a0e31eff2fe1")),  # boss_vfn_68212c: mov r0,#6; bx lr
 ]
+# --nex-auth HOST:PORT + --nex-password PW: real NEX login on our server (server/nex in DEV mode)
+# without NASC. The login job asks frd for the NASC game authentication (FUN_00456f50), waits for
+# frd's event (FUN_0045724c), then FUN_00456ab4 reads the result with FUN_0052d088 (+0 result 1,
+# +4 HTTP 200, +8 char host[32], +0x28 u16 port, +0x30 char token[256]) and the NEX password with
+# FUN_0052c674 (32 bytes) before connecting to the authentication server. Skip the frd request and
+# wait, and replace both getters: fixed locator, dummy token (DEV server accepts any) and password.
+NEX_LOGIN_SKIP_FRD = [
+    (0x356F90, bytes.fromhex("8c5803eb"), bytes.fromhex("0000a0e3")),  # bl frd game auth -> mov r0,#0
+    (0x3572A4, bytes.fromhex("240000ef"), bytes.fromhex("0000a0e3")),  # svc WaitSynchronization -> mov r0,#0
+    (0x3572C0, bytes.fromhex("fe5603eb"), bytes.fromhex("0000a0e3")),  # bl frd last result -> mov r0,#0
+]
+NEX_LOGIN_JOB_START = 0x56C4EC  # NexLoginJob_Start, faked by --skip-nasc unless --nex-auth
+NEX_AUTH_DATA = 0x42D088  # FUN_0052d088 body (0x74 bytes)
+NEX_PASSWORD = 0x42C674   # FUN_0052c674 body (0x78 bytes)
 SKIP_NASC = [
     (0x56CB48, bytes.fromhex("7afcff0b"), ARM_NOP),  # case 0: bleq 0x66bd38 (queue NEX login)
     (0x56CB90, bytes.fromhex("ba00000a"), ARM_NOP),  # case 1: beq (wait for NEX logged-in flag 0x10)
@@ -67,7 +82,7 @@ SKIP_NASC = [
     # The Wi-Fi plaza connection (also from the rankings desk) logs in to NEX through other paths
     # (Azahar: 002-0110). NexLoginJob_Start (0x66c4ec) -> "mov r0,#0; bx lr": report success without
     # NASC. NEX features (battles, communities) stay unusable, SIL does not need them.
-    (0x56C4EC, bytes.fromhex("f0402de90040a0e1"), bytes.fromhex("0000a0e31eff2fe1")),
+    (NEX_LOGIN_JOB_START, bytes.fromhex("f0402de90040a0e1"), bytes.fromhex("0000a0e31eff2fe1")),
     # Ranking Battle connect screen (FUN_003ca8cc): after connecting it requires a live NEX session
     # (FUN_00445fb8 -> NgsFacade state 0x10001), else closes the menu silently. Skip that check.
     (0x2CA944, bytes.fromhex("1900000a"), ARM_NOP),  # beq 0x3ca9b0
@@ -135,6 +150,40 @@ def code_record(code, site):
     return off, new
 
 
+def arm(*words):
+    return b"".join(struct.pack("<I", w) for w in words)
+
+
+def nex_login_records(code, auth, password):
+    """FUN_0052d088 -> fixed NASC result, FUN_0052c674 -> fixed NEX password (see NEX_LOGIN_SKIP_FRD)."""
+    host, _, port = auth.rpartition(":")
+    if not host or not port.isdigit() or not 0 < int(port) < 0x10000:
+        sys.exit(f"--nex-auth {auth!r}: expected HOST:PORT")
+    if len(host.encode()) > 15 or len(password.encode()) > 15:
+        sys.exit("--nex-auth host and --nex-password must be at most 15 bytes")
+    prologue = bytes.fromhex("70402de90050a0e1")  # push {r4,r5,r6,lr}; mov r5,r0
+    for off in (NEX_AUTH_DATA, NEX_PASSWORD):
+        if code[off:off + len(prologue)] != prologue:
+            sys.exit(f"code.bin does not contain the expected function at {off:#x}: wrong version (needs v1.3)")
+    auth_data = arm(
+        0xE3A01001, 0xE5801000,  # mov r1,#1; str r1,[r0]          result = success
+        0xE3A010C8, 0xE5801004,  # mov r1,#200; str r1,[r0,#4]     HTTP status
+        0xE28F1028, 0xE891100E,  # adr r1,host; ldm r1,{r1-r3,r12}
+        0xE5801008, 0xE580200C, 0xE5803010, 0xE580C014,  # host -> +8
+        0xE59F1020, 0xE1C012B8,  # ldr r1,port; strh r1,[r0,#0x28]
+        0xE3A01074, 0xE5801030,  # token "t" -> +0x30
+        0xE3A00000, 0xE12FFF1E,  # return 0
+    ) + host.encode().ljust(16, b"\0") + struct.pack("<I", int(port))
+    password_data = arm(
+        0xE3A01000, 0xE5801010, 0xE5801014, 0xE5801018, 0xE580101C,  # clear bytes 16..31
+        0xE28F100C, 0xE891100E, 0xE880100E,  # adr r1,pw; ldm r1,{r1-r3,r12}; stm r0,{r1-r3,r12}
+        0xE3A00000, 0xE12FFF1E,  # return 0
+    ) + password.encode().ljust(16, b"\0")
+    assert len(auth_data) <= 0x74 and len(password_data) <= 0x78
+    return [code_record(code, site) for site in NEX_LOGIN_SKIP_FRD] + [
+        (NEX_AUTH_DATA, auth_data), (NEX_PASSWORD, password_data)]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--code", required=True, help="decompressed code.bin v1.3")
@@ -147,6 +196,9 @@ def main():
     ap.add_argument("--skip-nasc", action="store_true",
                     help="skip NEX login + NASC service token before SIL (test builds, game not on Pretendo)")
     ap.add_argument("--skip-frd", action="store_true", help="also fake the friends-server login (debugging only)")
+    ap.add_argument("--nex-auth", metavar="HOST:PORT",
+                    help="real NEX login on this authentication server without NASC (server/nex DEV mode)")
+    ap.add_argument("--nex-password", help="NEX password for --nex-auth (= PN_DQMJ3P_DEV_PASSWORD)")
     ap.add_argument("--azahar", action="store_true",
                     help="work around Azahar http:C bugs (empty POST, header size probe)")
     ap.add_argument("--merge", action="append", default=[], help="existing code.ips to include")
@@ -161,16 +213,22 @@ def main():
         ours.append(slot_record(code, SPOTPASS_URL, args.spotpass_url))
     if args.azahar_hle_boss:
         ours += [code_record(code, site) for site in AZAHAR_HLE_BOSS]
+    if bool(args.nex_auth) != bool(args.nex_password):
+        ap.error("--nex-auth and --nex-password go together")
+    if args.nex_auth:
+        ours += nex_login_records(code, args.nex_auth, args.nex_password)
     if args.skip_nasc:
-        ours += [code_record(code, site) for site in SKIP_NASC]
+        # with a real NEX login, NexLoginJob_Start must not be faked
+        ours += [code_record(code, site) for site in SKIP_NASC
+                 if not (args.nex_auth and site[0] == NEX_LOGIN_JOB_START)]
     if args.skip_frd:
         ours += [code_record(code, site) for site in SKIP_FRD]
     if args.azahar:
         ours += [code_record(code, site) for site in AZAHAR_FIXES]
 
     # records this tool wrote into a previously merged patch are replaced, not kept
-    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0]} | {
-        off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS}
+    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD} | {
+        off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD}
     merged = []
     for path in args.merge:
         for off, payload in read_ips(open(path, "rb").read()):

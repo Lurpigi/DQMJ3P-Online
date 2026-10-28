@@ -33,6 +33,8 @@ Non usati dal gioco (stub assenti o collegati solo per vtable): MatchMaking `Reg
 
 - `NexLoginJob_Start`: game server id **0x1ACB00**, access key `L"5812c478"`, timeout 60000 ms. Il successo e controllato come QResult `0x10001`; codici di errore gestiti dal gioco: `0x8001000a`, `0x8001000b`, `0x80010004`, `0x80010002`, `0x80650000`, `0x80650002`, `0x80650009` (i 0x8065xxxx sono errori generati localmente da `LoginAsync_impl` quando FRD/NASC non e inizializzato o il PID non corrisponde) [V].
 - `LoginAsync_impl` ottiene prima ticket/server da NASC (`frd_RequestServiceLocator` 0x52d868, `frd_RequestGameAuthentication` 0x52d97c): servono NASC (`nncs1/2.app.nintendowifi.net`, `n.app.nintendowifi.net`) e l'auth server NEX. Il gioco confronta il PID FRD con quello atteso (`0x80650009`) [V].
+- Job di login (vtable `0x855c84`, passi `FUN_00479c98`): `FUN_00456f50` chiede a frd l'autenticazione NASC (`FUN_0052d1c8` -> `frd_RequestGameAuthentication`), `FUN_0045724c` attende l'evento frd (svc 0x24) e il risultato (`FUN_0052cec0`), `FUN_00456ab4` legge `FUN_0052d088` (+0 risultato 1, +4 HTTP 200, +8 host char[32], +0x28 u16 porta, +0x30 token char[256]) e la password NEX `FUN_0052c674` (0x20 B) e si connette all'auth server (`FUN_00454f9c`) [V].
+- **Login senza NASC verificato in Azahar (2026-10-28)**: `make_url_patch.py --nex-auth 127.0.0.1:45000 --nex-password <PN_DQMJ3P_DEV_PASSWORD>` salta la richiesta/attesa frd e riscrive i due getter (host/porta fissi, token "t", password dev); `server/nex` in DEV mode accetta qualunque token di `LoginEx`. Log: Auth `LoginEx` (10/2, username = PID frd) -> `RequestTicket` (10/3) -> Secure `Register` (11/1) con PID 1446573338 e URL `prudp:/port=...;natf=0;natm=0;pmp=0;sid=15;...`. Il PID resta quello dell'account Pretendo (controllo `0x80650009`).
 - Metodi esatti di TicketGranting/SecureConnection non individuati (le chiamate non passano da `FUN_0046e0a4`). Implementare lo stack standard Pretendo: `Login`, `LoginEx`, `RequestTicket`, `GetPID`, SecureConnection `Register`, `RegisterEx`, `UpdateURLs`, `ReplaceURL`, `TestConnectivity` [?].
 
 ## 3. Matchmaking (priorita 1)
@@ -90,6 +92,12 @@ Mappa comandi -> NEX:
 | GatheringFindOfficial | 0x1c | FindOfficialCommunity (109:21) | bool (`+0x548`), ResultRange (`+0x54c`) |
 | GatheringFindByParticipant | 0x1d | FindCommunityByParticipant (109:22) | pid (`+0x560`), ResultRange (`+0x564`) |
 - Le community **ufficiali** (FindCommunity_FindOfficial, "osusume") vanno **pre-seminate** lato server come PersistentGathering ufficiali con application buffer di 432 byte nel formato regole del gioco (formato non ancora decodificato) [?].
+
+### 3.9 Wi-Fi Ranking G-Cup ("Great Riders Cup", Ranking Race) [V, verificato in Azahar 2026-10-28]
+- Banco Classifiche Wi-Fi -> "Classifiche Wi-Fi G-Cup". Prima volta: `FindCommunityByParticipant`(22) + `FindOfficialCommunity`(21, isAvailableOnly, range 0..20); la scena (`0x3ead74`) prende la comunita' ufficiale con `attribs[0] == 0` e `attribs[1] == FUN_00296340()` (settimane dal 2015-01-05 modulo 12, ora del server NEX), poi `JoinCommunity`(19). Con lista vuota resta per sempre su "Attendi..." (nessun errore). Volte successive: `FindCommunityByGatheringId`(20) con l'id salvato.
+- Server: 12 comunita' ufficiali (`community_type` 2, attribs `{0,k,0,0,0,0}`, buffer 0x1b0 a zero) da `server/nex/sql/gcup_official_communities.sql`. Nome del torneo, percorso e difficolta' ("Campo Prati Silenziosi, Sfida Debole") vengono dai dati locali in base alla settimana, non dal buffer.
+- Poi `Ranking::GetRanking`(9) categoria 29 (modo 0 = range, orderCalc 1, groupIndex 0xff, 0..100) due volte; `Ranking::NotFound` con classifica vuota e' gestito dal gioco (senza Ranking: 006-0103). Ranking implementato in `server/nex/nex/ranking.go` (Postgres `ranking.scores` / `ranking.common_data`).
+- Registrazione: nome squadra con la tastiera del gioco, poi menu "Corri Forte! Great Riders Cup" (Partecipa alla Corsa / Modifica Profilo). Corsa, upload punteggio (`UploadScore`, `UploadCommonData`) e replay (DataStore) ancora da provare.
 
 ## 4. DataStore (115)
 
