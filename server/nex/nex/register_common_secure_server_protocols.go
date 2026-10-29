@@ -49,6 +49,7 @@ func registerCommonSecureServerProtocols() {
 	// * Community methods missing from nex-protocols-common-go
 	matchmakeExtensionProtocol.SetHandlerJoinCommunity(local_matchmake_extension.JoinCommunity)
 	matchmakeExtensionProtocol.SetHandlerUpdateCommunity(local_matchmake_extension.UpdateCommunity)
+	local_matchmake_extension.WrapSessionCreation(matchmakeExtensionProtocol)
 
 	utilityProtocol := utility.NewProtocol()
 	globals.SecureEndpoint.RegisterServiceProtocol(utilityProtocol)
