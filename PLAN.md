@@ -96,33 +96,33 @@ In questo modo i giocatori non devono installare niente oltre a Nimbus e alla pa
 - **Battaglia Classificata tra due giocatori** (verificata 2026-10-29): stesso matchmaking della Battaglia Libera (gameMode 3), lotta con punti giudice, al vincitore +10P ("Nuovo Arrivato" -> "Esploratore Apprendista"), perdente invariato. Grado e punti restano nel salvataggio: nessun upload a NEX o SIL. Corretto il server: il gioco manda flag di password casuali nella sessione, che la rendevano invisibile all'avversario (`server/nex/nex/matchmake_extension/password_flags.go`).
 - **Sfida Comunitaria tra due giocatori** (verificata in gioco 2026-10-29): funziona tutto. La Battaglia Amici non e' verificabile: richiede due account con l'amicizia sul server amici 3DS di Pretendo.
 - **SpotPass: eventi sul campo BREAK01-03** (2026-10-29): con `make_url_patch.py --spotpass-break`, alla connessione della piazza il gioco scarica i tre file dal nostro server (`BREAK01/BossStealthBox.bin`, `BREAK03/BossSkyMapMonster.bin`, `BREAK02/BossPassingMonster.bin`, tutti 200). Verificata in gioco la scatola nascosta di BREAK01: compare nella piazza e aprendola "Hai trovato Super Seme dell'Agi". Da verificare il mostro della mappa celeste (BREAK03) e il sicario StreetPass (BREAK02). In Azahar i task periodici falliscono (il modulo BOSS chiede `ac:u GetConnectingLocation`, non implementato), quindi la patch li scarica come task in primo piano "FGONLYT". Dettagli in `re/notes/spotpass_boss.md` 6.
-- **Prossimo passo:** verificare BREAK03 e BREAK02 in gioco.
+- **Prossimo passo:** vedi sezione 4 (verifiche BREAK03/02, poi produzione).
 
 ## 4. Da fare
 
-### Fase A – Prova con console/emulatore reale (serve te)
-- [ ] Avviare il gioco con Nimbus + patch su 3DS o Azahar, con `HokakuCTR` (dump RMC) o i log del server, per confermare:
-  - formato del `gameid` NASC;
-  - `Login` vs `LoginEx`, `Register` vs `RegisterEx`;
-  - flusso effettivo delle lotte amici.
-- [ ] Decidere l'hosting: proposta a Pretendo (issue "feature" con title ID, game server ID, access key, versione NEX) oppure self-hosting con `pretendo-docker`.
+Aggiornato il 2026-10-29: in Azahar, con i server locali, funzionano lotte Wi-Fi (libera e classificata), comunita',
+G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio, BREAK01). Resta soprattutto la produzione.
 
-### Fase B – Funzioni NEX mancanti
-- [x] Comunità: `UpdateCommunity` (109/18) e `JoinCommunity` (109/19) implementati in `server/nex/nex/matchmake_extension`; seed delle comunità ufficiali (G-Cup e Sfida Comunitaria).
-- [ ] Regole delle comunità (0x18 byte a +0x60 del buffer) da decodificare, per comunità ufficiali con regole diverse.
-- [ ] Ranking Race:
-  - Ranking 112: `UploadScore`, `UploadCommonData`, `GetCommonData`, `GetRanking`, `GetStats` (quest'ultimo manca nelle implementazioni comuni);
-  - DataStore 115 per i replay `REPLAY_DATA` (DataType 3, incluso `Prepare/CompleteUpdateObject`, mancanti) con storage S3/MinIO.
-- [ ] Notifiche Pia (eventi 4000-4999) da verificare a runtime.
+### Fase A – Verifiche in gioco
+- [ ] SpotPass BREAK03 (mostro della mappa celeste) e BREAK02 (sicario StreetPass): file scaricati, non ancora visti in gioco.
+- [ ] Battaglia Amici: richiede due account Pretendo con l'amicizia sul server amici 3DS.
+- [ ] Backup del salvataggio corrotto via SIL: previsto dal protocollo, mai provato in gioco.
+- [ ] Notifiche Pia (eventi 4000-4999) da controllare a runtime (le lotte funzionano comunque).
+- [ ] Regole delle comunita' (0x18 byte a +0x60 del buffer) da decodificare, per comunita' ufficiali con regole diverse.
+- [ ] (Facoltativo) nuovi contenuti SpotPass creati con `re/tools/bsdt.py` al posto dei file originali.
 
-### Fase C – Grand Prix (Ranking Battle) via SIL
-- [ ] Decodificare i formati dei circa 30 file (`001_Server_Status.bin`, tabelle punti, `*_Ranking_Pack.bin`, `*_Def_DLBattle.bin`…). Gli originali sono persi.
-- [ ] Logica server: ricezione risultati (`GradeResultPack.bin` / `LimitResultPack.bin`), calcolo classifiche, calendario contest.
-- [x] Codici regalo: pacchetti `PresentCodePackageS%02u.bin` (formato BPCP dei pacchetti locali), verificati in gioco.
+### Fase B – Produzione
+- [ ] Autenticazione vera: oggi `--skip-nasc` + server NEX in DEV mode (`LoginEx` accetta qualunque token). Con NASC
+  Pretendo da' 002-0110 perche' non conosce il gioco. Decidere: proposta a Pretendo (issue "feature" con title ID,
+  game server ID, access key, versione NEX) oppure self-hosting con un nostro NASC (`pretendo-docker`).
+- [ ] Sicurezza SIL: verificare il service token contro l'account server e legare il Friend Code SIL al PID.
+- [ ] Test su 3DS reale (finora solo Azahar):
+  - `--azahar` e `--spotpass-break` sono aggiramenti per l'emulatore; su console i task BREAK dovrebbero partire da soli in standby;
+  - URL della patch con indirizzo pubblico al posto di `127.0.0.1`.
 
-### Fase D – Distribuzione
+### Fase C – Distribuzione
+- [ ] Deploy (Docker Compose) per NEX + Postgres, SIL, SpotPass e NAT check (`server/nncs`).
 - [ ] Guida utente 3DS e Azahar, con patch generata per la versione tradotta.
-- [ ] Deploy (Docker Compose) per SIL e, se self-hosted, per NEX e SpotPass.
 
 ---
 
