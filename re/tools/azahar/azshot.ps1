@@ -1,4 +1,4 @@
-﻿param([string]$Out = "$env:TEMP\azahar.png")
+﻿param([string]$Out = "$env:TEMP\azahar.png", [int]$ProcId = 0)
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System;
@@ -9,7 +9,7 @@ public class W32 {
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint f);
 }
 "@
-$p = Get-Process azahar | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+$p = Get-Process azahar | Where-Object { $_.MainWindowHandle -ne 0 -and ($ProcId -eq 0 -or $_.Id -eq $ProcId) } | Select-Object -First 1
 $h = $p.MainWindowHandle
 $r = New-Object W32+RECT
 [W32]::GetWindowRect($h, [ref]$r) | Out-Null

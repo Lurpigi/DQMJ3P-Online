@@ -1,6 +1,6 @@
-# Usage: azkey.ps1 a a down b [-HoldMs 120] [-GapMs 400]   (3DS buttons, mapped from Azahar qt-config.ini profile 1)
+# Usage: azkey.ps1 a a down b [-HoldMs 120] [-GapMs 400] [-ProcId N]   (3DS buttons, mapped from Azahar qt-config.ini profile 1)
 [CmdletBinding(PositionalBinding=$false)]
-param([Parameter(ValueFromRemainingArguments)][string[]]$Buttons, [int]$HoldMs = 120, [int]$GapMs = 400)
+param([Parameter(ValueFromRemainingArguments)][string[]]$Buttons, [int]$HoldMs = 120, [int]$GapMs = 400, [int]$ProcId = 0)
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -24,7 +24,7 @@ public class K {
 $map = @{ a=0x41; b=0x53; x=0x5A; y=0x58; up=0x54; down=0x47; left=0x46; right=0x48;
           cup=0x26; cdown=0x28; cleft=0x25; cright=0x27;
           l=0x51; r=0x57; start=0x4D; select=0x4E }
-$h = (Get-Process azahar | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1).MainWindowHandle
+$h = (Get-Process azahar | Where-Object { $_.MainWindowHandle -ne 0 -and ($ProcId -eq 0 -or $_.Id -eq $ProcId) } | Select-Object -First 1).MainWindowHandle
 [K]::SetForegroundWindow($h) | Out-Null
 Start-Sleep -Milliseconds 200
 if ([K]::GetForegroundWindow() -ne $h) { throw "Azahar is not in foreground" }

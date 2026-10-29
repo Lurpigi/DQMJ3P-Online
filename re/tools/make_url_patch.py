@@ -7,6 +7,7 @@ usage (python -I):
   make_url_patch.py --code code.bin --sil-url http://example.org/00300701/ \
       [--infra-url http://example.org/infra/] [--spotpass-url http://example.org:8380/p01/nsa/H7btVjYWs7p5dGj6] \
       [--nex-auth 127.0.0.1:45000 --nex-password PW] [--skip-nasc] [--skip-frd] [--azahar] [--azahar-hle-boss]
+      [--nncs 127.0.0.1,127.0.0.2] [--pid-offset 1]
       [--merge other/code.ips] -o code.ips
 
 Install: SD:/luma/titles/00040000001ACB00/code.ips  (3DS, "Enable game patching" on)
@@ -21,6 +22,11 @@ SIL_URL = (0x76C83C, b"https://dqm32ds.sil2.square-enix.com/00300701/")
 INFRA_URL = (0x7BF6D4, b"http://wi-fi.infralib.square-enix.com/")
 # SpotPass (BOSS) base URL; tasks are "%s/%s" with "<TASK>/<file>" (re/notes/spotpass_boss.md).
 SPOTPASS_URL = (0x76A0C4, b"https://npdl.cdn.nintendowifi.net/p01/nsa/H7btVjYWs7p5dGj6")
+# --nncs HOST1,HOST2: NAT check servers (server/nncs). Pia's NatTraverser (FUN_004c8130) uses the
+# ASCII pair, the NEX core (FUN_004692d8) the UTF-16 pair.
+NNCS_ASCII = [(0x7711AA, b"nncs1.app.nintendowifi.net"), (0x7711C5, b"nncs2.app.nintendowifi.net")]
+NNCS_UTF16 = [(0x7791DE, "nncs1.app.nintendowifi.net".encode("utf-16-le")),
+              (0x779214, "nncs2.app.nintendowifi.net".encode("utf-16-le"))]
 
 # --skip-nasc: SilAuthJob_Update (0x66cacc) logs in to NEX (NASC LOGIN) and asks NASC for a
 # service token (SVCLOC) before talking to SIL; Pretendo answers both with error 110 while the
@@ -33,6 +39,10 @@ ARM_NOP = bytes.fromhex("00f020e3")
 SKIP_FRD = [  # (file offset, original, replacement)
     # frd job state 0: bne 0x66ee54 -> b 0x66eee4 (success path: flags |= 4, then state 2)
     (0x56EDE0, bytes.fromhex("1b00001a"), bytes.fromhex("3f0000ea")),
+    # NgsFacade_LoginAsync_impl: frd HasLoggedIn (FUN_0052c610) == 0 -> beq error. With --nex-auth
+    # the NEX login needs nothing else from frd (second test emulator: Pretendo refuses a second
+    # session of the same friends account, 002-0121).
+    (0x3BB860, bytes.fromhex("0d00000a"), ARM_NOP),
 ]
 # --azahar: work around two Azahar http:C bugs hit by sil_HttpWorker (0x603a10).
 # 1. A POST without post data is never sent (BeginRequest leaves it pending until
@@ -72,6 +82,12 @@ NEX_LOGIN_SKIP_FRD = [
     (0x3572A4, bytes.fromhex("240000ef"), bytes.fromhex("0000a0e3")),  # svc WaitSynchronization -> mov r0,#0
     (0x3572C0, bytes.fromhex("fe5603eb"), bytes.fromhex("0000a0e3")),  # bl frd last result -> mov r0,#0
 ]
+# --pid-offset N: add N to the principal ID the game reads from frd (GetMyFriendKey wrapper
+# 0x52d464, used through FUN_0052c888 by the NEX login and the battle scenes). Lets a second
+# emulator with the same friends account log in to our NEX server as another player (DEV mode).
+# The wrapper copies cmdbuf[2..5] to the FriendKey; reorder it to make room for the add.
+PID_OFFSET_SITE = 0x42D48C
+PID_OFFSET_ORIGINAL = bytes.fromhex("080084e2" "0e0090e8" "140094e5" "0c0085e5")  # add r0,r4,#8; ldm r0,{r1-r3}; ldr r0,[r4,#0x14]; str r0,[r5,#0xc]
 NEX_LOGIN_JOB_START = 0x56C4EC  # NexLoginJob_Start, faked by --skip-nasc unless --nex-auth
 NEX_AUTH_DATA = 0x42D088  # FUN_0052d088 body (0x74 bytes)
 NEX_PASSWORD = 0x42C674   # FUN_0052c674 body (0x78 bytes)
@@ -143,6 +159,21 @@ def slot_record(code, slot, new_url):
     return off, new + b"\0" * (len(original) + 1 - len(new))
 
 
+def nncs_records(code, hosts):
+    names = hosts.split(",")
+    if len(names) != 2 or names[0] == names[1]:
+        sys.exit(f"--nncs {hosts!r}: expected two different hosts, HOST1,HOST2")
+    records = [slot_record(code, slot, name) for slot, name in zip(NNCS_ASCII, names)]
+    for (off, original), name in zip(NNCS_UTF16, names):
+        if code[off:off + len(original)] != original:
+            sys.exit(f"code.bin does not contain the UTF-16 nncs name at {off:#x}: wrong version (needs v1.3)")
+        new = name.encode("utf-16-le")
+        if len(new) > len(original):
+            sys.exit(f"--nncs {name!r} is too long, max {len(original) // 2} characters")
+        records.append((off, new + b"\0" * (len(original) + 2 - len(new))))
+    return records
+
+
 def code_record(code, site):
     off, original, new = site
     if code[off:off + len(original)] != original:
@@ -184,6 +215,16 @@ def nex_login_records(code, auth, password):
         (NEX_AUTH_DATA, auth_data), (NEX_PASSWORD, password_data)]
 
 
+def pid_offset_record(code, offset):
+    if not 0 < offset < 0x100:
+        sys.exit("--pid-offset must be between 1 and 255")
+    return code_record(code, (PID_OFFSET_SITE, PID_OFFSET_ORIGINAL, arm(
+        0xE5940014, 0xE585000C,  # ldr r0,[r4,#0x14]; str r0,[r5,#0xc]   friend code high word
+        0xE994000F,              # ldmib r4,{r0-r3}                    result, pid, pad, fc low
+        0xE2811000 | offset,     # add r1,r1,#offset
+    )))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--code", required=True, help="decompressed code.bin v1.3")
@@ -201,6 +242,10 @@ def main():
     ap.add_argument("--nex-password", help="NEX password for --nex-auth (= PN_DQMJ3P_DEV_PASSWORD)")
     ap.add_argument("--azahar", action="store_true",
                     help="work around Azahar http:C bugs (empty POST, header size probe)")
+    ap.add_argument("--nncs", metavar="HOST1,HOST2",
+                    help="NAT check servers, e.g. 127.0.0.1,127.0.0.2 with server/nncs (local battles)")
+    ap.add_argument("--pid-offset", type=int,
+                    help="add N to the player's PID (second test emulator, same friends account)")
     ap.add_argument("--merge", action="append", default=[], help="existing code.ips to include")
     ap.add_argument("-o", "--out", required=True)
     args = ap.parse_args()
@@ -225,10 +270,15 @@ def main():
         ours += [code_record(code, site) for site in SKIP_FRD]
     if args.azahar:
         ours += [code_record(code, site) for site in AZAHAR_FIXES]
+    if args.nncs:
+        ours += nncs_records(code, args.nncs)
+    if args.pid_offset:
+        ours.append(pid_offset_record(code, args.pid_offset))
 
     # records this tool wrote into a previously merged patch are replaced, not kept
-    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD} | {
-        off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD}
+    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE} | {
+        off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD} | {
+        off for off, _ in NNCS_ASCII + NNCS_UTF16}
     merged = []
     for path in args.merge:
         for off, payload in read_ips(open(path, "rb").read()):
