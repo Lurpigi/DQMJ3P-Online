@@ -7,7 +7,7 @@ usage (python -I):
   make_url_patch.py --code code.bin --sil-url http://example.org/00300701/ \
       [--infra-url http://example.org/infra/] [--spotpass-url http://example.org:8380/p01/nsa/H7btVjYWs7p5dGj6] \
       [--nex-auth 127.0.0.1:45000 --nex-password PW] [--skip-nasc] [--skip-frd] [--azahar] [--azahar-hle-boss]
-      [--nncs 127.0.0.1,127.0.0.2] [--pid-offset 1]
+      [--nncs 127.0.0.1,127.0.0.2] [--pid-offset 1] [--spotpass-break]
       [--merge other/code.ips] -o code.ips
 
 Install: SD:/luma/titles/00040000001ACB00/code.ips  (3DS, "Enable game patching" on)
@@ -88,6 +88,22 @@ NEX_LOGIN_SKIP_FRD = [
 # The wrapper copies cmdbuf[2..5] to the FriendKey; reorder it to make room for the add.
 PID_OFFSET_SITE = 0x42D48C
 PID_OFFSET_ORIGINAL = bytes.fromhex("080084e2" "0e0090e8" "140094e5" "0c0085e5")  # add r0,r4,#8; ldm r0,{r1-r3}; ldr r0,[r4,#0x14]; str r0,[r5,#0xc]
+# --spotpass-break: the game registers BREAK01-03 (field events: stealth box, sky map monster,
+# StreetPass assassin) at boot as background tasks (FUN_002277d8: every 24 h, 21 runs) and never
+# starts them; the BOSS module runs them on its own schedule (sleep mode on a console), which never
+# happens in Azahar. StartTaskImmediate on those scheduled tasks fails in Azahar (0xD8A0A018, no
+# HTTP): the BOSS module asks ac:u GetConnectingLocation (0x0014), which Azahar does not implement.
+# Foreground tasks skip that check, but the SDK allows only the id "FGONLYT" for them (0x522fa8).
+# So when the plaza connect screen (0x5e) reaches state 10 (AC connected; 0x3880f8, also the
+# --skip-nasc path) call a routine in the text page padding that downloads the three BREAK files
+# one after the other the way the coin shop downloads its table (FUN_00681ec8): Unregister FGONLYT,
+# build the URL "<base>/BREAKxx/<file>", RegisterImmediateTask (0x52174c), StartTaskImmediate
+# (0x521a74), then sleep 50 ms steps (max 10 s) until GetTaskState (0x521cc8) is 6 (done) or an
+# error. The game finds the NsData by data type, not by task id. The BOSS manager
+# (0x227398 / 0x682a8c) is created only if none is alive.
+BREAK_HOOK = 0x2880F8  # mov r0,#0xa
+BREAK_CAVE = 0x6B9810  # end of .text (0x7b9810) up to the page end 0x7ba000, zero filled
+BREAK_FILES = (0x86A140, 0x86A120, 0x86A100)  # "BREAK01/BossStealthBox.bin", "BREAK03/...", "BREAK02/..."
 NEX_LOGIN_JOB_START = 0x56C4EC  # NexLoginJob_Start, faked by --skip-nasc unless --nex-auth
 NEX_AUTH_DATA = 0x42D088  # FUN_0052d088 body (0x74 bytes)
 NEX_PASSWORD = 0x42C674   # FUN_0052c674 body (0x78 bytes)
@@ -225,6 +241,121 @@ def pid_offset_record(code, offset):
     )))
 
 
+def branch(src, dst, cond=0xE, link=False):
+    """B/BL from file offset src to file offset dst (same 0x100000 base, so offsets work as VAs)."""
+    return (cond << 28) | ((0xB if link else 0xA) << 24) | (((dst - src - 8) >> 2) & 0xFFFFFF)
+
+
+def blx(src, dst):
+    """BLX from ARM to a Thumb function at file offset dst."""
+    offset = dst - src - 8
+    return 0xFA000000 | (((offset >> 1) & 1) << 24) | ((offset >> 2) & 0xFFFFFF)
+
+
+def spotpass_break_records(code):
+    va = BREAK_CAVE + 0x100000
+    # Stack: sp+0 5th argument, +8 Task (0x18), +0x20 TaskPolicy (0x20), +0x40 URL (0x200),
+    # +0x240 TaskAction (0x7d8).
+    routine = [
+        0xE92D41F0,  # +000 push {r4-r8,lr}
+        0xE24DDEA2,  # +004 sub sp,sp,#0xa20
+        0xE59F7138,  # +008 ldr r7,=0x897894        BOSS manager pointer
+        0xE5976000,  # +00c ldr r6,[r7]
+        0xE3560000,  # +010 cmp r6,#0
+        None,        # +014 bne +024
+        None,        # +018 bl 0x227398            create the manager
+        0xE3500000,  # +01c cmp r0,#0
+        None,        # +020 beq +11c
+        0xE5975000,  # +024 ldr r5,[r7]
+        0xE28F40F8,  # +028 adr r4,files
+        0xE5950000,  # +02c loop: ldr r0,[r5]
+        0xE5902014,  # +030 ldr r2,[r0,#0x14]
+        0xE1A00005,  # +034 mov r0,r5
+        0xE28F10F8,  # +038 adr r1,"FGONLYT"
+        0xE12FFF32,  # +03c blx r2                   Unregister (no-op if absent)
+        0xE4948004,  # +040 ldr r8,[r4],#4
+        0xE3580000,  # +044 cmp r8,#0
+        None,        # +048 beq +114
+        0xE5950000,  # +04c ldr r0,[r5]
+        0xE5902050,  # +050 ldr r2,[r0,#0x50]
+        0xE1A00005,  # +054 mov r0,r5
+        0xE12FFF32,  # +058 blx r2                   base URL
+        0xE1A02000,  # +05c mov r2,r0
+        0xE1A03008,  # +060 mov r3,r8
+        0xE28F10D4,  # +064 adr r1,"%s/%s"
+        0xE28D0040,  # +068 add r0,sp,#0x40
+        None,        # +06c blx 0x1028d4           sprintf (Thumb)
+        0xE28D0008,  # +070 add r0,sp,#8
+        None,        # +074 bl 0x520d7c            Task("FGONLYT")
+        0xE28D0F90,  # +078 add r0,sp,#0x240
+        None,        # +07c bl 0x521734            TaskAction ctor
+        0xE28D0F90,  # +080 add r0,sp,#0x240
+        0xE28D1040,  # +084 add r1,sp,#0x40
+        None,        # +088 bl 0x521688            Initialize(url)
+        0xE3500000,  # +08c cmp r0,#0
+        None,        # +090 blt +02c
+        0xE28D0020,  # +094 add r0,sp,#0x20
+        None,        # +098 bl 0x521008            TaskPolicy ctor
+        0xE28D0020,  # +09c add r0,sp,#0x20
+        0xE3A01EE1,  # +0a0 mov r1,#0xe10
+        0xE3A02001,  # +0a4 mov r2,#1
+        None,        # +0a8 bl 0x520fd0            Initialize(1 h, 1 run)
+        0xE28D0008,  # +0ac add r0,sp,#8
+        0xE28D1F90,  # +0b0 add r1,sp,#0x240
+        0xE28D2020,  # +0b4 add r2,sp,#0x20
+        0xE3A03000,  # +0b8 mov r3,#0
+        0xE58D3000,  # +0bc str r3,[sp]
+        None,        # +0c0 bl 0x52174c            RegisterImmediateTask
+        0xE3500000,  # +0c4 cmp r0,#0
+        None,        # +0c8 blt +02c
+        0xE28D0008,  # +0cc add r0,sp,#8
+        None,        # +0d0 bl 0x521a74            StartTaskImmediate
+        0xE3500000,  # +0d4 cmp r0,#0
+        None,        # +0d8 blt +02c
+        0xE3A070C8,  # +0dc mov r7,#200
+        0xE59F0064,  # +0e0 wait: ldr r0,=50000000
+        0xE3A01000,  # +0e4 mov r1,#0
+        0xEF00000A,  # +0e8 svc 0xa                  SleepThread
+        0xE28D0008,  # +0ec add r0,sp,#8
+        0xE3A01000,  # +0f0 mov r1,#0
+        0xE3A02000,  # +0f4 mov r2,#0
+        0xE3A03000,  # +0f8 mov r3,#0
+        None,        # +0fc bl 0x521cc8            GetState
+        0xE3500006,  # +100 cmp r0,#6
+        None,        # +104 bhs +02c               done (6) or error (7-9)
+        0xE2577001,  # +108 subs r7,r7,#1
+        None,        # +10c bne +0e0
+        None,        # +110 b +02c
+        0xE3560000,  # +114 cmp r6,#0
+        None,        # +118 bleq 0x682a8c          destroy the manager we created
+        0xE28DDEA2,  # +11c add sp,sp,#0xa20
+        0xE3A0000A,  # +120 mov r0,#0xa              the replaced instruction
+        0xE8BD81F0,  # +124 pop {r4-r8,pc}
+        *BREAK_FILES, 0,              # +128 files
+        *struct.unpack("<2I", b"FGONLYT\0"),  # +138
+        *struct.unpack("<2I", b"%s/%s\0\0\0"),  # +140
+        0x897894,                     # +148
+        50000000,                     # +14c 50 ms
+    ]
+    calls = {0x014: (0x024, 0x1, False), 0x018: (0x227398, 0xE, True), 0x020: (0x11C, 0x0, False),
+             0x048: (0x114, 0x0, False), 0x074: (0x520D7C, 0xE, True),
+             0x07C: (0x521734, 0xE, True), 0x088: (0x521688, 0xE, True), 0x090: (0x02C, 0xB, False),
+             0x098: (0x521008, 0xE, True), 0x0A8: (0x520FD0, 0xE, True), 0x0C0: (0x52174C, 0xE, True),
+             0x0C8: (0x02C, 0xB, False), 0x0D0: (0x521A74, 0xE, True), 0x0D8: (0x02C, 0xB, False),
+             0x0FC: (0x521CC8, 0xE, True), 0x104: (0x02C, 0x2, False), 0x10C: (0x0E0, 0x1, False),
+             0x110: (0x02C, 0xE, False), 0x118: (0x682A8C, 0x0, True)}
+    for at, (dst, cond, link) in calls.items():
+        dst = dst - 0x100000 if dst >= 0x100000 else BREAK_CAVE + dst  # absolute VA or cave offset
+        routine[at // 4] = branch(BREAK_CAVE + at, dst, cond, link)
+    routine[0x6C // 4] = blx(BREAK_CAVE + 0x6C, 0x1028D4 - 0x100000)
+    body = arm(*routine)
+    if code[BREAK_CAVE:BREAK_CAVE + len(body)] != bytes(len(body)):
+        sys.exit(f"code.bin has data at {BREAK_CAVE:#x}: wrong version (needs v1.3)")
+    assert va + len(body) <= 0x7BA000
+    hook = code_record(code, (BREAK_HOOK, bytes.fromhex("0a00a0e3"), arm(branch(BREAK_HOOK, BREAK_CAVE, link=True))))
+    return [hook, (BREAK_CAVE, body)]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--code", required=True, help="decompressed code.bin v1.3")
@@ -246,6 +377,8 @@ def main():
                     help="NAT check servers, e.g. 127.0.0.1,127.0.0.2 with server/nncs (local battles)")
     ap.add_argument("--pid-offset", type=int,
                     help="add N to the player's PID (second test emulator, same friends account)")
+    ap.add_argument("--spotpass-break", action="store_true",
+                    help="download the BREAK01-03 SpotPass files when the plaza connects (Azahar has no sleep mode)")
     ap.add_argument("--merge", action="append", default=[], help="existing code.ips to include")
     ap.add_argument("-o", "--out", required=True)
     args = ap.parse_args()
@@ -274,9 +407,11 @@ def main():
         ours += nncs_records(code, args.nncs)
     if args.pid_offset:
         ours.append(pid_offset_record(code, args.pid_offset))
+    if args.spotpass_break:
+        ours += spotpass_break_records(code)
 
     # records this tool wrote into a previously merged patch are replaced, not kept
-    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE} | {
+    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE, BREAK_HOOK, BREAK_CAVE} | {
         off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD} | {
         off for off, _ in NNCS_ASCII + NNCS_UTF16}
     merged = []

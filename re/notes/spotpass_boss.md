@@ -152,6 +152,25 @@ asset di debug non usati in produzione. Il server SpotPass non deve fornirli.
   originale (`BossWiFiShopTbl.bin?tm=4`).
 - Con il BOSS HLE (senza moduli LLE) servono invece `spotpass_azahar.py` (NsData nell'extdata) e `--azahar-hle-boss`.
 
+### 6.1 BREAK01-03 in Azahar [CERTO, verificato 2026-10-29]
+- I task BREAK sono registrati al boot come task periodici (24 h, 21 esecuzioni) e il gioco non li avvia mai: su console
+  li esegue il daemon BOSS (in standby). Il record e' in `BOSS_SS.db` (URL a +0x220 del blocco) e `BOSS_SV.db` (stato).
+- StartTaskImmediate (`FUN_00521a74`) sui task periodici in Azahar: il modulo BOSS chiama `ac:u` 0x00140002
+  `GetConnectingLocation`, che Azahar non implementa (risposta vuota). Il task finisce in stato 7, risultato `0xD8A0A018`,
+  senza HTTP. La sospensione dei daemon (`NDM SuspendDaemons 0x6` al boot) non c'entra: NDM in Azahar e' uno stub.
+- I task in primo piano (RegisterImmediateTask `FUN_0052174c`) non fanno quel controllo, ma l'SDK accetta solo l'ID
+  "FGONLYT" (`FUN_00522fa8`; `FUN_0052197c` rifiuta proprio quell'ID). Il gioco trova i NsData per tipo di dato
+  (`GetNsDataIdList`), non per ID del task, quindi i file BREAK si possono scaricare con un task FGONLYT.
+- `make_url_patch.py --spotpass-break`: hook a `0x3880f8` (stato 10 della schermata 0x5e) verso una routine nel padding
+  della pagina di .text (`0x7b9810`). Per ogni file (`0x86a140` BREAK01, `0x86a120` BREAK03, `0x86a100` BREAK02):
+  Unregister FGONLYT (vtable +0x14), URL `"%s/%s"` con la base (vtable +0x50) e `sprintf` `0x1028d4` (Thumb: `blx`),
+  Task FGONLYT `FUN_00520d7c`, TaskAction `FUN_00521734`/`FUN_00521688`, TaskPolicy `FUN_00521008`/`FUN_00520fd0(0xe10, 1)`,
+  RegisterImmediateTask, StartTaskImmediate, poi `svcSleepThread` 50 ms fino a GetState (`FUN_00521cc8`) >= 6 (max 10 s).
+  Crea il manager BOSS (`FUN_00227398`) solo se manca, e in quel caso lo distrugge alla fine.
+- Risultato: tre GET `.../BREAKxx/<file>?tm=4` con risposta 200. Il caricamento della piazza dura qualche secondo in piu'.
+  Nella piazza compare la scatola nascosta: "Hai trovato Super Seme dell'Agi" (contenuto originale di BREAK01).
+  BREAK03 (mostro della mappa celeste) e BREAK02 (sicario StreetPass) scaricati ma non ancora verificati in gioco.
+
 ## Incertezze principali
 Semantica di p5=0x15 e della property 5=2 nella TaskPolicy; maschere 2/4/8/0x20 di GetNsDataIdList; campi interni
 record B e anno in PresentDisc; semantica seed/FUN_0012f254; campi f2..f5 degli slot WiFiShop.
