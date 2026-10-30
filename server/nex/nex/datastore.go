@@ -120,7 +120,7 @@ func serveDataStoreHTTP(listen string) {
 		}
 
 		data, err := io.ReadAll(io.LimitReader(r.Body, 16<<20))
-		if err == nil {
+		if err == nil && os.Getenv("PN_DQMJ3P_DEBUG_RMC") == "1" {
 			// * Raw request kept for reverse engineering the replay format (one file per attempt:
 			// * the client retries with an empty body).
 			raw := fmt.Sprintf("%s.%d.raw", dataStoreUploadFile(dataID, uint32(version)), time.Now().UnixNano())

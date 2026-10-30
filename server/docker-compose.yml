@@ -1,0 +1,122 @@
+# Public test stack for one VPS: NEX, Postgres, SIL, SpotPass and the NAT check server.
+# Settings come from .env (see .env.example), setup steps are in README.md.
+x-service: &service
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  postgres:
+    <<: *service
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dqmj3p
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: dqmj3p
+    volumes:
+      - pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dqmj3p -d dqmj3p"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  nex:
+    <<: *service
+    build: ./nex
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PN_DQMJ3P_AUTHENTICATION_SERVER_PORT: 45000
+      PN_DQMJ3P_SECURE_SERVER_HOST: ${PUBLIC_IP:?set PUBLIC_IP in .env}
+      PN_DQMJ3P_SECURE_SERVER_PORT: 45001
+      PN_DQMJ3P_KERBEROS_PASSWORD: ${KERBEROS_PASSWORD:?set KERBEROS_PASSWORD in .env}
+      PN_DQMJ3P_DEV_PASSWORD: ${NEX_PASSWORD:?set NEX_PASSWORD in .env}
+      PN_DQMJ3P_POSTGRES_URI: postgres://dqmj3p:${POSTGRES_PASSWORD}@postgres:5432/dqmj3p?sslmode=disable
+      PN_DQMJ3P_DATASTORE_HTTP: 0.0.0.0:45080
+      PN_DQMJ3P_DATASTORE_URL: http://${PUBLIC_IP}:45080
+      PN_DQMJ3P_DATASTORE_DIR: /home/go/app/datastore
+    ports:
+      - "45000:45000/udp"
+      - "45001:45001/udp"
+      - "45080:45080/tcp"
+    volumes:
+      - datastore:/home/go/app/datastore
+
+  # Loads the official communities once the NEX server has created its tables. The scripts can be
+  # run again: existing rows are kept.
+  seed:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      - nex
+    environment:
+      PGHOST: postgres
+      PGUSER: dqmj3p
+      PGDATABASE: dqmj3p
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./nex/sql:/sql:ro
+    command:
+      - sh
+      - -c
+      - |
+        until [ -n "$$(psql -tAc "SELECT to_regclass('matchmaking.persistent_gatherings')" 2>/dev/null)" ]; do sleep 1; done
+        for f in /sql/*.sql; do psql -q -v ON_ERROR_STOP=1 -f "$$f" || exit 1; done
+
+  sil:
+    <<: *service
+    image: python:3.13-alpine
+    user: "1000:1000"
+    working_dir: /app
+    command:
+      - python
+      - -I
+      - -u
+      - sil_server.py
+      - --host=0.0.0.0
+      - --port=8381
+      - --data=/data
+      - --gp-utc-offset=${GP_UTC_OFFSET:-1}
+    ports:
+      - "8381:8381/tcp"
+    volumes:
+      - ./sil:/app:ro
+      - ${DATA_DIR:-./data}:/data
+
+  spotpass:
+    <<: *service
+    image: python:3.13-alpine
+    user: "1000:1000"
+    working_dir: /app
+    command: ["python", "-I", "-u", "serve_spotpass.py", "/content", "8380", "0.0.0.0"]
+    ports:
+      - "8380:8380/tcp"
+    volumes:
+      - ./spotpass:/app:ro
+      - ${SPOTPASS_DIR:-../re/data/spotpass_archive/canonical}:/content:ro
+
+  # Host network: it has to bind both public addresses and reply from each of them.
+  nncs:
+    <<: *service
+    image: python:3.13-alpine
+    user: "1000:1000"
+    working_dir: /app
+    network_mode: host
+    command:
+      - python
+      - -I
+      - -u
+      - nncs_server.py
+      - ${PUBLIC_IP}
+      - ${PUBLIC_IP2:?set PUBLIC_IP2 in .env}
+    volumes:
+      - ./nncs:/app:ro
+
+volumes:
+  pg:
+  datastore:

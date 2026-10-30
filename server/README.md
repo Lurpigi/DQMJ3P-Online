@@ -36,6 +36,46 @@ Note:
 - NintendoClients 5.0 serializza `MatchmakeSessionSearchCriteria` solo fino ai campi di NEX 3.5: il test aggiunge i campi 3.6–3.8.
 - Con `PN_DQMJ3P_DEBUG_RMC=1` il server stampa protocollo, metodo e parametri di ogni chiamata, che è il modo per scoprire cosa invia la console vera.
 
-## Produzione (stack Pretendo)
+## Stack di prova pubblico (VPS)
 
-Togliere `PN_DQMJ3P_DEV_PASSWORD` e impostare `PN_DQMJ3P_ACCOUNT_GRPC_*` e `PN_DQMJ3P_FRIENDS_GRPC_*`. L'account server di Pretendo deve avere un documento nella collezione `servers` con `title_ids: ["00040000001ACB00"]`, `game_server_id: "001ACB00"` (formato da confermare: probabilmente `%08X` dal modulo frd), indirizzo e porta del server di autenticazione (vedi `re/notes/pretendo_research.md`).
+`docker-compose.yml` avvia NEX, Postgres, SIL, SpotPass e il controllo NAT su un solo server. Il login resta quello DEV: tutti i giocatori usano la stessa password, scritta nella patch. Serve per provare il gioco via internet, **non per aprirlo al pubblico**: prima vanno fatte le password per giocatore (`PLAN.md` sezione 4).
+
+Serve un server Linux con Docker e **due IPv4 pubblici configurati sulla sua interfaccia di rete**. I provider che usano il NAT 1:1 (per esempio AWS e Google Cloud) non vanno bene, perché il controllo NAT non può fare il bind sugli IP pubblici.
+
+1. Clona il repository e crea la configurazione:
+
+   ```bash
+   cd server && cp .env.example .env
+   ```
+
+   Compila `.env` come spiegato nei suoi commenti. Gli indirizzi devono essere IP: la patch accetta al massimo 15 byte per l'host NEX.
+
+2. Copia dal tuo PC i dati che non sono nel repository, poi rendili scrivibili per i container:
+
+   ```bash
+   scp -r server/data/public server/data/private_templates root@IP:DQMJ3P-Online/server/data/
+   scp -r re/data/spotpass_archive/canonical root@IP:DQMJ3P-Online/re/data/spotpass_archive/
+   chown -R 1000:1000 server/data
+   ```
+
+3. Apri nel firewall le porte `45000-45001/udp`, `10025/udp`, `10125/udp`, `33334-33335/udp` e `8380-8381/tcp`, `45080/tcp`.
+
+4. Avvia lo stack:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+   Il servizio `seed` carica le comunità ufficiali e poi si ferma: è normale.
+
+5. Genera la patch sul tuo PC, con gli stessi valori di `.env`:
+
+   ```bash
+   python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-password NEX_PASSWORD --nncs IP,IP2 --spotpass-break --azahar --merge CODE_IPS_DI_PARTENZA -o code.ips
+   ```
+
+   Togli `--azahar` per la patch destinata a un 3DS vero.
+
+I dati restano nei volumi Docker `pg` e `datastore` e nella cartella `DATA_DIR`. Per i log: `docker compose logs -f nex`.
+
+L'account server di Pretendo non serve: con `--nex-auth` il gioco salta NASC e si collega direttamente al server NEX.

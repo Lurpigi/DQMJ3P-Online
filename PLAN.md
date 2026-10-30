@@ -2,7 +2,7 @@
 
 Obiettivo: riattivare le funzioni online di *Dragon Quest Monsters: Joker 3 Professional* (3DS, JP, `00040000001ACB00`, v1.3) su console (Luma3DS) ed emulatore (Azahar PC/Android).
 
-Ultimo aggiornamento: 2026-10-24.
+Ultimo aggiornamento: 2026-10-30.
 
 ---
 
@@ -40,15 +40,12 @@ Dettagli e indirizzi in [re/notes](re/notes):
 
 | Servizio | 3DS (Luma) | Azahar |
 |---|---|---|
-| NEX + NASC + SpotPass | **Nimbus** (account Pretendo): riscrive `*.nintendowifi.net` → `*.pretendo.cc`. Funziona solo se i nostri server sono **dentro Pretendo**. | Stesso, con Nimbus + moduli LLE (guida Pretendo per Azahar) |
-| SIL Square Enix | Patch dell'URL nel gioco (`luma/titles/00040000001ACB00/code.ips`, unita alla patch della traduzione) | Stessa patch in `load/mods/00040000001ACB00/exefs/code.ips` |
+| Login amici | **Nimbus** con account Pretendo | Stesso, con Nimbus + moduli LLE (guida Pretendo per Azahar) |
+| NEX, SpotPass, NAT check, SIL | Patch nel gioco (`luma/titles/00040000001ACB00/code.ips`, unita alla patch della traduzione) | Stessa patch in `load/mods/00040000001ACB00/exefs/code.ips` |
 
-**Strada consigliata: proporre il gioco a Pretendo**, che deve:
-- aggiungere il documento `servers` nell'account server (title ID, `game_server_id`, indirizzo e porta);
-- ospitare il game server NEX;
-- caricare i file SpotPass.
+**Strada scelta (2026-10-30): self-hosting.** Pretendo non ha un canale per aggiungere titoli e sembra voler gestire i giochi da sola, quindi non le chiediamo nulla. I server girano su un nostro VPS e la patch ci porta direttamente il gioco: con `--skip-nasc --nex-auth IP:PORTA` il NASC non serve, quindi non dobbiamo ospitarne uno. Pretendo resta solo per il login amici, che da' un PID univoco.
 
-In questo modo i giocatori non devono installare niente oltre a Nimbus e alla patch dell'URL. In alternativa esistono router community che girano sopra Pretendo (`fbf-3ds-servers`, `nasc-router`), ma richiedono un'app client in più.
+Se Pretendo non fosse piu' utilizzabile, il piano di riserva e' `--skip-frd` senza Nimbus. Va provato da solo, il PID univoco va risolto e la Battaglia Amici non sarebbe disponibile.
 
 ---
 
@@ -112,16 +109,19 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 - [ ] (Facoltativo) nuovi contenuti SpotPass creati con `re/tools/bsdt.py` al posto dei file originali.
 
 ### Fase B – Produzione
-- [ ] Autenticazione vera: oggi `--skip-nasc` + server NEX in DEV mode (`LoginEx` accetta qualunque token). Con NASC
-  Pretendo da' 002-0110 perche' non conosce il gioco. Decidere: proposta a Pretendo (issue "feature" con title ID,
-  game server ID, access key, versione NEX) oppure self-hosting con un nostro NASC (`pretendo-docker`).
-- [ ] Sicurezza SIL: verificare il service token contro l'account server e legare il Friend Code SIL al PID.
+- [ ] Stack di prova sul VPS: `server/docker-compose.yml` e' pronto e provato in locale (guida in `server/README.md`). Serve un VPS con due IPv4 pubblici.
+- [ ] Lotta tra due reti diverse: tutte le lotte finora sono su un solo PC con NAT finto. Le lotte Pia sono P2P e non c'e' un relay, quindi verificare cosa succede con CGNAT e NAT simmetrico.
+- [ ] Password per giocatore: oggi tutti usano la password DEV scritta nella patch e il server si fida del PID, quindi chiunque puo' entrare come un altro. Sostituire `globals.PasswordFromPID` con una tabella nostra e una password per giocatore, ricavata da un dato della console non visibile agli altri e registrata al primo accesso (dato da individuare).
+- [ ] Sicurezza SIL: legare il Friend Code SIL al giocatore con lo stesso meccanismo.
+- [ ] DataStore: `/upload/` non controlla chi carica, quindi va accettato solo l'upload preparato dal giocatore proprietario.
+- [ ] Battaglia Amici: il server non vede le amicizie senza il gRPC di Pretendo (`GetUserFriendPIDs` restituisce vuoto). Verificare se la modalita' ne ha bisogno.
 - [ ] Test su 3DS reale (finora solo Azahar):
   - `--azahar` e `--spotpass-break` sono aggiramenti per l'emulatore; su console i task BREAK dovrebbero partire da soli in standby;
   - URL della patch con indirizzo pubblico al posto di `127.0.0.1`.
 
 ### Fase C – Distribuzione
-- [ ] Deploy (Docker Compose) per NEX + Postgres, SIL, SpotPass e NAT check (`server/nncs`).
+- [ ] Pubblicare i sorgenti: `server/nex` e `server/nncs` derivano da codice AGPL-3.0, quindi chi usa il server deve poterli ottenere.
+- [ ] Controllare le regole di Pretendo sull'uso dell'account per il login amici con una patch.
 - [ ] Guida utente 3DS e Azahar, con patch generata per la versione tradotta.
 
 ---
@@ -129,6 +129,7 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 ## 5. Rischi
 
 - **Grand Prix:** dipende da dati Square Enix andati persi; ricostruirlo richiede di decodificare formati non documentati.
-- **Pretendo:** accetta contributi solo con una issue approvata, e i tempi non dipendono da noi.
-- **Sicurezza SIL:** il service token non viene ancora verificato contro l'account server (TODO in `sil_server.py`). Prima di andare in produzione bisogna legare il Friend-Code SIL al PID.
-- **Legale:** distribuire solo server, patch e strumenti. Mai ROM, CIA o i file originali scaricati (`re/data`, escluso da git).
+- **Pretendo:** il login amici dipende da un servizio che non controlliamo e che puo' cambiare.
+- **NAT:** senza relay, i giocatori dietro CGNAT o NAT simmetrico potrebbero non riuscire a lottare.
+- **Sicurezza:** fino alle password per giocatore lo stack va usato solo per le prove, non aperto al pubblico.
+- **Legale:** distribuire solo server, patch e strumenti. Mai ROM, CIA o i file originali scaricati (`re/data`, escluso da git). I file SpotPass originali serviti dal nostro server restano il punto piu' delicato.

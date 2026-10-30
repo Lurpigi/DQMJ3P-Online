@@ -27,7 +27,7 @@ WORKDIR ${app_dir}
 
 RUN addgroup go && adduser -D -G go go
 
-RUN mkdir -p ${app_dir}/log && chown go:go ${app_dir}/log
+RUN mkdir -p ${app_dir}/log ${app_dir}/datastore && chown go:go ${app_dir}/log ${app_dir}/datastore
 
 USER go
 
