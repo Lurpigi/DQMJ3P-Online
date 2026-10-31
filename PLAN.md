@@ -116,7 +116,7 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 - [ ] Prima di distribuire: la routine BREAK deve scaricare solo i file mancanti (`GetNsDataIdList`). Riscaricarli costa 22 s a ogni connessione e non aggiorna nulla, quindi la patch attiva di Azahar non include `--spotpass-break`.
 - [ ] Sul VPS mancano ancora: nncs in gioco, comunita', gare del Grand Prix, oggetti BREAK visti in gioco.
 - [ ] Lotta tra due reti diverse: tutte le lotte finora sono su un solo PC con NAT finto. Le lotte Pia sono P2P e non c'e' un relay, quindi verificare cosa succede con CGNAT e NAT simmetrico.
-- [ ] Password per giocatore: oggi tutti usano la password DEV scritta nella patch e il server si fida del PID, quindi chiunque puo' entrare come un altro. Sostituire `globals.PasswordFromPID` con una tabella nostra e una password per giocatore, ricavata da un dato della console non visibile agli altri e registrata al primo accesso (dato da individuare).
+- [x] Password per giocatore (2026-10-31): `accounts.passwords` e `make_url_patch.py --nex-player-password` (password derivata con MD5 dalla password amici, registrata al primo accesso). Verificata sul VPS con `tests/auth_nex.py` e in gioco su Azahar. Dettagli e limiti in `server/README.md`.
 - [ ] Sicurezza SIL: legare il Friend Code SIL al giocatore con lo stesso meccanismo.
 - [ ] DataStore: `/upload/` non controlla chi carica, quindi va accettato solo l'upload preparato dal giocatore proprietario.
 - [ ] Battaglia Amici: il server non vede le amicizie senza il gRPC di Pretendo (`GetUserFriendPIDs` restituisce vuoto). Verificare se la modalita' ne ha bisogno.

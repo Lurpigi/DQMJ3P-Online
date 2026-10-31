@@ -3,6 +3,7 @@ package globals
 import (
 	"github.com/PretendoNetwork/nex-go/v2"
 	"github.com/PretendoNetwork/nex-go/v2/types"
+	"math"
 	"strconv"
 )
 
@@ -49,9 +50,22 @@ func AccountDetailsByUsername(username string) (*nex.Account, *nex.Error) {
 		return nil, nex.NewError(nex.ResultCodes.RendezVous.InvalidUsername, "Invalid username")
 	}
 
+	// * PIDs 1 and 2 are the server accounts
+	if pidInt <= 2 || pidInt > math.MaxUint32 {
+		return nil, nex.NewError(nex.ResultCodes.RendezVous.InvalidUsername, "Invalid username")
+	}
+
 	pid := types.NewPID(uint64(pidInt))
 
 	password, errorCode := PasswordFromPID(&pid)
+	if errorCode == nex.ResultCodes.RendezVous.InvalidUsername {
+		// * First login: ValidatePlayerLogin fills in the password from the token
+		account := nex.NewAccount(pid, username, "", false)
+		unregisteredAccounts.Store(pid, account)
+
+		return account, nil
+	}
+
 	if errorCode != 0 {
 		Logger.Errorf("Password err: %v", errorCode)
 		return nil, nex.NewError(errorCode, "Failed to get password from PID")

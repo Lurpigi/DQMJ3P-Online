@@ -104,6 +104,13 @@ PID_OFFSET_ORIGINAL = bytes.fromhex("080084e2" "0e0090e8" "140094e5" "0c0085e5")
 BREAK_HOOK = 0x2880F8  # mov r0,#0xa
 BREAK_CAVE = 0x6B9900  # zero filled up to the page end 0x7ba000; 0x6b9810-0x6b98f3 is used by code_enhanced.ips
 BREAK_FILES = (0x86A140, 0x86A120, 0x86A100)  # "BREAK01/BossStealthBox.bin", "BREAK03/...", "BREAK02/..."
+# --nex-player-password: instead of a shared password, NEX uses the first 8 bytes of
+# MD5(salt + friends password) in hex, also sent as the LoginEx token so the server can store it
+# on the first login. The friends password (frd:u GetMyPassword, 16 characters) is the player's
+# Pretendo NEX password and never leaves the console. MD5: the SIL digest functions.
+PLAYER_CAVE = 0x6B9A60  # after the --spotpass-break routine
+PLAYER_SALT = b"DQMJ3P-Online-v1"
+PLAYER_PASSWORD_CALL = (0x356B58, bytes.fromhex("c55603eb"))  # bl FUN_0052c674 in FUN_00456ab4
 NEX_LOGIN_JOB_START = 0x56C4EC  # NexLoginJob_Start, faked by --skip-nasc unless --nex-auth
 NEX_AUTH_DATA = 0x42D088  # FUN_0052d088 body (0x74 bytes)
 NEX_PASSWORD = 0x42C674   # FUN_0052c674 body (0x78 bytes)
@@ -229,6 +236,88 @@ def nex_login_records(code, auth, password):
     assert len(auth_data) <= 0x74 and len(password_data) <= 0x78
     return [code_record(code, site) for site in NEX_LOGIN_SKIP_FRD] + [
         (NEX_AUTH_DATA, auth_data), (NEX_PASSWORD, password_data)]
+
+
+def nex_player_records(code, auth):
+    """FUN_0052d088 -> fixed NASC result with the player password as token, and the call to
+    FUN_0052c674 -> routine that turns the friends password into the player password."""
+    host, _, port = auth.rpartition(":")
+    if not host or not port.isdigit() or not 0 < int(port) < 0x10000:
+        sys.exit(f"--nex-auth {auth!r}: expected HOST:PORT")
+    if len(host.encode()) > 15:
+        sys.exit("--nex-auth host must be at most 15 bytes")
+    if code[NEX_AUTH_DATA:NEX_AUTH_DATA + 8] != bytes.fromhex("70402de90050a0e1"):
+        sys.exit(f"code.bin does not contain the expected function at {NEX_AUTH_DATA:#x}: wrong version (needs v1.3)")
+    routine = [
+        0xE92D4070,  # +00 push {r4-r6,lr}
+        0xE24DD090,  # +04 sub sp,sp,#0x90          MD5 context at sp, digest at sp+0x70
+        0xE1A04000,  # +08 mov r4,r0
+        None,        # +0c bl 0x52c674              friends password (frd:u GetMyPassword)
+        0xE3500000,  # +10 cmp r0,#0
+        None,        # +14 blt +74
+        0xE5D40000,  # +18 ldrb r0,[r4]
+        0xE3500000,  # +1c cmp r0,#0
+        0x03E00000,  # +20 mvneq r0,#0              no password: fail, don't hash nothing
+        None,        # +24 beq +74
+        0xE1A0000D,  # +28 mov r0,sp
+        None,        # +2c bl 0x1b24a0              MD5 init
+        0xE1A0000D,  # +30 mov r0,sp
+        0xE28F1078,  # +34 adr r1,salt
+        0xE3A02010,  # +38 mov r2,#16
+        None,        # +3c bl 0x3019f0              MD5 update
+        0xE1A0000D,  # +40 mov r0,sp
+        0xE1A01004,  # +44 mov r1,r4
+        0xE3A02010,  # +48 mov r2,#16
+        None,        # +4c bl 0x3019f0
+        0xE1A0000D,  # +50 mov r0,sp
+        0xE28D1070,  # +54 add r1,sp,#0x70
+        None,        # +58 bl 0x1b2214              MD5 final
+        None,        # +5c bl +7c                   digest to hex in r4
+        0xE3A00000,  # +60 mov r0,#0
+        0xE5840010, 0xE5840014, 0xE5840018, 0xE584001C,  # +64 clear bytes 16..31 of the buffer
+        0xE28DD090,  # +74 add sp,sp,#0x90
+        0xE8BD8070,  # +78 pop {r4-r6,pc}
+        0xE28D1070,  # +7c add r1,sp,#0x70
+        0xE1A00004,  # +80 mov r0,r4
+        0xE3A02008,  # +84 mov r2,#8                8 digest bytes = 16 hex digits
+        0xE28F3034,  # +88 adr r3,hex
+        0xE4D15001,  # +8c loop: ldrb r5,[r1],#1
+        0xE1A06225,  # +90 mov r6,r5,lsr #4
+        0xE7D36006,  # +94 ldrb r6,[r3,r6]
+        0xE4C06001,  # +98 strb r6,[r0],#1
+        0xE205500F,  # +9c and r5,r5,#15
+        0xE7D35005,  # +a0 ldrb r5,[r3,r5]
+        0xE4C05001,  # +a4 strb r5,[r0],#1
+        0xE2522001,  # +a8 subs r2,r2,#1
+        None,        # +ac bne +8c
+        0xE12FFF1E,  # +b0 bx lr
+    ]
+    calls = {0x0C: (0x52C674, 0xE, True), 0x14: (0x74, 0xB, False), 0x24: (0x74, 0x0, False),
+             0x2C: (0x1B24A0, 0xE, True), 0x3C: (0x3019F0, 0xE, True), 0x4C: (0x3019F0, 0xE, True),
+             0x58: (0x1B2214, 0xE, True), 0x5C: (0x7C, 0xE, True), 0xAC: (0x8C, 0x1, False)}
+    for at, (dst, cond, link) in calls.items():
+        dst = dst - 0x100000 if dst >= 0x100000 else PLAYER_CAVE + dst
+        routine[at // 4] = branch(PLAYER_CAVE + at, dst, cond, link)
+    body = arm(*routine) + PLAYER_SALT + b"0123456789abcdef"
+    assert len(PLAYER_SALT) == 16 and len(routine) * 4 == 0xB4
+    if code[PLAYER_CAVE:PLAYER_CAVE + len(body)] != bytes(len(body)):
+        sys.exit(f"code.bin has data at {PLAYER_CAVE:#x}: wrong version (needs v1.3)")
+    assert PLAYER_CAVE + len(body) <= 0x6BA000
+    auth_data = arm(
+        0xE92D4010, 0xE1A04000,  # push {r4,lr}; mov r4,r0
+        0xE3A01001, 0xE5801000,  # mov r1,#1; str r1,[r0]          result = success
+        0xE3A010C8, 0xE5801004,  # mov r1,#200; str r1,[r0,#4]     HTTP status
+        0xE28F1028, 0xE891100E,  # adr r1,host; ldm r1,{r1-r3,r12}
+        0xE5801008, 0xE580200C, 0xE5803010, 0xE580C014,  # host -> +8
+        0xE59F1020, 0xE1C012B8,  # ldr r1,port; strh r1,[r0,#0x28]
+        0xE2840030,              # add r0,r4,#0x30                 token = player password
+        branch(NEX_AUTH_DATA + 0x3C, PLAYER_CAVE, link=True),
+        0xE3A00000, 0xE8BD8010,  # mov r0,#0; pop {r4,pc}
+    ) + host.encode().ljust(16, b"\0") + struct.pack("<I", int(port))
+    assert len(auth_data) <= 0x74
+    call = arm(branch(PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, link=True))
+    return [code_record(code, site) for site in NEX_LOGIN_SKIP_FRD] + [
+        (NEX_AUTH_DATA, auth_data), code_record(code, (*PLAYER_PASSWORD_CALL, call)), (PLAYER_CAVE, body)]
 
 
 def pid_offset_record(code, offset):
@@ -369,8 +458,10 @@ def main():
                     help="skip NEX login + NASC service token before SIL (test builds, game not on Pretendo)")
     ap.add_argument("--skip-frd", action="store_true", help="also fake the friends-server login (debugging only)")
     ap.add_argument("--nex-auth", metavar="HOST:PORT",
-                    help="real NEX login on this authentication server without NASC (server/nex DEV mode)")
-    ap.add_argument("--nex-password", help="NEX password for --nex-auth (= PN_DQMJ3P_DEV_PASSWORD)")
+                    help="real NEX login on this authentication server without NASC")
+    ap.add_argument("--nex-password", help="shared NEX password for --nex-auth (server in DEV mode)")
+    ap.add_argument("--nex-player-password", action="store_true",
+                    help="NEX password for --nex-auth derived from the friends password (normal server)")
     ap.add_argument("--azahar", action="store_true",
                     help="work around Azahar http:C bugs (empty POST, header size probe)")
     ap.add_argument("--nncs", metavar="HOST1,HOST2",
@@ -391,9 +482,13 @@ def main():
         ours.append(slot_record(code, SPOTPASS_URL, args.spotpass_url))
     if args.azahar_hle_boss:
         ours += [code_record(code, site) for site in AZAHAR_HLE_BOSS]
-    if bool(args.nex_auth) != bool(args.nex_password):
-        ap.error("--nex-auth and --nex-password go together")
-    if args.nex_auth:
+    if args.nex_password and args.nex_player_password:
+        ap.error("--nex-password and --nex-player-password exclude each other")
+    if bool(args.nex_auth) != bool(args.nex_password or args.nex_player_password):
+        ap.error("--nex-auth needs --nex-password or --nex-player-password")
+    if args.nex_player_password:
+        ours += nex_player_records(code, args.nex_auth)
+    elif args.nex_auth:
         ours += nex_login_records(code, args.nex_auth, args.nex_password)
     if args.skip_nasc:
         # with a real NEX login, NexLoginJob_Start must not be faked
@@ -411,7 +506,8 @@ def main():
         ours += spotpass_break_records(code)
 
     # records this tool wrote into a previously merged patch are replaced, not kept
-    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE, BREAK_HOOK, BREAK_CAVE} | {
+    own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE, BREAK_HOOK, BREAK_CAVE,
+                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE} | {
         off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD} | {
         off for off, _ in NNCS_ASCII + NNCS_UTF16}
     merged = []

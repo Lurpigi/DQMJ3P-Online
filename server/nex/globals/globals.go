@@ -22,8 +22,6 @@ const AccessKey = "5812c478"
 // GameServerID is the NEX game server ID the client logs into (NASC gameid)
 const GameServerID = 0x001ACB00
 
-// TitleIDUniqueID is the unique ID part of title 00040000001ACB00, used to validate NEX tokens
-const TitleIDUniqueID = "001ACB00"
 
 // ServerBuildString is reported to clients by the authentication server; set with -ldflags
 var ServerBuildString = "dqmj3p-online"

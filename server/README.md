@@ -29,7 +29,7 @@ cd nex && cp .env.example .env && go build -o build/dqmj3p-nex.exe . && ./build/
 ~/tools/nc-venv/Scripts/python tests/smoke_nex.py         # due client: crea / cerca / entra in una sessione
 ```
 
-In modalità DEV (`PN_DQMJ3P_DEV_PASSWORD` impostata) ogni PID usa la stessa password NEX, i servizi gRPC account/friends di Pretendo non servono e il metodo `Login` semplice è abilitato. **Mai in produzione.**
+In modalità DEV (`PN_DQMJ3P_DEV_PASSWORD` impostata) ogni PID usa la stessa password NEX e il metodo `Login` semplice è abilitato. **Mai in produzione.** Il login senza DEV si prova con `tests/auth_nex.py`.
 
 Note:
 - Su Windows le porte UDP 59435–63044 sono riservate da Hyper-V: in DEV usiamo 45000/45001.
@@ -38,7 +38,21 @@ Note:
 
 ## Stack di prova pubblico (VPS)
 
-`docker-compose.yml` avvia NEX, Postgres, SIL, SpotPass e il controllo NAT su un solo server. Il login resta quello DEV: tutti i giocatori usano la stessa password, scritta nella patch. Serve per provare il gioco via internet, **non per aprirlo al pubblico**: prima vanno fatte le password per giocatore (`PLAN.md` sezione 4).
+`docker-compose.yml` avvia NEX, Postgres, SIL, SpotPass e il controllo NAT su un solo server. Serve per provare il gioco via internet, **non ancora per aprirlo al pubblico** (`PLAN.md` sezione 4).
+
+### Password dei giocatori
+
+Senza `PN_DQMJ3P_DEV_PASSWORD` il server usa una password per giocatore. Con `--nex-player-password` la patch calcola `MD5(sale + password amici)`, ne tiene i primi 16 caratteri esadecimali e li invia come token di `LoginEx`. La password amici di Pretendo non lascia mai la console. Il primo accesso di un PID salva il valore in `accounts.passwords`, gli accessi successivi devono coincidere.
+
+Limiti noti:
+- il token viaggia a ogni accesso e PRUDP lo cifra solo con una chiave fissa, quindi chi intercetta il traffico può leggerlo;
+- chi cambia password amici o account non entra più finché la sua riga non viene cancellata:
+
+  ```bash
+  docker compose exec postgres psql -U dqmj3p -d dqmj3p -c "DELETE FROM accounts.passwords WHERE pid = PID"
+  ```
+
+### Installazione
 
 Serve un server Linux con Docker e **due IPv4 pubblici configurati sulla sua interfaccia di rete**. I provider che usano il NAT 1:1 (per esempio AWS e Google Cloud) non vanno bene, perché il controllo NAT non può fare il bind sugli IP pubblici.
 
@@ -71,10 +85,10 @@ Serve un server Linux con Docker e **due IPv4 pubblici configurati sulla sua int
 5. Genera la patch sul tuo PC, con gli stessi valori di `.env`:
 
    ```bash
-   python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-password NEX_PASSWORD --nncs IP,IP2 --spotpass-break --azahar --merge CODE_IPS_DI_PARTENZA -o code.ips
+   python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 --azahar --merge CODE_IPS_DI_PARTENZA -o code.ips
    ```
 
-   Togli `--azahar` per la patch destinata a un 3DS vero.
+   Togli `--azahar` per la patch destinata a un 3DS vero. `--spotpass-break` scarica gli eventi BREAK su Azahar, ma aggiunge circa 22 secondi a ogni connessione.
 
 I dati restano nei volumi Docker `pg` e `datastore` e nella cartella `DATA_DIR`. Per i log: `docker compose logs -f nex`.
 
