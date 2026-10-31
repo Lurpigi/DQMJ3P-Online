@@ -102,7 +102,7 @@ PID_OFFSET_ORIGINAL = bytes.fromhex("080084e2" "0e0090e8" "140094e5" "0c0085e5")
 # error. The game finds the NsData by data type, not by task id. The BOSS manager
 # (0x227398 / 0x682a8c) is created only if none is alive.
 BREAK_HOOK = 0x2880F8  # mov r0,#0xa
-BREAK_CAVE = 0x6B9810  # end of .text (0x7b9810) up to the page end 0x7ba000, zero filled
+BREAK_CAVE = 0x6B9900  # zero filled up to the page end 0x7ba000; 0x6b9810-0x6b98f3 is used by code_enhanced.ips
 BREAK_FILES = (0x86A140, 0x86A120, 0x86A100)  # "BREAK01/BossStealthBox.bin", "BREAK03/...", "BREAK02/..."
 NEX_LOGIN_JOB_START = 0x56C4EC  # NexLoginJob_Start, faked by --skip-nasc unless --nex-auth
 NEX_AUTH_DATA = 0x42D088  # FUN_0052d088 body (0x74 bytes)

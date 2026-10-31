@@ -2,7 +2,7 @@
 
 Obiettivo: riattivare le funzioni online di *Dragon Quest Monsters: Joker 3 Professional* (3DS, JP, `00040000001ACB00`, v1.3) su console (Luma3DS) ed emulatore (Azahar PC/Android).
 
-Ultimo aggiornamento: 2026-10-30.
+Ultimo aggiornamento: 2026-10-31.
 
 ---
 
@@ -109,7 +109,9 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 - [ ] (Facoltativo) nuovi contenuti SpotPass creati con `re/tools/bsdt.py` al posto dei file originali.
 
 ### Fase B – Produzione
-- [ ] Stack di prova sul VPS: `server/docker-compose.yml` e' pronto e provato in locale (guida in `server/README.md`). Serve un VPS con due IPv4 pubblici.
+- [x] Stack di prova sul VPS Hetzner (2026-10-31): attivo su `188.245.46.173` e `78.47.138.100`. Da fuori passano `smoke_nex.py`, SpotPass e nncs, e dopo un riavvio del server riparte tutto. Porte 33334-33335/udp non provate.
+- [x] Gioco contro il VPS, primo ingresso (2026-10-31): da "Visita Piazza Wi-Fi" su Azahar, con traduzione enhanced, login NEX col PID reale e download dei tre file BREAK (200) dal VPS. `BREAK_CAVE` e' stato spostato a `0x6B9900` perche' collideva con `code_enhanced.ips`. Il gioco resta circa 30 s su "Gioco Salvato!" prima di connettersi.
+- [ ] Sul VPS mancano ancora: SIL in gioco (register/login), nncs in gioco, comunita', Grand Prix, oggetti BREAK visti in gioco.
 - [ ] Lotta tra due reti diverse: tutte le lotte finora sono su un solo PC con NAT finto. Le lotte Pia sono P2P e non c'e' un relay, quindi verificare cosa succede con CGNAT e NAT simmetrico.
 - [ ] Password per giocatore: oggi tutti usano la password DEV scritta nella patch e il server si fida del PID, quindi chiunque puo' entrare come un altro. Sostituire `globals.PasswordFromPID` con una tabella nostra e una password per giocatore, ricavata da un dato della console non visibile agli altri e registrata al primo accesso (dato da individuare).
 - [ ] Sicurezza SIL: legare il Friend Code SIL al giocatore con lo stesso meccanismo.
