@@ -144,6 +144,18 @@ def main():
         assert r["Result"] == b"OK" and len(r["Token"]) == 16, r
         c.token = r["Token"]
 
+        # a save that registered on another server logs in with its old friend code
+        old = GameClient(c.base)
+        old.friend_code = "456093702889"
+        r = old.call("nuser/getnonce")
+        assert r["Result"] == b"OK" and len(r["Nonce"]) == 16, r
+        r = old.call("nuser/login", {"Authentication-Token": service_token,
+                                     "Digest": hashlib.md5(r["Nonce"] + KEY).digest()})
+        assert r["Result"] == b"OK" and len(r["Token"]) == 16, r
+        bad = GameClient(c.base)
+        bad.friend_code = "short"
+        assert bad.call("nuser/getnonce")["Result"] == b"USER_NOT_EXIST"
+
         save = os.urandom(0x37af0)
         fc = c.friend_code.encode()
         r = c.call("file/upload", {"File-Name": b"PrivateDLFixedSaveData.bin", "Friend-Code": fc, "Data": save})

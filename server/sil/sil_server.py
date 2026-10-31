@@ -476,6 +476,10 @@ class Handler(BaseHTTPRequestHandler):
         return {"Friend-Code": friend_code}
 
     def getnonce(self, _fields, friend_code):
+        # A save keeps the friend code of the server it registered on (Square Enix, another
+        # instance). Adopt it: on USER_NOT_EXIST that attempt fails and the game drops the code.
+        if len(friend_code) == 12 and friend_code.isascii() and friend_code.isalnum():
+            self.store.q("INSERT OR IGNORE INTO users (friend_code) VALUES (?)", friend_code)
         self._require_user(friend_code)
         nonce = secrets.token_bytes(16)
         self.store.q("INSERT INTO sessions (friend_code, nonce, token) VALUES (?, ?, NULL) "
