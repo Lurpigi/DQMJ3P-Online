@@ -31,7 +31,10 @@ DECLARE
     -- Species from a real Grand Prix team; any monster that can be ridden works.
     opponents integer[] := ARRAY[71, 346, 442];
     name text := 'G-Cup ' || (week + 1);
-    news text := name || ' ' || chr(232) || ' aperta! Fai il miglior tempo: a fine settimana premi in monete per i migliori.';
+    -- One text for all players: title, then English, Italian, Spanish, French, Japanese
+    news text := name || chr(10) || 'Top times win coins' || chr(10) || 'Monete ai migliori' || chr(10)
+        || 'Premios en monedas' || chr(10) || 'Pi' || chr(232) || 'ces aux meilleurs' || chr(10)
+        || U&'\4E0A\4F4D\306B\30B3\30A4\30F3';
     -- platinum, gold, silver, bronze for ranks 1..10, 11-100, nine bands up to 1000, 1001-10000
     prizes integer[] := ARRAY[
         [0, 3, 0, 0], [0, 2, 0, 0], [0, 1, 0, 0], [0, 0, 3, 0], [0, 0, 3, 0],
