@@ -2,7 +2,9 @@ package nex
 
 import (
 	"bytes"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime"
@@ -54,45 +56,57 @@ func initDataStoreTables() {
 			version integer NOT NULL DEFAULT 0,
 			upload_completed boolean NOT NULL DEFAULT false,
 			created_time timestamp NOT NULL,
-			updated_time timestamp NOT NULL);`)
+			updated_time timestamp NOT NULL);
+		ALTER TABLE datastore.objects ADD COLUMN IF NOT EXISTS upload_token text NOT NULL DEFAULT '';
+		ALTER TABLE datastore.objects ADD COLUMN IF NOT EXISTS upload_version integer NOT NULL DEFAULT 0;`)
 	if err != nil {
 		globals.Logger.Criticalf("Failed to create the datastore tables: %v", err)
 	}
 }
 
-// * The file part of a multipart upload: the part named "file" or with a file name, else the
-// * last part (the form fields come first). Split by hand: the multipart body Azahar sends for
-// * the game is not accepted by mime/multipart ("bufio: buffer full").
+// * The file part of a multipart upload: everything between the headers of the last part and the
+// * closing delimiter. Split by hand: the body Azahar sends for the game is not accepted by
+// * mime/multipart. Azahar's http:C keeps chunked post data in a multimap keyed by content, so the
+// * pieces arrive sorted by their bytes: headers, data and closing delimiter can be in any order.
+// * Cut the headers and the delimiter out wherever they are. The data itself must be one piece:
+// * make_url_patch.py --azahar makes the game send it that way.
 func multipartFile(contentType string, body []byte) ([]byte, error) {
 	_, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return nil, err
 	}
 	delimiter := []byte("--" + params["boundary"])
-	// * Azahar sends the first 32 KiB chunk of a chunked upload last: the body starts with the
-	// * middle of the file and the opening delimiter comes later. Rotate it back into order.
-	if open := bytes.Index(body, append(delimiter, '\r', '\n')); open > 0 &&
-		len(bytes.TrimSpace(body[:open])) > 0 {
-		body = append(append([]byte{}, body[open:]...), body[:open]...)
+
+	open := bytes.Index(body, append(append([]byte{}, delimiter...), '\r', '\n'))
+	if open < 0 {
+		return nil, fmt.Errorf("no opening delimiter in multipart body")
 	}
-	var last []byte
-	for _, part := range bytes.Split(body, delimiter) {
-		// * Each part: CRLF, headers, blank line, data, CRLF. The closing delimiter leaves "--".
-		head, data, found := bytes.Cut(part, []byte("\r\n\r\n"))
-		if !found {
-			continue
+	// * The form fields come first, the file is the last part
+	headers := open
+	for next := open; next >= 0; {
+		headers = next
+		found := bytes.Index(body[next+len(delimiter):], append(append([]byte{}, delimiter...), '\r', '\n'))
+		if found < 0 {
+			break
 		}
-		data = bytes.TrimSuffix(data, []byte("\r\n"))
-		headers := strings.ToLower(string(head))
-		if strings.Contains(headers, "filename=") || strings.Contains(headers, `name="file"`) {
-			return data, nil
-		}
-		last = data
+		next += len(delimiter) + found
 	}
-	if last == nil {
-		return nil, fmt.Errorf("no parts in multipart body")
+	blank := bytes.Index(body[headers:], []byte("\r\n\r\n"))
+	if blank < 0 {
+		return nil, fmt.Errorf("no part headers in multipart body")
 	}
-	return last, nil
+	data := append(append([]byte{}, body[:open]...), body[headers+blank+4:]...)
+
+	closing := append(append([]byte("\r\n"), delimiter...), '-', '-')
+	end := bytes.Index(data, closing)
+	if end < 0 {
+		return nil, fmt.Errorf("no closing delimiter in multipart body")
+	}
+	tail := end + len(closing)
+	if bytes.HasPrefix(data[tail:], []byte("\r\n")) {
+		tail += 2
+	}
+	return append(data[:end:end], data[tail:]...), nil
 }
 
 func dataStoreFile(dataID uint64) string {
@@ -103,12 +117,32 @@ func dataStoreUploadFile(dataID uint64, version uint32) string {
 	return filepath.Join(dataStoreDir, fmt.Sprintf("%d.v%d.upload", dataID, version))
 }
 
-// * POST /upload/<dataID>/<version> (multipart with a file part, or a raw body), GET /data/<dataID>
+// * The upload URL carries a random token. Only the player who prepared the upload gets it, over the
+// * secure connection, and it is valid for one version until the upload completes.
+func newUploadToken() (string, error) {
+	token := make([]byte, 16)
+	if _, err := rand.Read(token); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(token), nil
+}
+
+func uploadAllowed(dataID uint64, version uint64, token string) bool {
+	var allowed bool
+	err := globals.Postgres.QueryRow(`SELECT EXISTS (SELECT 1 FROM datastore.objects WHERE data_id = $1
+		AND upload_version = $2 AND upload_token = $3 AND upload_token <> '')`, dataID, version, token).Scan(&allowed)
+	if err != nil {
+		globals.Logger.Error(err.Error())
+	}
+	return allowed
+}
+
+// * POST /upload/<dataID>/<version>/<token> (multipart with a file part, or a raw body), GET /data/<dataID>
 func serveDataStoreHTTP(listen string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/upload/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/upload/"), "/")
-		if len(parts) != 2 || (r.Method != http.MethodPost && r.Method != http.MethodPut) {
+		if len(parts) != 3 || (r.Method != http.MethodPost && r.Method != http.MethodPut) {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
@@ -116,6 +150,10 @@ func serveDataStoreHTTP(listen string) {
 		version, err2 := strconv.ParseUint(parts[1], 10, 32)
 		if err1 != nil || err2 != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		if !uploadAllowed(dataID, version, parts[2]) {
+			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 
@@ -230,8 +268,8 @@ func dataStoreResponse(packet nex.PacketInterface, callID uint32, methodID uint3
 	return response
 }
 
-func uploadURL(dataID uint64, version uint32) string {
-	return fmt.Sprintf("%s/upload/%d/%d", dataStoreURL, dataID, version)
+func uploadURL(dataID uint64, version uint32, token string) string {
+	return fmt.Sprintf("%s/upload/%d/%d/%s", dataStoreURL, dataID, version, token)
 }
 
 func searchObject(err error, packet nex.PacketInterface, callID uint32, param datastore_types.DataStoreSearchParam) (*nex.RMCMessage, *nex.Error) {
@@ -304,15 +342,20 @@ func preparePostObject(err error, packet nex.PacketInterface, callID uint32, par
 	for _, tag := range param.Tags {
 		tags = append(tags, string(tag))
 	}
+	token, tokenErr := newUploadToken()
+	if tokenErr != nil {
+		globals.Logger.Error(tokenErr.Error())
+		return nil, nex.NewError(nex.ResultCodes.DataStore.Unknown, "change_error")
+	}
 	now := time.Now().UTC()
 	var dataID uint64
 	dbErr := globals.Postgres.QueryRow(`INSERT INTO datastore.objects
 		(owner, size, name, data_type, meta_binary, permission, del_permission, flag, period,
-		 refer_data_id, tags, persistence_slot_id, created_time, updated_time)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13) RETURNING data_id`,
+		 refer_data_id, tags, persistence_slot_id, created_time, updated_time, upload_token)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14) RETURNING data_id`,
 		owner, uint32(param.Size), string(param.Name), uint16(param.DataType), []byte(param.MetaBinary),
 		uint8(param.Permission.Permission), uint8(param.DelPermission.Permission), uint32(param.Flag),
-		uint16(param.Period), uint32(param.ReferDataID), pq.Array(tags), int(slot), now).Scan(&dataID)
+		uint16(param.Period), uint32(param.ReferDataID), pq.Array(tags), int(slot), now, token).Scan(&dataID)
 	if dbErr != nil {
 		globals.Logger.Error(dbErr.Error())
 		return nil, nex.NewError(nex.ResultCodes.DataStore.Unknown, "change_error")
@@ -320,7 +363,7 @@ func preparePostObject(err error, packet nex.PacketInterface, callID uint32, par
 
 	info := datastore_types.NewDataStoreReqPostInfo()
 	info.DataID = types.NewUInt64(dataID)
-	info.URL = types.NewString(uploadURL(dataID, 0))
+	info.URL = types.NewString(uploadURL(dataID, 0, token))
 	return dataStoreResponse(packet, callID, datastore.MethodPreparePostObject, info), nil
 }
 
@@ -376,7 +419,7 @@ func completePostObject(err error, packet nex.PacketInterface, callID uint32, pa
 			os.Remove(dataStoreFile(uint64(id)))
 		}
 	}
-	globals.Postgres.Exec(`UPDATE datastore.objects SET upload_completed = true WHERE data_id = $1`, dataID)
+	globals.Postgres.Exec(`UPDATE datastore.objects SET upload_completed = true, upload_token = '' WHERE data_id = $1`, dataID)
 	return dataStoreResponse(packet, callID, datastore.MethodCompletePostObject, nil), nil
 }
 
@@ -419,9 +462,21 @@ func prepareUpdateObject(err error, packet nex.PacketInterface, callID uint32, p
 		return nil, nex.NewError(nex.ResultCodes.DataStore.PermissionDenied, "change_error")
 	}
 
+	token, tokenErr := newUploadToken()
+	if tokenErr != nil {
+		globals.Logger.Error(tokenErr.Error())
+		return nil, nex.NewError(nex.ResultCodes.DataStore.Unknown, "change_error")
+	}
+	_, dbErr := globals.Postgres.Exec(`UPDATE datastore.objects SET upload_token = $2, upload_version = $3 WHERE data_id = $1`,
+		o.dataID, token, o.version+1)
+	if dbErr != nil {
+		globals.Logger.Error(dbErr.Error())
+		return nil, nex.NewError(nex.ResultCodes.DataStore.Unknown, "change_error")
+	}
+
 	info := datastore_types.NewDataStoreReqUpdateInfo()
 	info.Version = types.NewUInt32(o.version + 1)
-	info.URL = types.NewString(uploadURL(o.dataID, o.version+1))
+	info.URL = types.NewString(uploadURL(o.dataID, o.version+1, token))
 	return dataStoreResponse(packet, callID, datastore.MethodPrepareUpdateObject, info), nil
 }
 
@@ -453,6 +508,7 @@ func completeUpdateObject(err error, packet nex.PacketInterface, callID uint32, 
 	} else {
 		os.Remove(upload)
 	}
+	globals.Postgres.Exec(`UPDATE datastore.objects SET upload_token = '' WHERE data_id = $1`, o.dataID)
 	return dataStoreResponse(packet, callID, datastore.MethodCompleteUpdateObject, nil), nil
 }
 

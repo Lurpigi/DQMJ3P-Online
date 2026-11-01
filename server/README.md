@@ -44,9 +44,16 @@ Note:
 
 Senza `PN_DQMJ3P_DEV_PASSWORD` il server usa una password per giocatore. Con `--nex-player-password` la patch calcola `MD5(sale + password amici)`, ne tiene i primi 16 caratteri esadecimali e li invia come token di `LoginEx`. La password amici di Pretendo non lascia mai la console. Il primo accesso di un PID salva il valore in `accounts.passwords`, gli accessi successivi devono coincidere.
 
+Lo stesso valore riempie il token SIL. Il server SIL ne salva lo SHA-256 per friend code: la prima `nuser/register` o `nuser/login` lo lega, i login successivi devono coincidere. Una nuova `nuser/register` con lo stesso valore restituisce il friend code già assegnato.
+
+Gli URL di upload DataStore contengono un token casuale, valido per una versione fino al `Complete`, che arriva solo a chi ha preparato l'upload.
+
+Per provare patch senza `--nex-player-password` in locale: `sil_server.py --dev-tokens`.
+
 Limiti noti:
-- il token viaggia a ogni accesso e PRUDP lo cifra solo con una chiave fissa, quindi chi intercetta il traffico può leggerlo;
-- chi cambia password amici o account non entra più finché la sua riga non viene cancellata:
+- il token viaggia a ogni accesso, in chiaro su HTTP verso SIL e con una chiave fissa su PRUDP, quindi chi intercetta il traffico può leggerlo;
+- chi arriva per primo su un PID o su un friend code ancora senza proprietario lo occupa;
+- chi cambia password amici o account non entra più in NEX finché la sua riga non viene cancellata:
 
   ```bash
   docker compose exec postgres psql -U dqmj3p -d dqmj3p -c "DELETE FROM accounts.passwords WHERE pid = PID"

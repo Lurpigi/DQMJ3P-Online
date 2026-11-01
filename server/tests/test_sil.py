@@ -65,9 +65,13 @@ class GameClient:
         return out
 
 
+def player_token():
+    return hashlib.md5(os.urandom(16)).hexdigest()[:16].encode().ljust(256, b"\0")
+
+
 def logged_in_client(base):
     c = GameClient(base)
-    service_token = os.urandom(256)
+    service_token = player_token()
     r = c.call("nuser/register", {"Authentication-Token": service_token})
     assert r["Result"] == b"OK" and len(r["Friend-Code"]) == 12, r
     c.friend_code = r["Friend-Code"].decode()
@@ -131,7 +135,7 @@ def main():
             except OSError:
                 time.sleep(0.1)
         c = GameClient(f"http://127.0.0.1:{port}/00300701/")
-        service_token = os.urandom(256)
+        service_token = player_token()
 
         r = c.call("nuser/register", {"Authentication-Token": service_token})
         assert r["Result"] == b"OK" and len(r["Friend-Code"]) == 12, r
@@ -155,6 +159,23 @@ def main():
         bad = GameClient(c.base)
         bad.friend_code = "short"
         assert bad.call("nuser/getnonce")["Result"] == b"USER_NOT_EXIST"
+
+        # that login bound the friend code: another player can't use it
+        nonce = old.call("nuser/getnonce")["Nonce"]
+        r = old.call("nuser/login", {"Authentication-Token": player_token(),
+                                     "Digest": hashlib.md5(nonce + KEY).digest()})
+        assert r["Result"] == b"INVALID_TOKEN", r
+        # malformed tokens, as the old patches send them, are refused
+        for token in (bytes(256), os.urandom(256)):
+            r = GameClient(c.base).call("nuser/register", {"Authentication-Token": token})
+            assert r["Result"] == b"INVALID_DATA", r
+        nonce = old.call("nuser/getnonce")["Nonce"]
+        r = old.call("nuser/login", {"Authentication-Token": bytes(256),
+                                     "Digest": hashlib.md5(nonce + KEY).digest()})
+        assert r["Result"] == b"INVALID_DATA", r
+        # a game that lost its friend code gets the same one back
+        r = GameClient(c.base).call("nuser/register", {"Authentication-Token": service_token})
+        assert r["Result"] == b"OK" and r["Friend-Code"].decode() in (c.friend_code, old.friend_code), r
 
         save = os.urandom(0x37af0)
         fc = c.friend_code.encode()

@@ -2,7 +2,7 @@
 
 Obiettivo: riattivare le funzioni online di *Dragon Quest Monsters: Joker 3 Professional* (3DS, JP, `00040000001ACB00`, v1.3) su console (Luma3DS) ed emulatore (Azahar PC/Android).
 
-Ultimo aggiornamento: 2026-10-31.
+Ultimo aggiornamento: 2026-11-01.
 
 ---
 
@@ -117,8 +117,9 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 - [ ] Sul VPS mancano ancora: nncs in gioco, comunita', gare del Grand Prix, oggetti BREAK visti in gioco.
 - [ ] Lotta tra due reti diverse: tutte le lotte finora sono su un solo PC con NAT finto. Le lotte Pia sono P2P e non c'e' un relay, quindi verificare cosa succede con CGNAT e NAT simmetrico.
 - [x] Password per giocatore (2026-10-31): `accounts.passwords` e `make_url_patch.py --nex-player-password` (password derivata con MD5 dalla password amici, registrata al primo accesso). Verificata sul VPS con `tests/auth_nex.py` e in gioco su Azahar. Dettagli e limiti in `server/README.md`.
-- [ ] Sicurezza SIL: legare il Friend Code SIL al giocatore con lo stesso meccanismo.
-- [ ] DataStore: `/upload/` non controlla chi carica, quindi va accettato solo l'upload preparato dal giocatore proprietario.
+- [ ] Fine torneo G-Cup: coppe con flag 513, premi per fascia e notizie nel buffer (`gcup_official_communities.sql`, mappa in `re/notes/nex_usage.md` 3.9), applicati sul VPS il 2026-11-01. Il cambio coppa e l'ordine delle monete vanno provati in gioco.
+- [x] Sicurezza SIL (2026-10-31): friend code legato allo SHA-256 del token del giocatore (`users.secret`), token nella patch con `--nex-player-password`. Verificata con `tests/test_sil.py` e in gioco su Azahar.
+- [ ] DataStore: URL di upload con token casuale per versione. `tests/smoke_nex.py` lo verifica, manca una gara vera in gioco che carichi un replay.
 - [ ] Battaglia Amici: il server non vede le amicizie senza il gRPC di Pretendo (`GetUserFriendPIDs` restituisce vuoto). Verificare se la modalita' ne ha bisogno.
 - [ ] Test su 3DS reale (finora solo Azahar):
   - `--azahar` e `--spotpass-break` sono aggiramenti per l'emulatore; su console i task BREAK dovrebbero partire da soli in standby;

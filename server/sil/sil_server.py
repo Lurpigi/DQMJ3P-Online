@@ -26,6 +26,7 @@ import datetime
 import hashlib
 import itertools
 import os
+import re
 import secrets
 import sqlite3
 import struct
@@ -129,7 +130,8 @@ class Store:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.lock = threading.Lock()
         self.db.executescript("""
-            CREATE TABLE IF NOT EXISTS users (friend_code TEXT PRIMARY KEY, created INTEGER DEFAULT (strftime('%s','now')));
+            -- secret: SHA-256 of the player token (Authentication-Token), set by register or the first login
+            CREATE TABLE IF NOT EXISTS users (friend_code TEXT PRIMARY KEY, created INTEGER DEFAULT (strftime('%s','now')), secret TEXT);
             CREATE TABLE IF NOT EXISTS sessions (friend_code TEXT PRIMARY KEY, nonce BLOB, token BLOB);
             CREATE TABLE IF NOT EXISTS private_files (friend_code TEXT, name TEXT, data BLOB, updated INTEGER DEFAULT (strftime('%s','now')), PRIMARY KEY (friend_code, name));
             -- Grand Prix results (GradeResultPack.bin / LimitResultPack.bin, 0x540 B, score = u32 at +0xc);
@@ -142,6 +144,8 @@ class Store:
         """)
         if "day" not in [c[1] for c in self.db.execute("PRAGMA table_info(gp_results)")]:
             self.db.execute("ALTER TABLE gp_results ADD COLUMN day TEXT")
+        if "secret" not in [c[1] for c in self.db.execute("PRAGMA table_info(users)")]:
+            self.db.execute("ALTER TABLE users ADD COLUMN secret TEXT")
 
     def date_gp_results(self, calendar):
         """Results stored before gp_results.day existed count for the day they were uploaded."""
@@ -463,16 +467,27 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     # nuser/*
-    def register(self, fields, _friend_code):
-        if len(fields.get("Authentication-Token", b"")) == 0:
+    def _token_secret(self, fields):
+        """The patch sends the player password as Authentication-Token (make_url_patch.py
+        --nex-player-password): 16 hex digits in a zero-filled 256-byte buffer."""
+        token = fields.get("Authentication-Token", b"")
+        if self.dev_tokens and token:
+            return None
+        if not re.fullmatch(rb"[0-9a-f]{16}", token.rstrip(b"\0")):
             raise SilError("INVALID_DATA")
-        # TODO: validate the Nintendo/Pretendo service token (account server) and map it to a PID,
-        # so a friend code can be bound to one console. For now every register creates a new user.
+        return hashlib.sha256(token.rstrip(b"\0")).hexdigest()
+
+    def register(self, fields, _friend_code):
+        secret = self._token_secret(fields)
+        # A game that lost its friend code gets it back instead of a new, empty user
+        rows = self.store.q("SELECT friend_code FROM users WHERE secret = ?", secret) if secret else []
+        if rows:
+            return {"Friend-Code": rows[0][0]}
         while True:
             friend_code = "".join(secrets.choice("0123456789") for _ in range(12))
             if not self.store.q("SELECT 1 FROM users WHERE friend_code = ?", friend_code):
                 break
-        self.store.q("INSERT INTO users (friend_code) VALUES (?)", friend_code)
+        self.store.q("INSERT INTO users (friend_code, secret) VALUES (?, ?)", friend_code, secret)
         return {"Friend-Code": friend_code}
 
     def getnonce(self, _fields, friend_code):
@@ -493,9 +508,20 @@ class Handler(BaseHTTPRequestHandler):
             raise SilError("INVALID_DATA")
         if fields.get("Digest") != hashlib.md5(rows[0][0] + KEY).digest():
             raise SilError("INVALID_DATA")
+        self._check_secret(friend_code, self._token_secret(fields))
         token = secrets.token_bytes(16)
         self.store.q("UPDATE sessions SET nonce = NULL, token = ? WHERE friend_code = ?", token, friend_code)
         return {"Token": token}
+
+    def _check_secret(self, friend_code, secret):
+        """The first login binds an adopted friend code to its player."""
+        if secret is None:
+            return
+        stored = self.store.q("SELECT secret FROM users WHERE friend_code = ?", friend_code)[0][0]
+        if stored is None:
+            self.store.q("UPDATE users SET secret = ? WHERE friend_code = ?", secret, friend_code)
+        elif not secrets.compare_digest(stored, secret):
+            raise SilError("INVALID_TOKEN")
 
     def _require_user(self, friend_code):
         if not friend_code or not self.store.q("SELECT 1 FROM users WHERE friend_code = ?", friend_code):
@@ -757,6 +783,8 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8381)
     ap.add_argument("--data", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"))
+    ap.add_argument("--dev-tokens", action="store_true",
+                    help="accept any Authentication-Token (patches without --nex-player-password, local tests)")
     ap.add_argument("--self-opponents", action="store_true",
                     help="Grand Prix: also offer players their own last team as an opponent (single-player tests)")
     day = datetime.date.fromisoformat
@@ -791,6 +819,7 @@ def main():
     Handler.store = Store(os.path.join(args.data, "sil.sqlite3"))
     Handler.public_dir = os.path.join(args.data, "public")
     Handler.private_templates_dir = os.path.join(args.data, "private_templates")
+    Handler.dev_tokens = args.dev_tokens
     Handler.self_opponents = args.self_opponents
     Handler.calendar = GpCalendar(args.gp_start, args.gp_days, args.gp_utc_offset, args.gp_today)
     Handler.store.date_gp_results(Handler.calendar)

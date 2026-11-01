@@ -104,13 +104,23 @@ PID_OFFSET_ORIGINAL = bytes.fromhex("080084e2" "0e0090e8" "140094e5" "0c0085e5")
 BREAK_HOOK = 0x2880F8  # mov r0,#0xa
 BREAK_CAVE = 0x6B9900  # zero filled up to the page end 0x7ba000; 0x6b9810-0x6b98f3 is used by code_enhanced.ips
 BREAK_FILES = (0x86A140, 0x86A120, 0x86A100)  # "BREAK01/BossStealthBox.bin", "BREAK03/...", "BREAK02/..."
+# --azahar: replay uploads. Azahar's http:C sends chunked post data sorted by content, so the 32 KiB
+# pieces of a replay arrive shuffled. The HTTP ring buffer size limits a piece, so size it for the
+# whole upload: FUN_004aa380 passes it to the HTTP client (+0x58) from the request's +0x18, replace
+# that with the data size (+0x20) plus room for the multipart headers.
+UPLOAD_SIZE_SITE = (0x3AA3B4, bytes.fromhex("181095e5"))  # ldr r1,[r5,#0x18]
+UPLOAD_SIZE_CAVE = 0x6B9B60  # after the --nex-player-password routine
 # --nex-player-password: instead of a shared password, NEX uses the first 8 bytes of
 # MD5(salt + friends password) in hex, also sent as the LoginEx token so the server can store it
 # on the first login. The friends password (frd:u GetMyPassword, 16 characters) is the player's
 # Pretendo NEX password and never leaves the console. MD5: the SIL digest functions.
+# The same value fills the SIL token buffer where the game would ask NASC for a service token
+# (SilAuthJob_Update case 1: token still empty), so SIL can bind the friend code to the player.
 PLAYER_CAVE = 0x6B9A60  # after the --spotpass-break routine
 PLAYER_SALT = b"DQMJ3P-Online-v1"
 PLAYER_PASSWORD_CALL = (0x356B58, bytes.fromhex("c55603eb"))  # bl FUN_0052c674 in FUN_00456ab4
+SIL_TOKEN_SITE = 0x56CBC4  # case 1: beq (token empty -> silAuthRequestAuthToken)
+SIL_TOKEN_BUFFER = 0x8CFF54
 NEX_LOGIN_JOB_START = 0x56C4EC  # NexLoginJob_Start, faked by --skip-nasc unless --nex-auth
 NEX_AUTH_DATA = 0x42D088  # FUN_0052d088 body (0x74 bytes)
 NEX_PASSWORD = 0x42C674   # FUN_0052c674 body (0x78 bytes)
@@ -300,6 +310,12 @@ def nex_player_records(code, auth):
         routine[at // 4] = branch(PLAYER_CAVE + at, dst, cond, link)
     body = arm(*routine) + PLAYER_SALT + b"0123456789abcdef"
     assert len(PLAYER_SALT) == 16 and len(routine) * 4 == 0xB4
+    sil_token = PLAYER_CAVE + len(body)
+    body += arm(
+        0xE59F0000,                          # ldr r0,buffer
+        branch(sil_token + 4, PLAYER_CAVE),  # b routine
+        SIL_TOKEN_BUFFER,
+    )
     if code[PLAYER_CAVE:PLAYER_CAVE + len(body)] != bytes(len(body)):
         sys.exit(f"code.bin has data at {PLAYER_CAVE:#x}: wrong version (needs v1.3)")
     assert PLAYER_CAVE + len(body) <= 0x6BA000
@@ -317,7 +333,21 @@ def nex_player_records(code, auth):
     assert len(auth_data) <= 0x74
     call = arm(branch(PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, link=True))
     return [code_record(code, site) for site in NEX_LOGIN_SKIP_FRD] + [
-        (NEX_AUTH_DATA, auth_data), code_record(code, (*PLAYER_PASSWORD_CALL, call)), (PLAYER_CAVE, body)]
+        (NEX_AUTH_DATA, auth_data), code_record(code, (*PLAYER_PASSWORD_CALL, call)), (PLAYER_CAVE, body),
+        code_record(code, (SIL_TOKEN_SITE, bytes.fromhex("0d00000a"),
+                           arm(branch(SIL_TOKEN_SITE, sil_token, cond=0x0, link=True))))]
+
+
+def azahar_upload_records(code):
+    cave = arm(
+        0xE5951020,  # ldr r1,[r5,#0x20]
+        0xE2811901,  # add r1,r1,#0x4000
+        0xE12FFF1E,  # bx lr
+    )
+    if code[UPLOAD_SIZE_CAVE:UPLOAD_SIZE_CAVE + len(cave)] != bytes(len(cave)):
+        sys.exit(f"code.bin has data at {UPLOAD_SIZE_CAVE:#x}: wrong version (needs v1.3)")
+    call = arm(branch(UPLOAD_SIZE_SITE[0], UPLOAD_SIZE_CAVE, link=True))
+    return [code_record(code, (*UPLOAD_SIZE_SITE, call)), (UPLOAD_SIZE_CAVE, cave)]
 
 
 def pid_offset_record(code, offset):
@@ -486,6 +516,8 @@ def main():
         ap.error("--nex-password and --nex-player-password exclude each other")
     if bool(args.nex_auth) != bool(args.nex_password or args.nex_player_password):
         ap.error("--nex-auth needs --nex-password or --nex-player-password")
+    if args.nex_player_password and not args.skip_nasc:
+        ap.error("--nex-player-password needs --skip-nasc")
     if args.nex_player_password:
         ours += nex_player_records(code, args.nex_auth)
     elif args.nex_auth:
@@ -493,11 +525,12 @@ def main():
     if args.skip_nasc:
         # with a real NEX login, NexLoginJob_Start must not be faked
         ours += [code_record(code, site) for site in SKIP_NASC
-                 if not (args.nex_auth and site[0] == NEX_LOGIN_JOB_START)]
+                 if not (args.nex_auth and site[0] == NEX_LOGIN_JOB_START)
+                 and not (args.nex_player_password and site[0] == SIL_TOKEN_SITE)]
     if args.skip_frd:
         ours += [code_record(code, site) for site in SKIP_FRD]
     if args.azahar:
-        ours += [code_record(code, site) for site in AZAHAR_FIXES]
+        ours += [code_record(code, site) for site in AZAHAR_FIXES] + azahar_upload_records(code)
     if args.nncs:
         ours += nncs_records(code, args.nncs)
     if args.pid_offset:
@@ -507,7 +540,7 @@ def main():
 
     # records this tool wrote into a previously merged patch are replaced, not kept
     own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE, BREAK_HOOK, BREAK_CAVE,
-                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE} | {
+                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, UPLOAD_SIZE_SITE[0], UPLOAD_SIZE_CAVE} | {
         off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD} | {
         off for off, _ in NNCS_ASCII + NNCS_UTF16}
     merged = []

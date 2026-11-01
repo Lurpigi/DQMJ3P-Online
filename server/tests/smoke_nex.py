@@ -12,6 +12,7 @@ usage: python smoke_nex.py [host] [auth_port] [dev_password]
 """
 import random
 import sys
+import urllib.error
 import urllib.request
 
 import anyio
@@ -250,6 +251,14 @@ async def replays():
         param.persistence_init_param.persistence_id = 0
         info = await store.prepare_post_object(param)
         body, content_type = multipart([(f.key, f.value) for f in info.form], replay)
+        for url in (info.url.rsplit("/", 1)[0] + "/" + "0" * 32, info.url.rsplit("/", 1)[0]):
+            try:
+                await anyio.to_thread.run_sync(http, "POST", url, body, content_type)
+            except urllib.error.HTTPError as e:
+                assert e.code in (400, 403), e
+            else:
+                raise AssertionError(f"upload accepted without the token: {url}")
+        print("[replay] uploads without the token refused")
         await anyio.to_thread.run_sync(http, "POST", info.url, body, content_type)
         complete = datastore.DataStoreCompletePostParam()
         complete.data_id = info.data_id
