@@ -95,7 +95,7 @@ Serve un server Linux con Docker e **due IPv4 pubblici configurati sulla sua int
    python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 --azahar --merge CODE_IPS_DI_PARTENZA -o code.ips
    ```
 
-   Togli `--azahar` per la patch destinata a un 3DS vero. `--spotpass-break` scarica gli eventi BREAK su Azahar, ma aggiunge circa 22 secondi a ogni connessione.
+   Per un 3DS vero togli `--azahar` e usa come `--merge` la `exefs/code.ips` normale della traduzione: `code_enhanced.ips` è solo per emulatore e sulla console fa crashare il gioco all'avvio. `--spotpass-break` scarica gli eventi BREAK su Azahar, ma aggiunge circa 22 secondi a ogni connessione.
 
 I dati restano nei volumi Docker `pg` e `datastore` e nella cartella `DATA_DIR`. Per i log: `docker compose logs -f nex`.
 
