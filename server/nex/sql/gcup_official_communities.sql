@@ -21,7 +21,8 @@
 --                  platinum, gold, silver, bronze (order deduced from the Grand Prix files)
 --   +0xec UTF-16   news text, "Ultime informazioni" (FUN_003cc09c), up to 97 characters
 -- Flags 513 include PersistentGathering: without it the last player leaving at the end of the
--- week unregisters the community (EndGatheringParticipation).
+-- week unregisters the community (EndGatheringParticipation). started_time must not be NULL:
+-- EndParticipation reads it (FindGatheringByID) and fails with 006-0102.
 -- Run: docker exec -i dqmj3p-postgres-1 psql -U dqmj3p -d dqmj3p < server/nex/sql/gcup_official_communities.sql
 BEGIN;
 
@@ -79,8 +80,8 @@ BEGIN
                        WHERE community_type = 2 AND attribs[1] = 0 AND attribs[2] = week) THEN
             INSERT INTO matchmaking.gatherings
                 (owner_pid, host_pid, min_participants, max_participants, participation_policy,
-                 policy_argument, flags, state, description, type)
-            VALUES (2, 0, 1, 100000, 98, 0, 513, 0, 'G-Cup ' || (week + 1), 'PersistentGathering')
+                 policy_argument, flags, state, description, type, started_time)
+            VALUES (2, 0, 1, 100000, 98, 0, 513, 0, 'G-Cup ' || (week + 1), 'PersistentGathering', now())
             RETURNING id INTO gid;
             INSERT INTO matchmaking.persistent_gatherings
                 (id, community_type, password, attribs, application_buffer,
@@ -90,7 +91,8 @@ BEGIN
         END IF;
         UPDATE matchmaking.persistent_gatherings SET application_buffer = pg_temp.gcup_buffer(week)
         WHERE community_type = 2 AND attribs[1] = 0 AND attribs[2] = week;
-        UPDATE matchmaking.gatherings g SET flags = 513, registered = true
+        UPDATE matchmaking.gatherings g SET flags = 513, registered = true,
+            started_time = COALESCE(g.started_time, now())
         FROM matchmaking.persistent_gatherings p
         WHERE p.id = g.id AND p.community_type = 2 AND p.attribs[1] = 0 AND p.attribs[2] = week;
     END LOOP;

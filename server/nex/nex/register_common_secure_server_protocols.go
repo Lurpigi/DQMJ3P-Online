@@ -50,6 +50,7 @@ func registerCommonSecureServerProtocols() {
 	matchmakeExtensionProtocol.SetHandlerJoinCommunity(local_matchmake_extension.JoinCommunity)
 	matchmakeExtensionProtocol.SetHandlerUpdateCommunity(local_matchmake_extension.UpdateCommunity)
 	local_matchmake_extension.WrapSessionCreation(matchmakeExtensionProtocol)
+	local_matchmake_extension.InitStartedTime()
 
 	utilityProtocol := utility.NewProtocol()
 	globals.SecureEndpoint.RegisterServiceProtocol(utilityProtocol)
