@@ -18,7 +18,7 @@
 --   +0x95 u8       "happening" flag (tb_happening_1)
 --   +0x96 21 x 4   end of contest prize per rank band (FUN_00389aa8 state 0xc, table at 0x895ccc):
 --                  ranks 1..10, 11-100, 101-200 ... 901-1000, 1001-10000. Four u8 coin counts:
---                  platinum, gold, silver, bronze (order deduced from the Grand Prix files)
+--                  platinum, gold, silver, bronze (gold verified in game, the rest from the Grand Prix order)
 --   +0xec UTF-16   news text, "Ultime informazioni" (FUN_003cc09c), up to 97 characters
 -- Flags 513 include PersistentGathering: without it the last player leaving at the end of the
 -- week unregisters the community (EndGatheringParticipation). started_time must not be NULL:

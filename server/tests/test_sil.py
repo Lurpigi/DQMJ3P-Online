@@ -234,9 +234,9 @@ def main():
         assert struct.unpack("<IHBBIII", r["Data"]) == (2, 2026, 1, 14, 1, 2, 0), r["Data"].hex()
         r = c.call("file/download", {"File-Name": b"018_LimitSetting.bin"})  # contest 2: 2nd rule set
         assert len(r["Data"]) == 0x848 and struct.unpack_from("<6I", r["Data"]) == (1, 1, 9, 0, 9, 0)
-        assert r["Data"][0x538:].decode("utf-16-le").startswith("Tema: il torneo degli Slime!")
+        assert r["Data"][0x538:].decode("utf-16-le").startswith("Theme: the Slime tournament!\nTema: il torneo degli Slime!")
         r = c.call("file/download", {"File-Name": b"033_Limit_DLNewsMsg.bin"})
-        assert len(r["Data"]) == 0x600 and r["Data"].decode("utf-16-le").startswith("Tema: il torneo degli Slime!\nRegola:")
+        assert len(r["Data"]) == 0x600 and r["Data"].decode("utf-16-le").startswith("Slime family monsters only.\nSolo mostri della famiglia Slime.")
         db = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3"))
         for owner, day, pack in ((rival.friend_code, "2026-01-08", result_pack(win=900, wins=3)),  # contest 1
                                  (c.friend_code, "2026-01-09", result_pack(win=300, wins=1)),

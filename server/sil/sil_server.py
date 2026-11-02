@@ -237,7 +237,8 @@ USER_PACK_NEIGHBOURS = 0x88    # mode block: 10 ranking entries around the user 
 USER_PACK_PREVIOUS = 0x1098    # mode block: result in the previous contest (same layout as +0)
 CHAMPION_ENTRY, CHAMPION_MAX = 0x34, 100
 GP_LIMIT_FILE = "018_LimitSetting.bin"
-GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
+GP_GRADE_NEWS_FILE = "032_Grade_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
+GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"
 
 # Challengers GP rules (018_LimitSetting, re/notes/grandprix_formats.md 3.4), one set per contest,
 # in rotation. A rule (type, value) must hold for every monster of the team (FUN_002f7e9c):
@@ -245,16 +246,66 @@ GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
 #   1 family: species table +0x23 (1 Slime, 2 Dragon, 3 Beast, 4 Nature, 5 Demon, 6 Undead, 7 Material)
 #   4 rank: species rank 1..8 (F..SS), raised by level (25-49 -> C, 50-99 -> A, 100 -> SS)
 #   5 team grade cap: whole-team strength grade (<4000 -> 1, ..., >=74000 -> 8) must be <= value
+# Texts in English, Italian, Spanish, French and Japanese, one line each: the game shows the
+# text as it is, without wrapping. Lines of 40 characters fit (verified in Italian).
+LANGUAGES = ("en", "it", "es", "fr", "ja")
+
+
+def lines(*texts):
+    assert len(texts) == len(LANGUAGES)
+    return "\n".join(texts)
+
+
 LIMIT_RULE_SETS = [
-    ([], "Nessuna regola: porta la tua squadra migliore!", "Tema: tutti contro tutti!"),
-    ([(1, 1)], "Regola: solo mostri della famiglia Slime.", "Tema: il torneo degli Slime!"),
-    ([(5, 4)], "Regola: grado della squadra al massimo 4\n(forza totale sotto 18000).", "Tema: squadre leggere!"),
-    ([(0, 0)], "Regola: solo mostri di taglia piccola.", "Tema: piccoli ma forti!"),
-    ([(1, 2)], "Regola: solo mostri della famiglia Drago.", "Tema: il torneo dei Draghi!"),
-    ([(5, 6)], "Regola: grado della squadra al massimo 6\n(forza totale sotto 46000).", "Tema: squadre equilibrate!"),
-    ([(1, 5)], "Regola: solo mostri della famiglia Demone.", "Tema: il torneo dei Demoni!"),
-    ([(4, 8)], "Regola: solo mostri di rango SS\n(o qualsiasi mostro al livello 100).", "Tema: campioni al massimo livello!"),
+    ([],
+     lines("No rules: bring your best team!", "Nessuna regola: la tua squadra migliore!",
+           "Sin reglas: ¡trae tu mejor equipo!", "Aucune règle : ta meilleure équipe !",
+           "ルールなし！最強のチームで挑もう！"),
+     lines("Theme: everyone against everyone!", "Tema: tutti contro tutti!", "Tema: ¡todos contra todos!",
+           "Thème : tous contre tous !", "テーマ：なんでもありの大会！")),
+    ([(1, 1)],
+     lines("Slime family monsters only.", "Solo mostri della famiglia Slime.",
+           "Solo monstruos de la familia Slime.", "Uniquement la famille Slime.", "スライム系のモンスターのみ。"),
+     lines("Theme: the Slime tournament!", "Tema: il torneo degli Slime!", "Tema: ¡el torneo de los Slime!",
+           "Thème : le tournoi des Slime !", "テーマ：スライム系の大会！")),
+    ([(5, 4)],
+     lines("Team grade 4 max (strength under 18000).", "Grado squadra max 4 (forza sotto 18000).",
+           "Grado de equipo máx. 4 (fuerza < 18000).", "Grade d'équipe max 4 (force < 18000).",
+           "チームのつよさ合計18000未満。"),
+     lines("Theme: light teams!", "Tema: squadre leggere!", "Tema: ¡equipos ligeros!",
+           "Thème : équipes légères !", "テーマ：かるいチームの大会！")),
+    ([(0, 0)],
+     lines("Small monsters only.", "Solo mostri di taglia piccola.", "Solo monstruos de tamaño pequeño.",
+           "Uniquement les petits monstres.", "小さいモンスターのみ。"),
+     lines("Theme: small but strong!", "Tema: piccoli ma forti!", "Tema: ¡pequeños pero fuertes!",
+           "Thème : petits mais costauds !", "テーマ：小さくても強い！")),
+    ([(1, 2)],
+     lines("Dragon family monsters only.", "Solo mostri della famiglia Drago.",
+           "Solo monstruos de la familia Dragón.", "Uniquement la famille Dragon.", "ドラゴン系のモンスターのみ。"),
+     lines("Theme: the Dragon tournament!", "Tema: il torneo dei Draghi!", "Tema: ¡el torneo de los Dragones!",
+           "Thème : le tournoi des Dragons !", "テーマ：ドラゴン系の大会！")),
+    ([(5, 6)],
+     lines("Team grade 6 max (strength under 46000).", "Grado squadra max 6 (forza sotto 46000).",
+           "Grado de equipo máx. 6 (fuerza < 46000).", "Grade d'équipe max 6 (force < 46000).",
+           "チームのつよさ合計46000未満。"),
+     lines("Theme: balanced teams!", "Tema: squadre equilibrate!", "Tema: ¡equipos equilibrados!",
+           "Thème : équipes équilibrées !", "テーマ：バランスのいいチームの大会！")),
+    ([(1, 5)],
+     lines("Demon family monsters only.", "Solo mostri della famiglia Demone.",
+           "Solo monstruos de la familia Demonio.", "Uniquement la famille Démon.", "悪魔系のモンスターのみ。"),
+     lines("Theme: the Demon tournament!", "Tema: il torneo dei Demoni!", "Tema: ¡el torneo de los Demonios!",
+           "Thème : le tournoi des Démons !", "テーマ：悪魔系の大会！")),
+    ([(4, 8)],
+     lines("Rank SS only (or any monster at Lv 100).", "Solo rango SS (o mostri al livello 100).",
+           "Solo rango SS (o nivel 100).", "Rang SS uniquement (ou niveau 100).",
+           "ランクSSのみ（レベル100ならどれでも）。"),
+     lines("Theme: champions at max level!", "Tema: campioni al massimo livello!",
+           "Tema: ¡campeones al nivel máximo!", "Thème : champions au niveau max !", "テーマ：最強レベルの大会！")),
 ]
+
+GP_GRADE_NEWS = lines("The Grand Prix is open. Good luck!", "Il Grand Prix è aperto. Buona fortuna!",
+                      "¡El Gran Premio está abierto! ¡Suerte!", "Le Grand Prix est ouvert. Bonne chance !",
+                      "グランプリ開催中！がんばってね！")
 
 
 def utf16_field(text, size):
@@ -739,8 +790,10 @@ class Handler(BaseHTTPRequestHandler):
         if name == GP_LIMIT_FILE and self.limit_rotation:
             return name, limit_setting(self.calendar.contest(self.calendar.today())[0])
         if name == GP_LIMIT_NEWS_FILE and self.limit_rotation:  # Notizie -> ULTIME INFORMAZIONI
-            _, text, theme = LIMIT_RULE_SETS[(self.calendar.contest(self.calendar.today())[0] - 1) % len(LIMIT_RULE_SETS)]
-            return name, utf16_field(theme + "\n" + text, 0x600)
+            _, text, _ = LIMIT_RULE_SETS[(self.calendar.contest(self.calendar.today())[0] - 1) % len(LIMIT_RULE_SETS)]
+            return name, utf16_field(text, 0x600)
+        if name == GP_GRADE_NEWS_FILE:
+            return name, utf16_field(GP_GRADE_NEWS, 0x600)
         if name in GP_RANKING_FILES:
             return name, self._ranking_pack(GP_RANKING_FILES[name])
         if name in GP_CHAMPION_FILES:
