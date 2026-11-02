@@ -24,7 +24,9 @@ uploaded results; see --gp-* options.
 import argparse
 import datetime
 import hashlib
+import hmac
 import itertools
+import json
 import os
 import re
 import secrets
@@ -33,6 +35,7 @@ import struct
 import sys
 import threading
 import time
+import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 KEY = b"3Ef7Db65775e4cCF"
@@ -47,6 +50,37 @@ DEFAULT_PUBLIC = {
     "001_Server_Status.bin": bytes([4]) + bytes(7),
     "025_SendOfficialDummy.bin": bytes(0x54),
 }
+
+# --- Present codes (re/notes/present_codes.md) -----------------------------------------------
+# HMAC-SHA256 key index 1 of the BPCP packages (FUN_006c4918), as in the RomFS packages
+PRESENT_KEY = bytes.fromhex("21dc24dd6a48fde68c934832a87b1762b522031cadf4f53f9e21ea8eed3ccc2d")
+PRESENT_CODES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "present_codes.json")
+PRESENT_PACKAGE_RE = re.compile(r"^PresentCodePackageS(\d+)\.bin$")
+
+
+def normalize_code(text):
+    """Codes as the player types them: full-width letters and wave dashes as in the game table."""
+    return unicodedata.normalize("NFKC", text).replace("\u301c", "~").strip().upper()
+
+
+def present_package(number, gift):
+    """BPCP package: a disc (type 0) keeps the original body, an item (type 2) is item id + count."""
+    kind = 0 if "disc" in gift else 2
+    body = struct.pack("<4sIIIIIII", b"BPCP", 0x1000, number, kind, 1, 0, 0, 0)
+    body += bytes.fromhex(gift["disc"]) if kind == 0 else struct.pack("<hhI", gift["item"], gift["count"], 0)
+    return body + hmac.new(PRESENT_KEY, body, hashlib.sha256).digest()
+
+
+def load_present_codes(path=PRESENT_CODES_FILE):
+    """Original codes and aliases of present_codes.json: ({code: package}, {package: bytes})."""
+    codes, packages = {}, {}
+    if not os.path.exists(path):
+        return codes, packages
+    for gift in json.load(open(path, encoding="utf-8"))["gifts"]:
+        for code in gift["codes"] + [gift["alias"]]:
+            codes.setdefault(normalize_code(code), gift["package"])
+        packages.setdefault(gift["package"], present_package(gift["package"], gift))
+    return codes, packages
 
 
 # --- TLV -----------------------------------------------------------------------------------
@@ -427,6 +461,7 @@ class Handler(BaseHTTPRequestHandler):
     calendar: GpCalendar = None
     prize_champion = prize_top10 = 0  # item ids of the end-of-contest Special Present (0 = none)
     coins_champion = coins_top10 = None  # (bronze, silver, gold, platinum) Network Coins, None = none
+    present_codes, present_packages = load_present_codes()
     limit_rotation = True  # Challengers GP rules from LIMIT_RULE_SETS (False: public 018_LimitSetting.bin)
     timeout = 15  # seconds; a stuck read must not outlive the client's 60 s request timeout
 
@@ -773,11 +808,14 @@ class Handler(BaseHTTPRequestHandler):
         return bytes(out)
 
     def _redeem(self, data, friend_code):
-        code = data.decode("utf-16-le", "replace").split("\0", 1)[0].strip().upper()
+        code = normalize_code(data.decode("utf-16-le", "replace").split("\0", 1)[0])
         rows = self.store.q("SELECT package_id, single_use FROM present_codes WHERE code = ?", code)
-        if not rows:
+        if rows:
+            package_id, single_use = rows[0]
+        elif code in self.present_codes:
+            package_id, single_use = self.present_codes[code], 1
+        else:
             return 0, 2  # wrong code
-        package_id, single_use = rows[0]
         if single_use and self.store.q("SELECT 1 FROM present_code_uses WHERE code = ? AND friend_code = ?", code, friend_code):
             return package_id, 1  # already used
         self.store.q("INSERT OR IGNORE INTO present_code_uses (code, friend_code) VALUES (?, ?)", code, friend_code)
@@ -794,6 +832,9 @@ class Handler(BaseHTTPRequestHandler):
             return name, utf16_field(text, 0x600)
         if name == GP_GRADE_NEWS_FILE:
             return name, utf16_field(GP_GRADE_NEWS, 0x600)
+        package = PRESENT_PACKAGE_RE.match(name)
+        if package and int(package.group(1)) in self.present_packages:
+            return name, self.present_packages[int(package.group(1))]
         if name in GP_RANKING_FILES:
             return name, self._ranking_pack(GP_RANKING_FILES[name])
         if name in GP_CHAMPION_FILES:

@@ -5,6 +5,7 @@ private download (Data="Download_Code") -> public download/getproperties -> pres
 usage: python -I test_sil.py
 """
 import hashlib
+import hmac
 import os
 import socket
 import sqlite3
@@ -19,6 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.join(HERE, "..", "sil", "sil_server.py")
 GP_FILES = os.path.join(HERE, "..", "..", "re", "tools", "gp_files.py")
 KEY = b"3Ef7Db65775e4cCF"
+PRESENT_KEY_B = bytes.fromhex("21dc24dd6a48fde68c934832a87b1762b522031cadf4f53f9e21ea8eed3ccc2d")
 
 
 def tlv(fields):
@@ -285,6 +287,16 @@ def main():
         assert struct.unpack("<II", r["Add-Data"]) == (7, 1), r  # already used
         r = c.call("file/upload", {"File-Name": b"present_code.bin", "Friend-Code": fc, "Data": "NOPE".encode("utf-16-le")})
         assert struct.unpack("<II", r["Add-Data"])[1] == 2, r  # wrong
+        # Original codes (present_codes.json): full-width A code of DQMJ3, then the Latin alias
+        for typed, package in (("ＡＥＨＥＳ９Ｖ２ＮＣ", 335), ("goldslimedisc", 201)):
+            r = c.call("file/upload", {"File-Name": b"present_code.bin", "Friend-Code": fc,
+                                       "Data": typed.encode("utf-16-le").ljust(0x2a, b"\0")})
+            assert struct.unpack("<II", r["Add-Data"]) == (package, 0), r
+            r = c.call("file/download", {"File-Name": b"PresentCodePackageS%d.bin" % package})
+            pack = r["Data"]
+            assert pack[:4] == b"BPCP" and struct.unpack_from("<I", pack, 8)[0] == package
+            assert hmac.new(PRESENT_KEY_B, pack[:-32], hashlib.sha256).digest() == pack[-32:]
+        assert struct.unpack_from("<II", pack, 0xc) == (0, 1)  # disc package, key index 1
 
         c.token = os.urandom(16)  # a client with a wrong session must be refused
         try:
