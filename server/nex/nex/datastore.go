@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"database/sql"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -68,8 +69,8 @@ func initDataStoreTables() {
 // * closing delimiter. Split by hand: the body Azahar sends for the game is not accepted by
 // * mime/multipart. Azahar's http:C keeps chunked post data in a multimap keyed by content, so the
 // * pieces arrive sorted by their bytes: headers, data and closing delimiter can be in any order.
-// * Cut the headers and the delimiter out wherever they are. The data itself must be one piece:
-// * make_url_patch.py --azahar makes the game send it that way.
+// * Cut the headers and the delimiter out wherever they are. make_url_patch.py --azahar makes the
+// * game send the data in as few pieces as it can; repairReplayOrder puts the rest back in order.
 func multipartFile(contentType string, body []byte) ([]byte, error) {
 	_, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
@@ -107,6 +108,85 @@ func multipartFile(contentType string, body []byte) ([]byte, error) {
 		tail += 2
 	}
 	return append(data[:end:end], data[tail:]...), nil
+}
+
+// * A G-Cup replay (read by FUN_0034f760): five u32 offsets from the start of the file {records,
+// * table 1, table 2, table 3, team data}, records at 0x18; 20-byte records with u32 frame from 0,
+// * two floats, u32 input, bytes 00 00 00 03 (00 01 00 03 on the last one); then the three u32
+// * tables and the team data. The game sends the file in 64 KiB pieces and Azahar delivers them
+// * sorted by their bytes (see multipartFile): the 3DS then reads the counts from the middle of a
+// * record and stops. Try the orders of the pieces and keep the one that gives a well-formed replay;
+// * anything else stays as it came.
+const (
+	replayPiece      = 0x10000
+	replayMaxPieces  = 8
+	replayRecordSize = 20
+)
+
+func replayValid(data []byte) bool {
+	if len(data) < 0x18 {
+		return false
+	}
+	var offsets [5]uint32
+	for i := range offsets {
+		offsets[i] = binary.LittleEndian.Uint32(data[i*4:])
+	}
+	if offsets[0] != 0x18 || offsets[1] < offsets[0] || (offsets[1]-offsets[0])%replayRecordSize != 0 ||
+		offsets[2] < offsets[1] || offsets[3] < offsets[2] || offsets[4] < offsets[3] || int(offsets[4]) > len(data) {
+		return false
+	}
+	for frame, at := uint32(0), offsets[0]; at < offsets[1]; frame, at = frame+1, at+replayRecordSize {
+		if binary.LittleEndian.Uint32(data[at:]) != frame || data[at+19] != 3 {
+			return false
+		}
+	}
+	return true
+}
+
+func repairReplayOrder(data []byte) []byte {
+	count := (len(data) + replayPiece - 1) / replayPiece
+	if replayValid(data) || count < 2 || count > replayMaxPieces {
+		return data
+	}
+	short := len(data) - (count-1)*replayPiece
+	// * The last piece of the file is the short one; it can be anywhere among the sorted pieces
+	for at := 0; at < count; at++ {
+		var full [][]byte
+		var last []byte
+		for i, start := 0, 0; i < count; i++ {
+			size := replayPiece
+			if i == at {
+				size = short
+			}
+			if i == at {
+				last = data[start : start+size]
+			} else {
+				full = append(full, data[start:start+size])
+			}
+			start += size
+		}
+		if ordered := replayPermutation(full, last, nil); ordered != nil {
+			return ordered
+		}
+	}
+	return data
+}
+
+func replayPermutation(rest [][]byte, last []byte, done [][]byte) []byte {
+	if len(rest) == 0 {
+		ordered := bytes.Join(append(append([][]byte{}, done...), last), nil)
+		if replayValid(ordered) {
+			return ordered
+		}
+		return nil
+	}
+	for i := range rest {
+		others := append(append([][]byte{}, rest[:i]...), rest[i+1:]...)
+		if ordered := replayPermutation(others, last, append(done, rest[i])); ordered != nil {
+			return ordered
+		}
+	}
+	return nil
 }
 
 func dataStoreFile(dataID uint64) string {
@@ -166,6 +246,9 @@ func serveDataStoreHTTP(listen string) {
 		}
 		if err == nil && strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 			data, err = multipartFile(r.Header.Get("Content-Type"), data)
+		}
+		if err == nil {
+			data = repairReplayOrder(data)
 		}
 		if err == nil {
 			err = os.WriteFile(dataStoreUploadFile(dataID, uint32(version)), data, 0o644)

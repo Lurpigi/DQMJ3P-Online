@@ -186,6 +186,37 @@ Fonti esterne (consultate il 2026-11-02):
     - 4: `FUN_0032b758`.
 - L'elemento (16 B) e il mostro (record B da 0x48) hanno lo stesso formato del corpo dei pacchetti presente di tipo 0 (R001, R002, R036). `FUN_002eb7a4` valida specie e seed (`FUN_0012f254`) prima di mostrare `MenuMessagePresentDiscFoundNormalPresent` / `...SpecialPresent`.
 
+### Il file originale [V, catturato in Azahar il 2026-11-03]
+- `BossPresentDisc.bin` servito dal nostro server SpotPass: 5780 B, HMAC valida, un solo record A con luogo `"--"`, tipo 1 (casuale), data 2018-01-01 e 21 elementi; un record B (id 10001). Nessun record per i negozi.
+- Il gioco quindi propone ogni giorno un disco a caso tra questi (rispondendo "no" ne cerca un altro) e ne fa ritirare uno al giorno: e' la pool finale del servizio, con tutti i 20 dischi scaricabili del plugin. Il server non deve fare altro.
+- Specie = primo u16 dell'elemento & 0x7fff (chiave `MK%04d` di `MonsterKindMessage`); gli altri u16 sono le altre voci del disco.
+
+| Specie | Giapponese | Italiano | Inglese | Altre voci |
+|---|---|---|---|---|
+| 0x311 | スライダーヒーロー | Ultra Slime | Slamen Rider | 3194 3113 |
+| 0x371 | 神馬アルシオン | Destriero finale | Halcyon the Godsteed | 3201 3165 3166 3167 |
+| 0x2cf | 神さま | Divino | God | 3185 3137 3138 3139 |
+| 0x363 | プチットⅣ | Conclavio IV | Chibi Fours | 3183 3109 3110 3111 |
+| 0x364 | プチットⅧ | Conclavio sacro | Chibi Eights | 3204 3097 3098 3099 |
+| 0x342 | 少年レオソード | Leonix | Leokid | 3188 3129 3130 |
+| 0x2e5 | ティコ | Tiko | Tiko | 3192 3145 3146 3147 |
+| 0x2cc | じげんりゅう | Drago dimensionale | Dimensional Dragon | 3196 3133 3134 |
+| 0x35f | 魔戦士ルギウス | Rugius | Rugius | 3089 3029 3030 |
+| 0x360 | 魔戦士ヴェーラ | Veera | Vera | 3090 3033 3034 |
+| 0x34b | ククリ | Krilly | Krilly | 3193 3149 3150 3151 |
+| 0x361 | プチットⅠ・Ⅱ | Conclavio | Chibi One-Twos | 3181 3101 3102 3103 |
+| 0x362 | プチットⅢ | Conclavio III | Chibi Threes | 3182 3105 3106 3107 |
+| 0x389 | - | Gome | Gome-chan | 4454 4446 |
+| 0x332 | プレミアムスライム | Slime Raro | Premium Slime | 3197 3141 3142 3143 |
+| 0x326 | 魔王オムド・レクス | Sovrano Rigor Mortex | Timelord Omega Rolex | 3198 3153 |
+| 0x333 | アルダララ | Aldarahla | Aldarahla | 3200 3161 |
+| 0x312 | 死神スライダーク | Slime Nemo | Slamen Dark, the Reaper | 3195 3117 3118 3119 |
+| 0x35e | 管理端末Q484 | Q484 | Master CPU Q484 | 3199 3157 |
+| 0x348 | スライダーガール | Ragazza Slider | Slamen Rider Girl | 3186 3121 |
+| 0x348 | スライダーガール | Ragazza Slider | Slamen Rider Girl | 3187 3125 |
+
+Slider Girl compare due volte, con voci diverse.
+
 ### Stato
-- Il server SpotPass serve il `BossPresentDisc.bin` originale (5780 B, caricato da Nintendo nel 2020). E' cifrato con la chiave BOSS delle console, che non abbiamo: non possiamo cambiarlo, ma il gioco ruota gia' da solo gli elementi del record `"00"`.
-- Da fare: catturare una copia decifrata dall'extdata di Azahar durante un ritiro (il gioco la cancella subito dopo; `re/tools/capture_boss_nsdata.py`, poi `re/tools/bsdt.py decode` sul payload dopo l'header da 0x34 byte), elencare i record e capire quali dischi arrivano a casa. Il ritiro del 2026-11-02 era gia' fatto: si riprova il giorno dopo. I dischi dei soli negozi si potrebbero rendere disponibili con una patch di `FUN_0032be34` o con pacchetti presente di tipo 0 dal server SIL.
+- Server SpotPass: serve il file originale, che e' cifrato con la chiave BOSS delle console (non l'abbiamo, quindi non si puo' modificare). Non serve modificarlo.
+- `re/tools/capture_boss_nsdata.py` copia il NsData decifrato dall'extdata di Azahar; il payload comincia dopo l'header da 0x34 byte (`re/tools/bsdt.py decode`).
