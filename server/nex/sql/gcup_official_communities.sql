@@ -13,8 +13,9 @@
 --   +0x6e UTF-16   tournament name (tb_gcupname), up to 16 characters
 --   +0x90 u8       opponent strength 0..100 (weak <= 33, normal 34..66, strong > 66, FUN_0029650c)
 --   +0x91 u8       copied to every opponent next to the strength (unknown)
---   +0x92,+0x93 u8 course (text "coursename%d_%d" with both + 1)
---   +0x94 u8       event: 0 none, 1 bomb rocks, 2 items
+--   +0x92,+0x93 u8 course: map 0..3 and variant 0..1 (FUN_003cc478, text "coursename%d_%d" with
+--                  both + 1: Grass Field, Cross Road, Wild Wall, Crash Cave)
+--   +0x94 u8       event: 0 none, 1 bomb rocks, 2 items (race mode 3, 5, 4 in FUN_003cc478)
 --   +0x95 u8       "happening" flag (tb_happening_1)
 --   +0x96 21 x 4   end of contest prize per rank band (FUN_00389aa8 state 0xc, table at 0x895ccc):
 --                  ranks 1..10, 11-100, 101-200 ... 901-1000, 1001-10000. Four u8 coin counts:
@@ -29,8 +30,13 @@ BEGIN;
 CREATE OR REPLACE FUNCTION pg_temp.gcup_buffer(week integer) RETURNS bytea AS $$
 DECLARE
     buf bytea := decode(repeat('00', 432), 'hex');
-    -- Species from a real Grand Prix team; any monster that can be ridden works.
-    opponents integer[] := ARRAY[71, 346, 442];
+    -- Opponents of the offline races (Parameter/RaceRankParam.tp, 3 racers per race), weak to
+    -- strong like the cup strength. Week 5 keeps 71, 346, 442 from a Grand Prix team, the first
+    -- trio verified in game.
+    lineups integer[] := ARRAY[
+        [1, 115, 151], [128, 337, 341], [55, 245, 254], [102, 51, 138],
+        [8, 260, 321], [71, 346, 442], [84, 76, 12], [41, 254, 51],
+        [480, 12, 260], [552, 480, 486], [553, 483, 41], [486, 483, 552]];
     name text := 'G-Cup ' || (week + 1);
     -- One text for all players: title, then English, Italian, Spanish, French, Japanese
     news text := name || chr(10) || 'Top times win coins' || chr(10) || 'Monete ai migliori' || chr(10)
@@ -51,13 +57,17 @@ BEGIN
         RAISE EXCEPTION 'G-Cup news too long: % characters', length(news);
     END IF;
     FOR i IN 1..3 LOOP
-        buf := set_byte(buf, 2 + i * 2, opponents[i] & 255);
-        buf := set_byte(buf, 3 + i * 2, opponents[i] >> 8);
+        buf := set_byte(buf, 2 + i * 2, lineups[week + 1][i] & 255);
+        buf := set_byte(buf, 3 + i * 2, lineups[week + 1][i] >> 8);
     END LOOP;
     FOR i IN 1..length(name) LOOP
         buf := set_byte(buf, 0x6e + (i - 1) * 2, ascii(substr(name, i, 1)));
     END LOOP;
     buf := set_byte(buf, 0x90, 10 + week * 7);
+    -- Map and event change every week: over the 12 cups every map comes with every event
+    buf := set_byte(buf, 0x92, week % 4);
+    buf := set_byte(buf, 0x93, (week / 4) % 2);
+    buf := set_byte(buf, 0x94, week % 3);
     FOR i IN 1..21 LOOP
         FOR coin IN 1..4 LOOP
             buf := set_byte(buf, 0x96 + (i - 1) * 4 + coin - 1, prizes[i][coin]);
@@ -89,7 +99,11 @@ BEGIN
             VALUES (gid, 2, '', ARRAY[0, week, 0, 0, 0, 0], ''::bytea,
                     '0002-11-30 00:00:00 BC', '0002-11-30 00:00:00 BC');
         END IF;
-        UPDATE matchmaking.persistent_gatherings SET application_buffer = pg_temp.gcup_buffer(week)
+        -- Keep the news that the server wrote at the start of the week (winners of the last cup)
+        UPDATE matchmaking.persistent_gatherings SET application_buffer = CASE
+            WHEN length(application_buffer) = 432
+                THEN overlay(pg_temp.gcup_buffer(week) PLACING substring(application_buffer FROM 0xec + 1) FROM 0xec + 1)
+            ELSE pg_temp.gcup_buffer(week) END
         WHERE community_type = 2 AND attribs[1] = 0 AND attribs[2] = week;
         UPDATE matchmaking.gatherings g SET flags = 513, registered = true,
             started_time = COALESCE(g.started_time, now())
