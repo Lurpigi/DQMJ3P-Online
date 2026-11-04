@@ -1,0 +1,85 @@
+# Tests the servers, then deploys them to the VPS on every push to main (see docs/deploy.md).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/nex/go.mod
+          cache-dependency-path: server/nex/go.sum
+
+      - name: Go vet and tests
+        working-directory: server/nex
+        run: |
+          test -z "$(gofmt -l ./nex)" || { gofmt -l ./nex; exit 1; }
+          go vet ./...
+          go test ./...
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: SIL test
+        run: python -I server/tests/test_sil.py
+
+      - name: Compose file
+        working-directory: server
+        env:
+          POSTGRES_PASSWORD: x
+          KERBEROS_PASSWORD: x
+          PUBLIC_IP: 192.0.2.1
+          PUBLIC_IP2: 192.0.2.2
+        run: docker compose config -q
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the NEX image
+        run: |
+          docker build --build-arg BUILD_STRING="dqmj3p.${GITHUB_SHA::7}" -t server-nex:latest server/nex
+          docker save server-nex:latest | gzip > server-nex.tar.gz
+          git archive --format=tar.gz -o server.tar.gz HEAD server
+
+      - name: SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: scp -i ~/.ssh/deploy -o BatchMode=yes server-nex.tar.gz server.tar.gz "root@$VPS_HOST:/tmp/"
+
+      - name: Deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: ssh -i ~/.ssh/deploy -o BatchMode=yes "root@$VPS_HOST" bash -s < .github/deploy/remote.sh
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy

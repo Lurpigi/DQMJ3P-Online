@@ -14,3 +14,6 @@ server/data/
 server/data_test/
 server/nex/build/
 server/nex/.env
+
+# Patch e file di lavoro locali
+tmp/

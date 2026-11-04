@@ -101,4 +101,7 @@ Serve un server Linux con Docker e **due IPv4 pubblici configurati sulla sua int
 
 I dati restano nei volumi Docker `pg` e `datastore` e nella cartella `DATA_DIR`. Per i log: `docker compose logs -f nex`.
 
+Gli aggiornamenti successivi li fa la GitHub Action a ogni merge su `main`: vedi [docs/deploy.md](../docs/deploy.md).
+Come funzionano i servizi: [docs/architettura.md](../docs/architettura.md). Le opzioni della patch: [docs/patch.md](../docs/patch.md).
+
 L'account server di Pretendo non serve: con `--nex-auth` il gioco salta NASC e si collega direttamente al server NEX.
