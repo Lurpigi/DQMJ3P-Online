@@ -110,6 +110,11 @@ BREAK_FILES = (0x86A140, 0x86A120, 0x86A100)  # "BREAK01/BossStealthBox.bin", "B
 # that with the data size (+0x20) plus room for the multipart headers.
 UPLOAD_SIZE_SITE = (0x3AA3B4, bytes.fromhex("181095e5"))  # ldr r1,[r5,#0x18]
 UPLOAD_SIZE_CAVE = 0x6B9B60  # after the --nex-player-password routine
+# With --nex-auth: "Comunita' in Evidenza" (FUN_005b5774) sends FindCommunityByGatheringId with
+# the gathering ids saved from StreetPass (bl FUN_0023d168, which only copies them). Skip the copy:
+# the empty list makes our server answer with every community (server/nex/.../featured.go). A
+# stale saved id would look like a search by community code, which must stay exact.
+FEATURED_ALL_SITE = (0x4B5878, bytes.fromhex("3a1ef2eb"), ARM_NOP)  # bl FUN_0023d168 -> nop
 # --nex-player-password: instead of a shared password, NEX uses the first 8 bytes of
 # MD5(salt + friends password) in hex, also sent as the LoginEx token so the server can store it
 # on the first login. The friends password (frd:u GetMyPassword, 16 characters) is the player's
@@ -518,6 +523,8 @@ def main():
         ap.error("--nex-auth needs --nex-password or --nex-player-password")
     if args.nex_player_password and not args.skip_nasc:
         ap.error("--nex-player-password needs --skip-nasc")
+    if args.nex_auth:
+        ours.append(code_record(code, FEATURED_ALL_SITE))
     if args.nex_player_password:
         ours += nex_player_records(code, args.nex_auth)
     elif args.nex_auth:
@@ -540,7 +547,7 @@ def main():
 
     # records this tool wrote into a previously merged patch are replaced, not kept
     own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE, BREAK_HOOK, BREAK_CAVE,
-                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, UPLOAD_SIZE_SITE[0], UPLOAD_SIZE_CAVE} | {
+                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, UPLOAD_SIZE_SITE[0], UPLOAD_SIZE_CAVE, FEATURED_ALL_SITE[0]} | {
         off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD} | {
         off for off, _ in NNCS_ASCII + NNCS_UTF16}
     merged = []

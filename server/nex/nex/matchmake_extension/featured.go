@@ -15,7 +15,10 @@ const featuredLimit = 100
 // with the ids that came over StreetPass (FUN_0023d168: up to 32 from the save, usually none).
 // The game keeps the results with attribs[0] == 1 (FUN_0023ce58). The server adds every player
 // and official community with attribs[0] == 1, most members first, so they can all be found.
-// Calls for one id (a community page, Cerca Avversario) are left alone.
+// Calls for one id go through FUN_0067901c (search by community code, the community battle
+// scenes) and must stay exact: an unknown code has to come back empty (FindCommunity_CodeNotFound).
+// A single saved StreetPass id looks the same, so make_url_patch.py --nex-auth skips the copy of
+// the saved ids and the featured request always comes empty.
 func featuredCommunityIDs() []uint32 {
 	rows, err := globals.MatchmakingManager.Database.Query(`SELECT g.id
 		FROM matchmaking.gatherings AS g
@@ -64,9 +67,11 @@ func withFeatured(lstGID types.List[types.UInt32]) types.List[types.UInt32] {
 func WrapFindCommunityByGatheringID(protocol *matchmake_extension.Protocol) {
 	find := protocol.FindCommunityByGatheringID
 	protocol.SetHandlerFindCommunityByGatheringID(func(err error, packet nex.PacketInterface, callID uint32, lstGID types.List[types.UInt32]) (*nex.RMCMessage, *nex.Error) {
-		if err == nil && len(lstGID) != 1 {
+		asked := len(lstGID)
+		if err == nil && asked != 1 {
 			lstGID = withFeatured(lstGID)
 		}
+		globals.Logger.Infof("FindCommunityByGatheringId: asked %v, looking up %d", []types.UInt32(lstGID[:asked]), len(lstGID))
 		return find(err, packet, callID, lstGID)
 	})
 }
