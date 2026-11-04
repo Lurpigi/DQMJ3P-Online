@@ -42,6 +42,9 @@ KEY = b"3Ef7Db65775e4cCF"
 TITLE_CODE = "00200605"
 APP_PATH = "00300701"
 DOWNLOAD_CODE = b"Download_Code"
+# The biggest upload is the save backup, PrivateCorruptedSaveData.bin (228 080 bytes, sil_protocol.md 5.1)
+MAX_BODY = 0x80000
+MAX_CONNECTIONS = 64
 
 # Fallback public files, so features that need them do not hard-fail on an empty server.
 DEFAULT_PUBLIC = {
@@ -194,6 +197,10 @@ class Store:
 
 
 # --- request handling ----------------------------------------------------------------------
+class BodyTooLarge(Exception):
+    pass
+
+
 class SilError(Exception):
     def __init__(self, result, **extra):
         super().__init__(result)
@@ -475,7 +482,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         endpoint = path[len(prefix):]
-        body = self._read_body()
+        try:
+            body = self._read_body()
+        except (BodyTooLarge, ValueError) as e:
+            self.close_connection = True
+            self.send_error(413 if isinstance(e, BodyTooLarge) else 400)
+            return
         if body == b"\0":  # empty body sent as one dummy byte (make_url_patch.py --azahar)
             body = b""
         friend_code = self.headers.get("X-Sil-Friend-Code", "")
@@ -526,6 +538,8 @@ class Handler(BaseHTTPRequestHandler):
         # chunked wins (RFC 9112 6.3), otherwise the chunk-size line ends up in the TLV data.
         # With an empty body it sends Content-Length: 0 and no chunks at all (not even "0\r\n").
         length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_BODY:
+            raise BodyTooLarge
         if "chunked" not in self.headers.get("Transfer-Encoding", "").lower() or length == 0:
             return self.rfile.read(length)
         body = bytearray()
@@ -535,6 +549,8 @@ class Handler(BaseHTTPRequestHandler):
                 while self.rfile.readline() not in (b"\r\n", b"\n", b""):  # trailers
                     pass
                 return bytes(body)
+            if len(body) + size > MAX_BODY:
+                raise BodyTooLarge
             body += self.rfile.read(size)
             self.rfile.readline()  # CRLF after each chunk
 
@@ -872,6 +888,26 @@ ROUTES = {
 }
 
 
+class BoundedHTTPServer(ThreadingHTTPServer):
+    """Closes connections beyond max_connections at once, so slow clients cannot pile up threads."""
+
+    def __init__(self, address, handler, max_connections):
+        super().__init__(address, handler)
+        self.slots = threading.BoundedSemaphore(max_connections)
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1")
@@ -923,7 +959,7 @@ def main():
     n, idx = Handler.calendar.contest(Handler.calendar.today())
     print(f"SIL server on http://{args.host}:{args.port}/{APP_PATH}/ (data: {args.data}); "
           f"Grand Prix contest {n}, day {idx + 1}/{args.gp_days} ({Handler.calendar.today()})", flush=True)
-    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
+    BoundedHTTPServer((args.host, args.port), Handler, MAX_CONNECTIONS).serve_forever()
 
 
 if __name__ == "__main__":

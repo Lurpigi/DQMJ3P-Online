@@ -274,7 +274,17 @@ func serveDataStoreHTTP(listen string) {
 			r.Header.Get("Content-Type"), r.ContentLength)
 		mux.ServeHTTP(w, r)
 	})
-	if err := http.ListenAndServe(listen, logged); err != nil {
+	// * Slow or idle clients must not hold connections forever
+	server := &http.Server{
+		Addr:              listen,
+		Handler:           logged,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       2 * time.Minute,
+		WriteTimeout:      2 * time.Minute,
+		IdleTimeout:       time.Minute,
+		MaxHeaderBytes:    16 << 10,
+	}
+	if err := server.ListenAndServe(); err != nil {
 		globals.Logger.Criticalf("DataStore HTTP server: %v", err)
 	}
 }

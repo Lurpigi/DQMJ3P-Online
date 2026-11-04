@@ -1,7 +1,9 @@
 # Public test stack for one VPS: NEX, Postgres, SIL, SpotPass and the NAT check server.
 # Settings come from .env (see .env.example), setup steps are in README.md.
+# Memory limits keep one flooded service from taking the whole VPS (1 GB, about 100 MB in use).
 x-service: &service
   restart: unless-stopped
+  pids_limit: 200
   logging:
     driver: json-file
     options:
@@ -12,6 +14,7 @@ services:
   postgres:
     <<: *service
     image: postgres:16-alpine
+    mem_limit: 256m
     environment:
       POSTGRES_USER: dqmj3p
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -27,6 +30,7 @@ services:
   nex:
     <<: *service
     build: ./nex
+    mem_limit: 256m
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +74,7 @@ services:
   sil:
     <<: *service
     image: python:3.13-alpine
+    mem_limit: 128m
     user: "1000:1000"
     working_dir: /app
     command:
@@ -90,6 +95,7 @@ services:
   spotpass:
     <<: *service
     image: python:3.13-alpine
+    mem_limit: 64m
     user: "1000:1000"
     working_dir: /app
     command: ["python", "-I", "-u", "serve_spotpass.py", "/content", "8380", "0.0.0.0"]
@@ -103,6 +109,7 @@ services:
   nncs:
     <<: *service
     image: python:3.13-alpine
+    mem_limit: 64m
     user: "1000:1000"
     working_dir: /app
     network_mode: host

@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -297,6 +298,15 @@ def main():
             assert pack[:4] == b"BPCP" and struct.unpack_from("<I", pack, 8)[0] == package
             assert hmac.new(PRESENT_KEY_B, pack[:-32], hashlib.sha256).digest() == pack[-32:]
         assert struct.unpack_from("<II", pack, 0xc) == (0, 1)  # disc package, key index 1
+
+        # a body bigger than any upload of the game (save backup: 228 080 bytes) is refused unread
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/00300701/file/upload", data=bytes(0x80001), method="POST")
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            raise AssertionError("oversized body accepted")
+        except urllib.error.HTTPError as e:
+            assert e.code == 413, e.code
+        c.call("file/download", {"File-Name": b"001_Server_Status.bin"})  # the server still answers
 
         c.token = os.urandom(16)  # a client with a wrong session must be refused
         try:

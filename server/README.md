@@ -81,6 +81,8 @@ Serve un server Linux con Docker e **due IPv4 pubblici configurati sulla sua int
 
 3. Apri nel firewall le porte `45000-45001/udp`, `10025/udp`, `10125/udp`, `33334-33335/udp` e `8380-8381/tcp`, `45080/tcp`.
 
+   Usa il firewall del provider (su Hetzner il Cloud Firewall), con SSH e queste porte soltanto: le porte pubblicate da Docker scavalcano le regole iptables del server. Per SSH conviene il solo accesso con chiave e fail2ban.
+
 4. Avvia lo stack:
 
    ```bash
