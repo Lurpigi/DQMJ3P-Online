@@ -2,7 +2,7 @@
 
 Obiettivo: riattivare le funzioni online di *Dragon Quest Monsters: Joker 3 Professional* (3DS, JP, `00040000001ACB00`, v1.3) su console (Luma3DS) ed emulatore (Azahar PC/Android).
 
-Ultimo aggiornamento: 2026-11-01.
+Ultimo aggiornamento: 2026-11-04.
 
 ---
 
@@ -103,7 +103,7 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 
 ### Fase A – Verifiche in gioco
 - [ ] SpotPass BREAK03 (mostro della mappa celeste) e BREAK02 (sicario StreetPass): file scaricati, non ancora visti in gioco.
-- [ ] Battaglia Amici: richiede due account Pretendo con l'amicizia sul server amici 3DS.
+- [ ] Battaglia Amici: richiede due account Pretendo con l'amicizia sul server amici 3DS (Azahar e il 3DS dell'utente usano lo stesso account).
 - [ ] Backup del salvataggio corrotto via SIL: previsto dal protocollo, mai provato in gioco.
 - [ ] Notifiche Pia (eventi 4000-4999) da controllare a runtime (le lotte funzionano comunque).
 - [ ] Regole delle comunita' (0x18 byte a +0x60 del buffer) da decodificare, per comunita' ufficiali con regole diverse.
@@ -124,7 +124,7 @@ G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio,
 - [ ] Notizie Grand Prix: `032_Grade_DLNewsMsg.bin` e' un testo fisso in inglese; i vincitori si possono generare in `sil_server.py` senza job, come per `033`.
 - [x] Sicurezza SIL (2026-10-31): friend code legato allo SHA-256 del token del giocatore (`users.secret`), token nella patch con `--nex-player-password`. Verificata con `tests/test_sil.py` e in gioco su Azahar.
 - [ ] DataStore: URL di upload con token casuale per versione. `tests/smoke_nex.py` lo verifica, manca una gara vera in gioco che carichi un replay.
-- [ ] Battaglia Amici: il server non vede le amicizie senza il gRPC di Pretendo (`GetUserFriendPIDs` restituisce vuoto). Verificare se la modalita' ne ha bisogno.
+- [x] Battaglia Amici lato server (2026-11-04): il gioco crea la sessione solo amici (policy 98), che senza il gRPC amici di Pretendo nessuno trovava. Il server le da' la policy 95 della lotta casuale: l'amico la trova cercando il PID esatto dell'host. `tests/smoke_nex.py` lo verifica (fallisce senza la modifica).
 - [ ] Test su 3DS reale, avviato il 2026-11-01. Funzionano avvio, login NEX con password per giocatore e lotta. Da provare: SIL, classifiche, G-Cup e replay, comunita', eventi BREAK in standby.
   - Patch per console: senza `--azahar` e `--spotpass-break`, con `--merge` della `exefs/code.ips` normale. `code_enhanced.ips` e' solo per emulatore e sul 3DS fa crashare il gioco all'avvio.
 
