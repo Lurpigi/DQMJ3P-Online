@@ -176,7 +176,7 @@ async def communities():
         c.description = description
         c.type = 1
         c.password = "pw"
-        c.attribs = [0, 0, 0, 0, 0, 0]
+        c.attribs = [1, 0, 0, 0, 0, 0]  # like CreateCommunity in game
         c.application_buffer = bytes(0x1b0)  # DQMJ3P community buffer size
         c.participation_start = common.DateTime(0)
         c.participation_end = common.DateTime(0)
@@ -208,6 +208,10 @@ async def communities():
         await mm.join_community(gid["value"], "", "pw")
         mine = await mm.find_community_by_participant(member_pid, common.ResultRange(0, 10))
         assert gid["value"] in [c.id for c in mine], "membership not recorded"
+        # featured communities without StreetPass ids: the server lists every community
+        featured = await mm.find_community_by_gathering_id([])
+        assert gid["value"] in [c.id for c in featured], "community missing from the featured list"
+        print(f"[community] featured list has {len(featured)} communities")
         try:
             await mm.update_community(community("hijacked"))
             raise AssertionError("non-owner updated the community")
