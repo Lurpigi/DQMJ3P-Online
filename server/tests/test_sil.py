@@ -5,6 +5,7 @@ private download (Data="Download_Code") -> public download/getproperties -> pres
 usage: python -I test_sil.py
 """
 import hashlib
+import hmac
 import os
 import socket
 import sqlite3
@@ -13,12 +14,14 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SERVER = os.path.join(HERE, "..", "sil", "sil_server.py")
 GP_FILES = os.path.join(HERE, "..", "..", "re", "tools", "gp_files.py")
 KEY = b"3Ef7Db65775e4cCF"
+PRESENT_KEY_B = bytes.fromhex("21dc24dd6a48fde68c934832a87b1762b522031cadf4f53f9e21ea8eed3ccc2d")
 
 
 def tlv(fields):
@@ -65,9 +68,13 @@ class GameClient:
         return out
 
 
+def player_token():
+    return hashlib.md5(os.urandom(16)).hexdigest()[:16].encode().ljust(256, b"\0")
+
+
 def logged_in_client(base):
     c = GameClient(base)
-    service_token = os.urandom(256)
+    service_token = player_token()
     r = c.call("nuser/register", {"Authentication-Token": service_token})
     assert r["Result"] == b"OK" and len(r["Friend-Code"]) == 12, r
     c.friend_code = r["Friend-Code"].decode()
@@ -131,7 +138,7 @@ def main():
             except OSError:
                 time.sleep(0.1)
         c = GameClient(f"http://127.0.0.1:{port}/00300701/")
-        service_token = os.urandom(256)
+        service_token = player_token()
 
         r = c.call("nuser/register", {"Authentication-Token": service_token})
         assert r["Result"] == b"OK" and len(r["Friend-Code"]) == 12, r
@@ -143,6 +150,35 @@ def main():
                                    "Digest": hashlib.md5(r["Nonce"] + KEY).digest()})
         assert r["Result"] == b"OK" and len(r["Token"]) == 16, r
         c.token = r["Token"]
+
+        # a save that registered on another server logs in with its old friend code
+        old = GameClient(c.base)
+        old.friend_code = "456093702889"
+        r = old.call("nuser/getnonce")
+        assert r["Result"] == b"OK" and len(r["Nonce"]) == 16, r
+        r = old.call("nuser/login", {"Authentication-Token": service_token,
+                                     "Digest": hashlib.md5(r["Nonce"] + KEY).digest()})
+        assert r["Result"] == b"OK" and len(r["Token"]) == 16, r
+        bad = GameClient(c.base)
+        bad.friend_code = "short"
+        assert bad.call("nuser/getnonce")["Result"] == b"USER_NOT_EXIST"
+
+        # that login bound the friend code: another player can't use it
+        nonce = old.call("nuser/getnonce")["Nonce"]
+        r = old.call("nuser/login", {"Authentication-Token": player_token(),
+                                     "Digest": hashlib.md5(nonce + KEY).digest()})
+        assert r["Result"] == b"INVALID_TOKEN", r
+        # malformed tokens, as the old patches send them, are refused
+        for token in (bytes(256), os.urandom(256)):
+            r = GameClient(c.base).call("nuser/register", {"Authentication-Token": token})
+            assert r["Result"] == b"INVALID_DATA", r
+        nonce = old.call("nuser/getnonce")["Nonce"]
+        r = old.call("nuser/login", {"Authentication-Token": bytes(256),
+                                     "Digest": hashlib.md5(nonce + KEY).digest()})
+        assert r["Result"] == b"INVALID_DATA", r
+        # a game that lost its friend code gets the same one back
+        r = GameClient(c.base).call("nuser/register", {"Authentication-Token": service_token})
+        assert r["Result"] == b"OK" and r["Friend-Code"].decode() in (c.friend_code, old.friend_code), r
 
         save = os.urandom(0x37af0)
         fc = c.friend_code.encode()
@@ -201,9 +237,9 @@ def main():
         assert struct.unpack("<IHBBIII", r["Data"]) == (2, 2026, 1, 14, 1, 2, 0), r["Data"].hex()
         r = c.call("file/download", {"File-Name": b"018_LimitSetting.bin"})  # contest 2: 2nd rule set
         assert len(r["Data"]) == 0x848 and struct.unpack_from("<6I", r["Data"]) == (1, 1, 9, 0, 9, 0)
-        assert r["Data"][0x538:].decode("utf-16-le").startswith("Tema: il torneo degli Slime!")
+        assert r["Data"][0x538:].decode("utf-16-le").startswith("Theme: the Slime tournament!\nTema: il torneo degli Slime!")
         r = c.call("file/download", {"File-Name": b"033_Limit_DLNewsMsg.bin"})
-        assert len(r["Data"]) == 0x600 and r["Data"].decode("utf-16-le").startswith("Tema: il torneo degli Slime!\nRegola:")
+        assert len(r["Data"]) == 0x600 and r["Data"].decode("utf-16-le").startswith("Slime family monsters only.\nSolo mostri della famiglia Slime.")
         db = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3"))
         for owner, day, pack in ((rival.friend_code, "2026-01-08", result_pack(win=900, wins=3)),  # contest 1
                                  (c.friend_code, "2026-01-09", result_pack(win=300, wins=1)),
@@ -252,6 +288,25 @@ def main():
         assert struct.unpack("<II", r["Add-Data"]) == (7, 1), r  # already used
         r = c.call("file/upload", {"File-Name": b"present_code.bin", "Friend-Code": fc, "Data": "NOPE".encode("utf-16-le")})
         assert struct.unpack("<II", r["Add-Data"])[1] == 2, r  # wrong
+        # Original codes (present_codes.json): full-width A code of DQMJ3, then the Latin alias
+        for typed, package in (("ＡＥＨＥＳ９Ｖ２ＮＣ", 335), ("goldslimedisc", 201)):
+            r = c.call("file/upload", {"File-Name": b"present_code.bin", "Friend-Code": fc,
+                                       "Data": typed.encode("utf-16-le").ljust(0x2a, b"\0")})
+            assert struct.unpack("<II", r["Add-Data"]) == (package, 0), r
+            r = c.call("file/download", {"File-Name": b"PresentCodePackageS%d.bin" % package})
+            pack = r["Data"]
+            assert pack[:4] == b"BPCP" and struct.unpack_from("<I", pack, 8)[0] == package
+            assert hmac.new(PRESENT_KEY_B, pack[:-32], hashlib.sha256).digest() == pack[-32:]
+        assert struct.unpack_from("<II", pack, 0xc) == (0, 1)  # disc package, key index 1
+
+        # a body bigger than any upload of the game (save backup: 228 080 bytes) is refused unread
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/00300701/file/upload", data=bytes(0x80001), method="POST")
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            raise AssertionError("oversized body accepted")
+        except urllib.error.HTTPError as e:
+            assert e.code == 413, e.code
+        c.call("file/download", {"File-Name": b"001_Server_Status.bin"})  # the server still answers
 
         c.token = os.urandom(16)  # a client with a wrong session must be refused
         try:

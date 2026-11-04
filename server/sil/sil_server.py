@@ -24,20 +24,27 @@ uploaded results; see --gp-* options.
 import argparse
 import datetime
 import hashlib
+import hmac
 import itertools
+import json
 import os
+import re
 import secrets
 import sqlite3
 import struct
 import sys
 import threading
 import time
+import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 KEY = b"3Ef7Db65775e4cCF"
 TITLE_CODE = "00200605"
 APP_PATH = "00300701"
 DOWNLOAD_CODE = b"Download_Code"
+# The biggest upload is the save backup, PrivateCorruptedSaveData.bin (228 080 bytes, sil_protocol.md 5.1)
+MAX_BODY = 0x80000
+MAX_CONNECTIONS = 64
 
 # Fallback public files, so features that need them do not hard-fail on an empty server.
 DEFAULT_PUBLIC = {
@@ -46,6 +53,37 @@ DEFAULT_PUBLIC = {
     "001_Server_Status.bin": bytes([4]) + bytes(7),
     "025_SendOfficialDummy.bin": bytes(0x54),
 }
+
+# --- Present codes (re/notes/present_codes.md) -----------------------------------------------
+# HMAC-SHA256 key index 1 of the BPCP packages (FUN_006c4918), as in the RomFS packages
+PRESENT_KEY = bytes.fromhex("21dc24dd6a48fde68c934832a87b1762b522031cadf4f53f9e21ea8eed3ccc2d")
+PRESENT_CODES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "present_codes.json")
+PRESENT_PACKAGE_RE = re.compile(r"^PresentCodePackageS(\d+)\.bin$")
+
+
+def normalize_code(text):
+    """Codes as the player types them: full-width letters and wave dashes as in the game table."""
+    return unicodedata.normalize("NFKC", text).replace("\u301c", "~").strip().upper()
+
+
+def present_package(number, gift):
+    """BPCP package: a disc (type 0) keeps the original body, an item (type 2) is item id + count."""
+    kind = 0 if "disc" in gift else 2
+    body = struct.pack("<4sIIIIIII", b"BPCP", 0x1000, number, kind, 1, 0, 0, 0)
+    body += bytes.fromhex(gift["disc"]) if kind == 0 else struct.pack("<hhI", gift["item"], gift["count"], 0)
+    return body + hmac.new(PRESENT_KEY, body, hashlib.sha256).digest()
+
+
+def load_present_codes(path=PRESENT_CODES_FILE):
+    """Original codes and aliases of present_codes.json: ({code: package}, {package: bytes})."""
+    codes, packages = {}, {}
+    if not os.path.exists(path):
+        return codes, packages
+    for gift in json.load(open(path, encoding="utf-8"))["gifts"]:
+        for code in gift["codes"] + [gift["alias"]]:
+            codes.setdefault(normalize_code(code), gift["package"])
+        packages.setdefault(gift["package"], present_package(gift["package"], gift))
+    return codes, packages
 
 
 # --- TLV -----------------------------------------------------------------------------------
@@ -129,7 +167,8 @@ class Store:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.lock = threading.Lock()
         self.db.executescript("""
-            CREATE TABLE IF NOT EXISTS users (friend_code TEXT PRIMARY KEY, created INTEGER DEFAULT (strftime('%s','now')));
+            -- secret: SHA-256 of the player token (Authentication-Token), set by register or the first login
+            CREATE TABLE IF NOT EXISTS users (friend_code TEXT PRIMARY KEY, created INTEGER DEFAULT (strftime('%s','now')), secret TEXT);
             CREATE TABLE IF NOT EXISTS sessions (friend_code TEXT PRIMARY KEY, nonce BLOB, token BLOB);
             CREATE TABLE IF NOT EXISTS private_files (friend_code TEXT, name TEXT, data BLOB, updated INTEGER DEFAULT (strftime('%s','now')), PRIMARY KEY (friend_code, name));
             -- Grand Prix results (GradeResultPack.bin / LimitResultPack.bin, 0x540 B, score = u32 at +0xc);
@@ -142,6 +181,8 @@ class Store:
         """)
         if "day" not in [c[1] for c in self.db.execute("PRAGMA table_info(gp_results)")]:
             self.db.execute("ALTER TABLE gp_results ADD COLUMN day TEXT")
+        if "secret" not in [c[1] for c in self.db.execute("PRAGMA table_info(users)")]:
+            self.db.execute("ALTER TABLE users ADD COLUMN secret TEXT")
 
     def date_gp_results(self, calendar):
         """Results stored before gp_results.day existed count for the day they were uploaded."""
@@ -156,6 +197,10 @@ class Store:
 
 
 # --- request handling ----------------------------------------------------------------------
+class BodyTooLarge(Exception):
+    pass
+
+
 class SilError(Exception):
     def __init__(self, result, **extra):
         super().__init__(result)
@@ -233,7 +278,8 @@ USER_PACK_NEIGHBOURS = 0x88    # mode block: 10 ranking entries around the user 
 USER_PACK_PREVIOUS = 0x1098    # mode block: result in the previous contest (same layout as +0)
 CHAMPION_ENTRY, CHAMPION_MAX = 0x34, 100
 GP_LIMIT_FILE = "018_LimitSetting.bin"
-GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
+GP_GRADE_NEWS_FILE = "032_Grade_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
+GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"
 
 # Challengers GP rules (018_LimitSetting, re/notes/grandprix_formats.md 3.4), one set per contest,
 # in rotation. A rule (type, value) must hold for every monster of the team (FUN_002f7e9c):
@@ -241,16 +287,66 @@ GP_LIMIT_NEWS_FILE = "033_Limit_DLNewsMsg.bin"  # UTF-16LE, 0x600 B
 #   1 family: species table +0x23 (1 Slime, 2 Dragon, 3 Beast, 4 Nature, 5 Demon, 6 Undead, 7 Material)
 #   4 rank: species rank 1..8 (F..SS), raised by level (25-49 -> C, 50-99 -> A, 100 -> SS)
 #   5 team grade cap: whole-team strength grade (<4000 -> 1, ..., >=74000 -> 8) must be <= value
+# Texts in English, Italian, Spanish, French and Japanese, one line each: the game shows the
+# text as it is, without wrapping. Lines of 40 characters fit (verified in Italian).
+LANGUAGES = ("en", "it", "es", "fr", "ja")
+
+
+def lines(*texts):
+    assert len(texts) == len(LANGUAGES)
+    return "\n".join(texts)
+
+
 LIMIT_RULE_SETS = [
-    ([], "Nessuna regola: porta la tua squadra migliore!", "Tema: tutti contro tutti!"),
-    ([(1, 1)], "Regola: solo mostri della famiglia Slime.", "Tema: il torneo degli Slime!"),
-    ([(5, 4)], "Regola: grado della squadra al massimo 4\n(forza totale sotto 18000).", "Tema: squadre leggere!"),
-    ([(0, 0)], "Regola: solo mostri di taglia piccola.", "Tema: piccoli ma forti!"),
-    ([(1, 2)], "Regola: solo mostri della famiglia Drago.", "Tema: il torneo dei Draghi!"),
-    ([(5, 6)], "Regola: grado della squadra al massimo 6\n(forza totale sotto 46000).", "Tema: squadre equilibrate!"),
-    ([(1, 5)], "Regola: solo mostri della famiglia Demone.", "Tema: il torneo dei Demoni!"),
-    ([(4, 8)], "Regola: solo mostri di rango SS\n(o qualsiasi mostro al livello 100).", "Tema: campioni al massimo livello!"),
+    ([],
+     lines("No rules: bring your best team!", "Nessuna regola: la tua squadra migliore!",
+           "Sin reglas: ¡trae tu mejor equipo!", "Aucune règle : ta meilleure équipe !",
+           "ルールなし！最強のチームで挑もう！"),
+     lines("Theme: everyone against everyone!", "Tema: tutti contro tutti!", "Tema: ¡todos contra todos!",
+           "Thème : tous contre tous !", "テーマ：なんでもありの大会！")),
+    ([(1, 1)],
+     lines("Slime family monsters only.", "Solo mostri della famiglia Slime.",
+           "Solo monstruos de la familia Slime.", "Uniquement la famille Slime.", "スライム系のモンスターのみ。"),
+     lines("Theme: the Slime tournament!", "Tema: il torneo degli Slime!", "Tema: ¡el torneo de los Slime!",
+           "Thème : le tournoi des Slime !", "テーマ：スライム系の大会！")),
+    ([(5, 4)],
+     lines("Team grade 4 max (strength under 18000).", "Grado squadra max 4 (forza sotto 18000).",
+           "Grado de equipo máx. 4 (fuerza < 18000).", "Grade d'équipe max 4 (force < 18000).",
+           "チームのつよさ合計18000未満。"),
+     lines("Theme: light teams!", "Tema: squadre leggere!", "Tema: ¡equipos ligeros!",
+           "Thème : équipes légères !", "テーマ：かるいチームの大会！")),
+    ([(0, 0)],
+     lines("Small monsters only.", "Solo mostri di taglia piccola.", "Solo monstruos de tamaño pequeño.",
+           "Uniquement les petits monstres.", "小さいモンスターのみ。"),
+     lines("Theme: small but strong!", "Tema: piccoli ma forti!", "Tema: ¡pequeños pero fuertes!",
+           "Thème : petits mais costauds !", "テーマ：小さくても強い！")),
+    ([(1, 2)],
+     lines("Dragon family monsters only.", "Solo mostri della famiglia Drago.",
+           "Solo monstruos de la familia Dragón.", "Uniquement la famille Dragon.", "ドラゴン系のモンスターのみ。"),
+     lines("Theme: the Dragon tournament!", "Tema: il torneo dei Draghi!", "Tema: ¡el torneo de los Dragones!",
+           "Thème : le tournoi des Dragons !", "テーマ：ドラゴン系の大会！")),
+    ([(5, 6)],
+     lines("Team grade 6 max (strength under 46000).", "Grado squadra max 6 (forza sotto 46000).",
+           "Grado de equipo máx. 6 (fuerza < 46000).", "Grade d'équipe max 6 (force < 46000).",
+           "チームのつよさ合計46000未満。"),
+     lines("Theme: balanced teams!", "Tema: squadre equilibrate!", "Tema: ¡equipos equilibrados!",
+           "Thème : équipes équilibrées !", "テーマ：バランスのいいチームの大会！")),
+    ([(1, 5)],
+     lines("Demon family monsters only.", "Solo mostri della famiglia Demone.",
+           "Solo monstruos de la familia Demonio.", "Uniquement la famille Démon.", "悪魔系のモンスターのみ。"),
+     lines("Theme: the Demon tournament!", "Tema: il torneo dei Demoni!", "Tema: ¡el torneo de los Demonios!",
+           "Thème : le tournoi des Démons !", "テーマ：悪魔系の大会！")),
+    ([(4, 8)],
+     lines("Rank SS only (or any monster at Lv 100).", "Solo rango SS (o mostri al livello 100).",
+           "Solo rango SS (o nivel 100).", "Rang SS uniquement (ou niveau 100).",
+           "ランクSSのみ（レベル100ならどれでも）。"),
+     lines("Theme: champions at max level!", "Tema: campioni al massimo livello!",
+           "Tema: ¡campeones al nivel máximo!", "Thème : champions au niveau max !", "テーマ：最強レベルの大会！")),
 ]
+
+GP_GRADE_NEWS = lines("The Grand Prix is open. Good luck!", "Il Grand Prix è aperto. Buona fortuna!",
+                      "¡El Gran Premio está abierto! ¡Suerte!", "Le Grand Prix est ouvert. Bonne chance !",
+                      "グランプリ開催中！がんばってね！")
 
 
 def utf16_field(text, size):
@@ -372,6 +468,7 @@ class Handler(BaseHTTPRequestHandler):
     calendar: GpCalendar = None
     prize_champion = prize_top10 = 0  # item ids of the end-of-contest Special Present (0 = none)
     coins_champion = coins_top10 = None  # (bronze, silver, gold, platinum) Network Coins, None = none
+    present_codes, present_packages = load_present_codes()
     limit_rotation = True  # Challengers GP rules from LIMIT_RULE_SETS (False: public 018_LimitSetting.bin)
     timeout = 15  # seconds; a stuck read must not outlive the client's 60 s request timeout
 
@@ -385,7 +482,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         endpoint = path[len(prefix):]
-        body = self._read_body()
+        try:
+            body = self._read_body()
+        except (BodyTooLarge, ValueError) as e:
+            self.close_connection = True
+            self.send_error(413 if isinstance(e, BodyTooLarge) else 400)
+            return
         if body == b"\0":  # empty body sent as one dummy byte (make_url_patch.py --azahar)
             body = b""
         friend_code = self.headers.get("X-Sil-Friend-Code", "")
@@ -436,6 +538,8 @@ class Handler(BaseHTTPRequestHandler):
         # chunked wins (RFC 9112 6.3), otherwise the chunk-size line ends up in the TLV data.
         # With an empty body it sends Content-Length: 0 and no chunks at all (not even "0\r\n").
         length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_BODY:
+            raise BodyTooLarge
         if "chunked" not in self.headers.get("Transfer-Encoding", "").lower() or length == 0:
             return self.rfile.read(length)
         body = bytearray()
@@ -445,6 +549,8 @@ class Handler(BaseHTTPRequestHandler):
                 while self.rfile.readline() not in (b"\r\n", b"\n", b""):  # trailers
                     pass
                 return bytes(body)
+            if len(body) + size > MAX_BODY:
+                raise BodyTooLarge
             body += self.rfile.read(size)
             self.rfile.readline()  # CRLF after each chunk
 
@@ -463,19 +569,34 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     # nuser/*
-    def register(self, fields, _friend_code):
-        if len(fields.get("Authentication-Token", b"")) == 0:
+    def _token_secret(self, fields):
+        """The patch sends the player password as Authentication-Token (make_url_patch.py
+        --nex-player-password): 16 hex digits in a zero-filled 256-byte buffer."""
+        token = fields.get("Authentication-Token", b"")
+        if self.dev_tokens and token:
+            return None
+        if not re.fullmatch(rb"[0-9a-f]{16}", token.rstrip(b"\0")):
             raise SilError("INVALID_DATA")
-        # TODO: validate the Nintendo/Pretendo service token (account server) and map it to a PID,
-        # so a friend code can be bound to one console. For now every register creates a new user.
+        return hashlib.sha256(token.rstrip(b"\0")).hexdigest()
+
+    def register(self, fields, _friend_code):
+        secret = self._token_secret(fields)
+        # A game that lost its friend code gets it back instead of a new, empty user
+        rows = self.store.q("SELECT friend_code FROM users WHERE secret = ?", secret) if secret else []
+        if rows:
+            return {"Friend-Code": rows[0][0]}
         while True:
             friend_code = "".join(secrets.choice("0123456789") for _ in range(12))
             if not self.store.q("SELECT 1 FROM users WHERE friend_code = ?", friend_code):
                 break
-        self.store.q("INSERT INTO users (friend_code) VALUES (?)", friend_code)
+        self.store.q("INSERT INTO users (friend_code, secret) VALUES (?, ?)", friend_code, secret)
         return {"Friend-Code": friend_code}
 
     def getnonce(self, _fields, friend_code):
+        # A save keeps the friend code of the server it registered on (Square Enix, another
+        # instance). Adopt it: on USER_NOT_EXIST that attempt fails and the game drops the code.
+        if len(friend_code) == 12 and friend_code.isascii() and friend_code.isalnum():
+            self.store.q("INSERT OR IGNORE INTO users (friend_code) VALUES (?)", friend_code)
         self._require_user(friend_code)
         nonce = secrets.token_bytes(16)
         self.store.q("INSERT INTO sessions (friend_code, nonce, token) VALUES (?, ?, NULL) "
@@ -489,9 +610,20 @@ class Handler(BaseHTTPRequestHandler):
             raise SilError("INVALID_DATA")
         if fields.get("Digest") != hashlib.md5(rows[0][0] + KEY).digest():
             raise SilError("INVALID_DATA")
+        self._check_secret(friend_code, self._token_secret(fields))
         token = secrets.token_bytes(16)
         self.store.q("UPDATE sessions SET nonce = NULL, token = ? WHERE friend_code = ?", token, friend_code)
         return {"Token": token}
+
+    def _check_secret(self, friend_code, secret):
+        """The first login binds an adopted friend code to its player."""
+        if secret is None:
+            return
+        stored = self.store.q("SELECT secret FROM users WHERE friend_code = ?", friend_code)[0][0]
+        if stored is None:
+            self.store.q("UPDATE users SET secret = ? WHERE friend_code = ?", secret, friend_code)
+        elif not secrets.compare_digest(stored, secret):
+            raise SilError("INVALID_TOKEN")
 
     def _require_user(self, friend_code):
         if not friend_code or not self.store.q("SELECT 1 FROM users WHERE friend_code = ?", friend_code):
@@ -692,11 +824,14 @@ class Handler(BaseHTTPRequestHandler):
         return bytes(out)
 
     def _redeem(self, data, friend_code):
-        code = data.decode("utf-16-le", "replace").split("\0", 1)[0].strip().upper()
+        code = normalize_code(data.decode("utf-16-le", "replace").split("\0", 1)[0])
         rows = self.store.q("SELECT package_id, single_use FROM present_codes WHERE code = ?", code)
-        if not rows:
+        if rows:
+            package_id, single_use = rows[0]
+        elif code in self.present_codes:
+            package_id, single_use = self.present_codes[code], 1
+        else:
             return 0, 2  # wrong code
-        package_id, single_use = rows[0]
         if single_use and self.store.q("SELECT 1 FROM present_code_uses WHERE code = ? AND friend_code = ?", code, friend_code):
             return package_id, 1  # already used
         self.store.q("INSERT OR IGNORE INTO present_code_uses (code, friend_code) VALUES (?, ?)", code, friend_code)
@@ -709,8 +844,13 @@ class Handler(BaseHTTPRequestHandler):
         if name == GP_LIMIT_FILE and self.limit_rotation:
             return name, limit_setting(self.calendar.contest(self.calendar.today())[0])
         if name == GP_LIMIT_NEWS_FILE and self.limit_rotation:  # Notizie -> ULTIME INFORMAZIONI
-            _, text, theme = LIMIT_RULE_SETS[(self.calendar.contest(self.calendar.today())[0] - 1) % len(LIMIT_RULE_SETS)]
-            return name, utf16_field(theme + "\n" + text, 0x600)
+            _, text, _ = LIMIT_RULE_SETS[(self.calendar.contest(self.calendar.today())[0] - 1) % len(LIMIT_RULE_SETS)]
+            return name, utf16_field(text, 0x600)
+        if name == GP_GRADE_NEWS_FILE:
+            return name, utf16_field(GP_GRADE_NEWS, 0x600)
+        package = PRESENT_PACKAGE_RE.match(name)
+        if package and int(package.group(1)) in self.present_packages:
+            return name, self.present_packages[int(package.group(1))]
         if name in GP_RANKING_FILES:
             return name, self._ranking_pack(GP_RANKING_FILES[name])
         if name in GP_CHAMPION_FILES:
@@ -748,11 +888,33 @@ ROUTES = {
 }
 
 
+class BoundedHTTPServer(ThreadingHTTPServer):
+    """Closes connections beyond max_connections at once, so slow clients cannot pile up threads."""
+
+    def __init__(self, address, handler, max_connections):
+        super().__init__(address, handler)
+        self.slots = threading.BoundedSemaphore(max_connections)
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8381)
     ap.add_argument("--data", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"))
+    ap.add_argument("--dev-tokens", action="store_true",
+                    help="accept any Authentication-Token (patches without --nex-player-password, local tests)")
     ap.add_argument("--self-opponents", action="store_true",
                     help="Grand Prix: also offer players their own last team as an opponent (single-player tests)")
     day = datetime.date.fromisoformat
@@ -787,6 +949,7 @@ def main():
     Handler.store = Store(os.path.join(args.data, "sil.sqlite3"))
     Handler.public_dir = os.path.join(args.data, "public")
     Handler.private_templates_dir = os.path.join(args.data, "private_templates")
+    Handler.dev_tokens = args.dev_tokens
     Handler.self_opponents = args.self_opponents
     Handler.calendar = GpCalendar(args.gp_start, args.gp_days, args.gp_utc_offset, args.gp_today)
     Handler.store.date_gp_results(Handler.calendar)
@@ -796,7 +959,7 @@ def main():
     n, idx = Handler.calendar.contest(Handler.calendar.today())
     print(f"SIL server on http://{args.host}:{args.port}/{APP_PATH}/ (data: {args.data}); "
           f"Grand Prix contest {n}, day {idx + 1}/{args.gp_days} ({Handler.calendar.today()})", flush=True)
-    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
+    BoundedHTTPServer((args.host, args.port), Handler, MAX_CONNECTIONS).serve_forever()
 
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@ import (
 
 	"dqmj3p-online/nex/globals"
 	pbfriends "github.com/PretendoNetwork/grpc/go/friends"
-	common_globals "github.com/PretendoNetwork/nex-protocols-common-go/v2/globals"
 	"github.com/PretendoNetwork/plogger-go"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -62,21 +61,15 @@ func init() {
 	requireEnv("PN_DQMJ3P_SECURE_SERVER_HOST")
 	requirePortEnv("PN_DQMJ3P_SECURE_SERVER_PORT")
 
-	// * Dev mode: every PID logs in with the same NEX password and nobody has friends.
-	// * Lets the server run without the Pretendo account/friends services, for local tests only.
+	// * Dev mode: every PID logs in with the same NEX password, also with the plain Login method.
+	// * For local tests only.
 	globals.DevPassword = os.Getenv("PN_DQMJ3P_DEV_PASSWORD")
 	if globals.DevPassword != "" {
-		globals.Logger.Warning("PN_DQMJ3P_DEV_PASSWORD is set: running in DEV mode without account/friends gRPC. Never use this in production")
-	} else {
-		accountGRPCHost := requireEnv("PN_DQMJ3P_ACCOUNT_GRPC_HOST")
-		accountGRPCPort := requirePortEnv("PN_DQMJ3P_ACCOUNT_GRPC_PORT")
-		accountGRPCAPIKey := os.Getenv("PN_DQMJ3P_ACCOUNT_GRPC_API_KEY")
-		if strings.TrimSpace(accountGRPCAPIKey) == "" {
-			globals.Logger.Warning("Insecure gRPC server detected. PN_DQMJ3P_ACCOUNT_GRPC_API_KEY environment variable not set")
-		}
+		globals.Logger.Warning("PN_DQMJ3P_DEV_PASSWORD is set: running in DEV mode. Never use this in production")
+	}
 
-		common_globals.ConnectToAccountGRPC(accountGRPCHost, accountGRPCPort, accountGRPCAPIKey)
-
+	// * Without the friends service nobody has friends, which only Battaglia Amici could need
+	if os.Getenv("PN_DQMJ3P_FRIENDS_GRPC_HOST") != "" {
 		friendsGRPCHost := requireEnv("PN_DQMJ3P_FRIENDS_GRPC_HOST")
 		friendsGRPCPort := requirePortEnv("PN_DQMJ3P_FRIENDS_GRPC_PORT")
 		friendsGRPCAPIKey := os.Getenv("PN_DQMJ3P_FRIENDS_GRPC_API_KEY")
@@ -106,4 +99,6 @@ func init() {
 		globals.Logger.Criticalf("Failed to connect to Postgres: %v", err)
 		os.Exit(0)
 	}
+
+	globals.InitPasswordTable()
 }

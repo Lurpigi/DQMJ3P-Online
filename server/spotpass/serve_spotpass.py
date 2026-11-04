@@ -14,6 +14,7 @@ import email.utils
 import os
 import re
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BOSS_APP_ID = "H7btVjYWs7p5dGj6"
@@ -24,6 +25,7 @@ PATH_RE = re.compile(r"^/p01/nsa/([A-Za-z0-9]{16})/([A-Z0-9]+)/(?:[A-Za-z_]{2,5}
 content_dir = sys.argv[1]
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 8380
 host = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
+MAX_CONNECTIONS = 64
 
 
 def updated_time(task, name):
@@ -40,6 +42,8 @@ def updated_time(task, name):
 
 
 class Handler(BaseHTTPRequestHandler):
+    timeout = 15  # seconds: a client that stops sending must not hold its thread
+
     def _resolve(self):
         m = PATH_RE.match(self.path.split("?", 1)[0])
         if not m or m.group(1) != BOSS_APP_ID or m.group(2) not in TASKS:
@@ -75,6 +79,26 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write(f"[spotpass] {self.client_address[0]} {fmt % args}\n")
 
 
+class BoundedHTTPServer(ThreadingHTTPServer):
+    """Closes connections beyond max_connections at once, so slow clients cannot pile up threads."""
+
+    def __init__(self, address, handler, max_connections):
+        super().__init__(address, handler)
+        self.slots = threading.BoundedSemaphore(max_connections)
+
+    def process_request(self, request, client_address):
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        super().process_request(request, client_address)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()
+
+
 if __name__ == "__main__":
     print(f"serving {content_dir} on http://{host}:{port}/p01/nsa/{BOSS_APP_ID}/<TASK>/<file>", flush=True)
-    ThreadingHTTPServer((host, port), Handler).serve_forever()
+    BoundedHTTPServer((host, port), Handler, MAX_CONNECTIONS).serve_forever()

@@ -9,7 +9,7 @@ import (
 )
 
 func GetUserFriendPIDs(pid uint32) []uint32 {
-	if DevPassword != "" {
+	if GRPCFriendsClient == nil {
 		return make([]uint32, 0)
 	}
 

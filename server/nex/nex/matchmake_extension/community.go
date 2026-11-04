@@ -154,3 +154,14 @@ func UpdateCommunity(err error, packet nex.PacketInterface, callID uint32, commu
 
 	return emptyResponse(packet, callID, matchmake_extension.MethodUpdateCommunity), nil
 }
+
+// InitStartedTime gives every gathering a started_time. CreatePersistentGathering and the
+// official communities in sql/ leave it NULL, and FindGatheringByID cannot scan NULL, so
+// EndParticipation on a community fails with Core::Unknown (006-0102 at the end of a G-Cup).
+func InitStartedTime() {
+	_, err := globals.Postgres.Exec(`ALTER TABLE matchmaking.gatherings ALTER COLUMN started_time SET DEFAULT now();
+		UPDATE matchmaking.gatherings SET started_time = now() WHERE started_time IS NULL`)
+	if err != nil {
+		globals.Logger.Criticalf("Failed to set started_time on gatherings: %v", err)
+	}
+}

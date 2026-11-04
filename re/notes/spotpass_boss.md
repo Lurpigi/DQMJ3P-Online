@@ -92,9 +92,19 @@ Layout corpo (offset relativi al corpo, dopo header 8 byte):
   record B con id uguale), u16 x4 (anche ref/skill), ...}`; poi nB record B da 0x48 B (id 0x2711=10001, 0x2712, ...
   template monster custom: campi species/skills/stat) [campi interni B e b4 INCERTI; b4=15 potrebbe essere anno-2000].
 - type6 WiFiShopTbl (corpo in chiaro): 7 giorni x 42 slot x 16 B = 4704 B (8+4704+32 = 4744 OK). Slot:
-  `{u16 kind (1=item?, 2=monster), u16 id, u16 f2, u16 f3, u16 f4, u16 f5, u32 e}`. Il gioco (FUN_002c9a54) calcola
-  l'indice del giorno con ora JST (now + 32400000 ms, FUN_006d0618), copia 0x2a0 B (42 slot) a partire da
-  buf+8+idx*0x2a0, e per slot con kind!=0 chiama FUN_002b0cac (aggiunge al negozio); kind==2 -> FUN_002508f4(specie, e).
+  `{u16 kind (1=oggetto I%04d, 2=mostro MK%04d), u16 id, u16 prezzo bronzo, u16 argento, u16 oro, u16 platino, u32 e}`
+  [V 2026-11-03: prezzi letti nella schermata "Scambia per Oggetti"]. Il gioco (FUN_002c9a54) calcola
+  l'indice del giorno con ora JST (now + 32400000 ms, FUN_006d0618; 0 = domenica [V: mercoledi' JST = giorno 3]), copia
+  0x2a0 B (42 slot) a partire da buf+8+idx*0x2a0 e per slot con kind!=0 chiama FUN_002b0cac, che li copia nel
+  salvataggio (`*(DAT_00897804+0x48)`, 42 x 16 B); kind==2 -> FUN_002508f4(specie, e).
+  Il file arriva dal task FGONLYT a ogni ingresso nella Piazza Wi-Fi e il gioco lo cancella subito dopo
+  (FUN_002287d0): `capture_boss_nsdata.py` lo copia dall'extdata. Copia in chiaro (HMAC ok) in
+  `re/data/spotpass_archive/decrypted/BossWiFiShopTbl.bin`.
+  Contenuto originale: solo oggetti (nessun kind 2), 20-23 slot al giorno su 42. Ogni giorno: un seme a 10 bronzo e
+  il suo Super Seme a 1 platino (dom Vita, lun Magia, mar Forza, mer Agilita', gio Resilienza, ven Saggezza, sab
+  Abilita'), Semi della Felicita' a 10 bronzo, libri SP a 10 argento, libri EX di resistenza a 5 oro, materiali a 5
+  bronzo/argento/oro. Domenica e sabato anche Darkonium (1 platino), Cristallo Temporale e Frammento Metallico (10 oro);
+  domenica Soma della Fenice (1 platino), sabato Grande Sfera di Luce (1 platino) e i libri SP del Re e del Re Demone.
   Controllo size NsData = 0x1288 (4744). Il validatore type6 (loop sezione) e' mal decompilato [INCERTO su vincoli].
 
 ## 3. Tool
@@ -122,7 +132,7 @@ impacchettare nel container BOSS (cifratura AES-CTR gestita lato server) e usare
 - BossPresentDisc (type5, 1452 B campione; originale 5780 B): 8 record A + 2 record B. Date nei record A:
   (15, 10, 15) e (15, 9, 3) [INCERTO anno]. Usata da `FUN_00370e94` (menu Present Disc): registra FGONLYT one-shot, poi
   legge NsData, valida type5, e il menu elenca i regali (mostri/oggetti con data) selezionabili.
-- BossWiFiShopTbl (type6, originale 4744 B, nessun campione): vedi sopra: stock giornaliero del negozio Wi-Fi.
+- BossWiFiShopTbl (type6, originale 4744 B, catturato da Azahar): vedi sopra: stock giornaliero del negozio Wi-Fi.
 
 ## 5. PassingOfficialDataTable01/02.bin (84 B)
 Non sono BSDT (niente magic/HMAC) e il nome non compare in code.bin (nessun riferimento). Contenuto
@@ -173,4 +183,5 @@ asset di debug non usati in produzione. Il server SpotPass non deve fornirli.
 
 ## Incertezze principali
 Semantica di p5=0x15 e della property 5=2 nella TaskPolicy; maschere 2/4/8/0x20 di GetNsDataIdList; campi interni
-record B e anno in PresentDisc; semantica seed/FUN_0012f254; campi f2..f5 degli slot WiFiShop.
+record B e anno in PresentDisc; semantica seed/FUN_0012f254; campo `e` degli slot WiFiShop (sempre 0, usato solo per
+i mostri).

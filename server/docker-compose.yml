@@ -1,7 +1,9 @@
 # Public test stack for one VPS: NEX, Postgres, SIL, SpotPass and the NAT check server.
 # Settings come from .env (see .env.example), setup steps are in README.md.
+# Memory limits keep one flooded service from taking the whole VPS (1 GB, about 100 MB in use).
 x-service: &service
   restart: unless-stopped
+  pids_limit: 200
   logging:
     driver: json-file
     options:
@@ -12,6 +14,7 @@ services:
   postgres:
     <<: *service
     image: postgres:16-alpine
+    mem_limit: 256m
     environment:
       POSTGRES_USER: dqmj3p
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -27,6 +30,7 @@ services:
   nex:
     <<: *service
     build: ./nex
+    mem_limit: 256m
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,7 +39,6 @@ services:
       PN_DQMJ3P_SECURE_SERVER_HOST: ${PUBLIC_IP:?set PUBLIC_IP in .env}
       PN_DQMJ3P_SECURE_SERVER_PORT: 45001
       PN_DQMJ3P_KERBEROS_PASSWORD: ${KERBEROS_PASSWORD:?set KERBEROS_PASSWORD in .env}
-      PN_DQMJ3P_DEV_PASSWORD: ${NEX_PASSWORD:?set NEX_PASSWORD in .env}
       PN_DQMJ3P_POSTGRES_URI: postgres://dqmj3p:${POSTGRES_PASSWORD}@postgres:5432/dqmj3p?sslmode=disable
       PN_DQMJ3P_DATASTORE_HTTP: 0.0.0.0:45080
       PN_DQMJ3P_DATASTORE_URL: http://${PUBLIC_IP}:45080
@@ -71,6 +74,7 @@ services:
   sil:
     <<: *service
     image: python:3.13-alpine
+    mem_limit: 128m
     user: "1000:1000"
     working_dir: /app
     command:
@@ -91,6 +95,7 @@ services:
   spotpass:
     <<: *service
     image: python:3.13-alpine
+    mem_limit: 64m
     user: "1000:1000"
     working_dir: /app
     command: ["python", "-I", "-u", "serve_spotpass.py", "/content", "8380", "0.0.0.0"]
@@ -104,6 +109,7 @@ services:
   nncs:
     <<: *service
     image: python:3.13-alpine
+    mem_limit: 64m
     user: "1000:1000"
     working_dir: /app
     network_mode: host

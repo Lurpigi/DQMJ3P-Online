@@ -16,10 +16,10 @@ func registerCommonAuthenticationServerProtocols() {
 	ticketGrantingProtocol := ticketgranting.NewProtocol()
 	globals.AuthenticationEndpoint.RegisterServiceProtocol(ticketGrantingProtocol)
 	commonTicketGrantingProtocol := commonticketgranting.NewCommonProtocol(ticketGrantingProtocol)
-	commonTicketGrantingProtocol.ConfigurePNValidation([]string{globals.TitleIDUniqueID})
+	commonTicketGrantingProtocol.ValidateLoginData = globals.ValidatePlayerLogin
 
-	// * The real game uses LoginEx with the NASC token. Test clients without a token
-	// * (NintendoClients) need the plain Login method, so allow it in DEV mode only
+	// * Test clients without a token (NintendoClients) need the plain Login method,
+	// * so allow it in DEV mode only
 	if globals.DevPassword != "" {
 		commonTicketGrantingProtocol.EnableInsecureLogin()
 

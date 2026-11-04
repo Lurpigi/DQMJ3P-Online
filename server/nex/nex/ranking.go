@@ -276,6 +276,8 @@ func getRankingStats(err error, packet nex.PacketInterface, callID uint32, categ
 
 func registerRankingProtocol() {
 	initRankingTables()
+	initGcupTables()
+	go runGcupWeeks()
 
 	rankingProtocol := ranking.NewProtocol()
 	globals.SecureEndpoint.RegisterServiceProtocol(rankingProtocol)

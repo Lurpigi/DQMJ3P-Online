@@ -2,7 +2,8 @@
 
 Fake 3DS clients (NintendoClients, 3DS settings, NEX 3.10.1, access key 5812c478) replay the
 game's two battle flows:
-  friend battle: A CreateMatchmakeSession (gameMode 5, attribs[0]=host id), B Browse + JoinMatchmakeSessionEx
+  friend battle: A CreateMatchmakeSession (gameMode 5, attribs[0]=host id, friends only), B Browse +
+                JoinMatchmakeSessionEx (A and B are not friends: the server has no friend list)
   random battle: A and B AutoMatchmakeWithSearchCriteria_Postpone (gameMode 2, two criteria) -> same gathering
 then GetSessionURLs, which Pia needs to connect the peers. Then communities (create, join with
 password, update) and G-Cup replays (DataStore post + HTTP upload, search, get + HTTP download,
@@ -12,6 +13,7 @@ usage: python smoke_nex.py [host] [auth_port] [dev_password]
 """
 import random
 import sys
+import urllib.error
 import urllib.request
 
 import anyio
@@ -52,13 +54,14 @@ def make_settings():
     return s
 
 
-def criteria(game_mode, attrib0=""):
+def criteria(game_mode, attrib0="", friends_only=False):
     c = matchmaking.MatchmakeSessionSearchCriteria()
     c.attribs = [attrib0, "", "", "", "", ""]
     c.game_mode = str(game_mode)
     c.min_participants = ""
     c.max_participants = "2"
-    c.matchmake_system = "1"
+    # the game fills it from the same flag as the session (nex_st5_MMExt_BrowseMatchmakeSession, +0xae)
+    c.matchmake_system = "2" if friends_only else "1"
     c.vacant_only = True
     c.exclude_locked = True
     c.exclude_non_host_pid = True
@@ -67,12 +70,14 @@ def criteria(game_mode, attrib0=""):
     return c
 
 
-def new_session(game_mode, attrib0):
+def new_session(game_mode, attrib0, friends_only=False):
     session = matchmaking.MatchmakeSession()
     session.game_mode = game_mode
     session.min_participants = 1
     session.max_participants = 2
-    session.matchmake_system = 1
+    # like FUN_0014f51c: flag 1 = anybody (policy 95), flag 2 = friends only (policy 98)
+    session.matchmake_system = 2 if friends_only else 1
+    session.participation_policy = 98 if friends_only else 95
     session.attribs = [attrib0, 0, 0, 0, 0, 0]
     session.open_participation = True
     session.application_buffer = bytes(256)
@@ -97,7 +102,7 @@ async def friend_battle():
 
     async def host(client):
         mm = matchmaking.MatchmakeExtensionClient(client)
-        result = await mm.create_matchmake_session(new_session(FRIEND_GAME_MODE, host_pid), "", 1)
+        result = await mm.create_matchmake_session(new_session(FRIEND_GAME_MODE, host_pid, friends_only=True), "", 1)
         gid["value"] = result.gid
         print(f"[friend] host {host_pid} created gathering {result.gid}")
         created.set()
@@ -106,7 +111,7 @@ async def friend_battle():
     async def guest(client):
         await created.wait()
         mm = matchmaking.MatchmakeExtensionClient(client)
-        sessions = await mm.browse_matchmake_session(criteria(FRIEND_GAME_MODE, str(host_pid)), common.ResultRange(0, 100))
+        sessions = await mm.browse_matchmake_session(criteria(FRIEND_GAME_MODE, str(host_pid), friends_only=True), common.ResultRange(0, 100))
         assert [s.id for s in sessions] == [gid["value"]], f"browse returned {[s.id for s in sessions]}"
         await mm.join_matchmake_session_ex(sessions[0].id, "", False, 1)
         urls = await matchmaking.MatchMakingClient(client).get_session_urls(sessions[0].id)
@@ -171,7 +176,7 @@ async def communities():
         c.description = description
         c.type = 1
         c.password = "pw"
-        c.attribs = [0, 0, 0, 0, 0, 0]
+        c.attribs = [1, 0, 0, 0, 0, 0]  # like CreateCommunity in game
         c.application_buffer = bytes(0x1b0)  # DQMJ3P community buffer size
         c.participation_start = common.DateTime(0)
         c.participation_end = common.DateTime(0)
@@ -203,6 +208,10 @@ async def communities():
         await mm.join_community(gid["value"], "", "pw")
         mine = await mm.find_community_by_participant(member_pid, common.ResultRange(0, 10))
         assert gid["value"] in [c.id for c in mine], "membership not recorded"
+        # featured communities without StreetPass ids: the server lists every community
+        featured = await mm.find_community_by_gathering_id([])
+        assert gid["value"] in [c.id for c in featured], "community missing from the featured list"
+        print(f"[community] featured list has {len(featured)} communities")
         try:
             await mm.update_community(community("hijacked"))
             raise AssertionError("non-owner updated the community")
@@ -250,6 +259,14 @@ async def replays():
         param.persistence_init_param.persistence_id = 0
         info = await store.prepare_post_object(param)
         body, content_type = multipart([(f.key, f.value) for f in info.form], replay)
+        for url in (info.url.rsplit("/", 1)[0] + "/" + "0" * 32, info.url.rsplit("/", 1)[0]):
+            try:
+                await anyio.to_thread.run_sync(http, "POST", url, body, content_type)
+            except urllib.error.HTTPError as e:
+                assert e.code in (400, 403), e
+            else:
+                raise AssertionError(f"upload accepted without the token: {url}")
+        print("[replay] uploads without the token refused")
         await anyio.to_thread.run_sync(http, "POST", info.url, body, content_type)
         complete = datastore.DataStoreCompletePostParam()
         complete.data_id = info.data_id

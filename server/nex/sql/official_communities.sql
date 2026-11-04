@@ -13,8 +13,8 @@
 --   +0x78, +0x98, +0xb8 UTF-16 (0x20 B each)  official communities only: three text lines shown
 --                 instead of community level / origin / grade (tb_rule_00..02)
 -- The participation start date is shown as the creation date.
--- Existing rows are kept (players save the ids they joined) and only get their buffer rewritten.
--- Run: docker exec -i dqmj3p-postgres-1 psql -U dqmj3p -d dqmj3p < server/nex/sql/official_communities.sql
+-- Existing rows are kept (players save the ids they joined) and only get their texts rewritten.
+-- Run: docker exec -i server-postgres-1 psql -U dqmj3p -d dqmj3p < server/nex/sql/official_communities.sql
 BEGIN;
 
 CREATE OR REPLACE FUNCTION pg_temp.put_utf16(buf bytea, pos integer, value text) RETURNS bytea AS $$
@@ -48,14 +48,24 @@ DECLARE
     official record;
     gid bigint;
 BEGIN
-    -- Rows are matched by description (the name), since the game expects attribs {1, 0, ...}.
-    -- Rule lines: at most 15 characters each.
+    -- One community per language, matched by attribs[1] (the game only reads attribs[0]). The
+    -- Italian one keeps the row of the first official community (attribs[1] = 0).
+    -- Limits: name 16 characters, comment 17, rule lines 15 (the font has the accents of the
+    -- Italian patch, Spanish and French ones included).
     FOR official IN SELECT * FROM (VALUES
-        ('Ufficiale 1', 'Benvenuti!', ARRAY['Comunità aperta', 'a tutti i', 'domatori!'])
-    ) AS t(name, comment, rules) LOOP
+        (0, 'Ufficiale Italia', 'Benvenuti!', ARRAY['Comunità aperta', 'ai domatori', 'italiani!']),
+        (1, 'Official English', 'Welcome, tamers!', ARRAY['Open community', 'for all English', 'speaking tamers']),
+        (2, 'Oficial Español', '¡Bienvenidos!', ARRAY['Comunidad para', 'domadores de', 'habla hispana']),
+        (3, 'Officiel FR', 'Bienvenue !', ARRAY['Pour tous les', 'dompteurs', 'francophones !']),
+        (4, '公式コミュ・日本語', 'ようこそ！', ARRAY['日本語で', 'たのしく', 'バトルしよう！'])
+    ) AS t(lang, name, comment, rules) LOOP
+        IF length(official.name) > 16 OR length(official.comment) > 17
+           OR EXISTS (SELECT 1 FROM unnest(official.rules) AS r WHERE length(r) > 15) THEN
+            RAISE EXCEPTION 'official community text too long: %', official.name;
+        END IF;
+        gid := NULL;
         SELECT pg.id INTO gid FROM matchmaking.persistent_gatherings pg
-        JOIN matchmaking.gatherings g USING (id)
-        WHERE pg.community_type = 2 AND pg.attribs[1] = 1 AND g.description = official.name;
+        WHERE pg.community_type = 2 AND pg.attribs[1] = 1 AND pg.attribs[2] = official.lang;
         IF gid IS NULL THEN
             INSERT INTO matchmaking.gatherings
                 (owner_pid, host_pid, min_participants, max_participants, participation_policy,
@@ -65,9 +75,10 @@ BEGIN
             INSERT INTO matchmaking.persistent_gatherings
                 (id, community_type, password, attribs, application_buffer,
                  participation_start_date, participation_end_date)
-            VALUES (gid, 2, '', ARRAY[1, 0, 0, 0, 0, 0], ''::bytea,
+            VALUES (gid, 2, '', ARRAY[1, official.lang, 0, 0, 0, 0], ''::bytea,
                     date_trunc('second', now()), '0002-11-30 00:00:00 BC');
         END IF;
+        UPDATE matchmaking.gatherings SET description = official.name WHERE id = gid;
         UPDATE matchmaking.persistent_gatherings
         SET application_buffer = pg_temp.community_buffer(official.name, official.comment, official.rules)
         WHERE id = gid;
