@@ -35,11 +35,11 @@ Una chiave dedicata, senza passphrase (GitHub la deve usare da sola), diversa da
 ssh-keygen -t ed25519 -N "" -C github-actions-deploy -f ~/.ssh/dqmj3p_github_deploy
 ```
 
-Aggiungila al VPS con l'opzione `restrict`, che toglie terminale interattivo e inoltri. Il comando usa la
-tua chiave di sempre, quindi l'agent SSH deve essere sbloccato:
+Aggiungila al VPS con l'opzione `restrict`, che toglie terminale interattivo e inoltri. Il comando entra
+con la tua chiave di sempre (`~/.ssh/dqmj3p`, chiede la passphrase), dal tuo utente e non con `sudo`:
 
 ```bash
-(printf 'restrict '; cat ~/.ssh/dqmj3p_github_deploy.pub) | ssh root@188.245.46.173 'cat >> /root/.ssh/authorized_keys'
+(printf 'restrict '; cat ~/.ssh/dqmj3p_github_deploy.pub) | ssh -i ~/.ssh/dqmj3p root@188.245.46.173 'cat >> /root/.ssh/authorized_keys'
 ```
 
 Prova che funzioni da sola:
