@@ -6,6 +6,21 @@ import { RANK_LETTERS } from "../format";
 import { L, useLocale } from "./L";
 
 const IMG_BASE = `${import.meta.env.BASE_URL}monsters/`;
+const FAMILY_BASE = `${import.meta.env.BASE_URL}families/`;
+const FAMILY_ICONS = new Set(["slime", "dragon", "beast", "nature", "demon", "undead", "material", "corrupted", "unknown"]);
+
+/** Localized family name with its in-game style icon (public/families/<key>.png, 16 px pixel art). */
+export function FamilyName({ family }: { family: number | null | undefined }) {
+  const cat = useCatalog();
+  const { t } = useTranslation();
+  const key = (family && cat?.families[String(family)]) || "unknown";
+  return (
+    <span className="family">
+      {FAMILY_ICONS.has(key) && <img className="family-icon" src={`${FAMILY_BASE}${key}.png`} alt="" width={16} height={16} />}
+      {t(`family.${key}`)}
+    </span>
+  );
+}
 
 /** Portrait of a species. icon = the first tile (square), full = every tile stacked, as in the
  *  game's party list (large monsters take 2-4 tiles). Unknown species or missing artwork get a
@@ -55,7 +70,7 @@ export function TeamColumn({ team, changed }: { team: TeamMember[]; changed?: Se
               <span className="muted">
                 {m.level != null && t("team.level", { level: m.level })}
                 {s?.rank ? ` · ${t("monster.rank")} ${RANK_LETTERS[s.rank]}` : ""}
-                {s?.family ? ` · ${t(`family.${cat!.families[String(s.family)] ?? "unknown"}`)}` : ""}
+                {s?.family ? <> · <FamilyName family={s.family} /></> : null}
               </span>
               {m.stats && (
                 <dl className="mini-stats">

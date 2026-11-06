@@ -35,8 +35,8 @@ The first release covers existing in-game championships. Website-organized event
 
 Use monster imagery from the user's supplied
 [spreadsheet](https://docs.google.com/spreadsheets/d/1VUfqzY6PmmtJycY0p1Y0egJ8-n9BcqM6lK6osIp8u_w/edit).
-Rows are matched to species ids by name and stats (tools/import-monsters); the icons are not committed
-until their redistribution is cleared.
+Rows are matched to species ids by name and stats (tools/import-monsters); the portraits are published
+with the site. Family icons and the logo come from the DQMJ3P Randomizer.
 
 ## Evidence on Hand
 
