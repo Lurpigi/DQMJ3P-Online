@@ -80,10 +80,25 @@ python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:
 
 Add `--azahar` for Azahar. See [docs/patch.md](docs/patch.md) for the available options.
 
-## Licensing and copyrighted material
+## License and copyright
 
-- `server/nex` and `server/nncs` are derived from Pretendo Network code licensed under AGPL-3.0
-  (`server/nex/LICENSE`). Server users must be able to obtain the source code, which is this repository.
-- This repository contains no ROMs, CIAs, `code.bin`, or original Nintendo and Square Enix files
-  (`re/bin` and `re/data` are excluded from git). Do not add them.
-- Dragon Quest Monsters is a Square Enix trademark. This project is not affiliated with Square Enix, Nintendo, or Pretendo.
+**Code:** [GNU AGPL-3.0](LICENSE). `server/nex` and `server/nncs` derive from Pretendo Network code
+under the same license, so the whole repository uses it. Whoever runs a modified server for others
+must offer them its source code.
+
+**Game and artwork:** *Dragon Quest Monsters: Joker 3 Professional*, its names, characters and artwork
+© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved. Dragon Quest is a registered trademark
+of Square Enix; Nintendo 3DS is a trademark of Nintendo. This is an unofficial fan project, not
+affiliated with or endorsed by Square Enix, Nintendo or Pretendo Network.
+
+The AGPL covers the code only. It does not cover:
+
+- the monster portraits in `web/public/monsters/` (game artwork, from the *DQM J3 Professional
+  Master's guide* by StrangeServer & Yggdrasil);
+- the Slime logo and favicons in `web/public/` (from *Dragon Quest I & II HD-2D*) and the family icons in
+  `web/public/families/` (from [DQMJ3P-Randomizer](https://github.com/Lurpigi/DQMJ3P-Randomizer));
+- game texts and names in `server/dashboard/data/monsters.json`.
+
+They remain the property of their owners and are here only to identify the monsters of the game.
+The repository contains no ROMs, CIAs, `code.bin` or other game files (`re/bin` and `re/data` are
+excluded from git): do not add them.

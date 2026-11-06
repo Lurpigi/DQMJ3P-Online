@@ -2,7 +2,19 @@
 
 [.github/workflows/deploy.yml](../.github/workflows/deploy.yml) has two jobs:
 
-- **test**, on every pull request targeting `main` and every push to `main`:
+Each workflow runs only for changes in its own folders:
+
+| Workflow | Runs on a push to `main` when these change | Pull requests |
+|---|---|---|
+| `deploy.yml` (servers) | `server/**`, `.github/deploy/**`, the workflow | tests when `server/**`, `web/**` or the deploy files change |
+| `pages.yml` (site) | `web/**`, `server/dashboard/data/**` (monster catalog), the workflow | none |
+
+A change to docs, `re/` or `tools/` alone neither restarts the servers nor republishes the site.
+**Actions → Deploy/Pages → Run workflow** runs either one by hand. If `test` is ever made a required
+check in the `main` ruleset, a pull request that touches none of those paths will wait for it forever:
+keep it optional, or add a job that always passes.
+
+- **test**, on pull requests targeting `main` and pushes to `main` (paths above):
   - `gofmt`, `go vet`, and the NEX server's Go tests;
   - the SIL server's end-to-end test;
   - the statistics portal's backend tests (PostgreSQL service) and frontend checks/build;

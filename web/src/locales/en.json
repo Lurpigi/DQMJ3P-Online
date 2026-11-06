@@ -446,8 +446,12 @@
       "title": "Credits",
       "art": "Monster portraits: DQM J3 Professional Master's guide by StrangeServer & Yggdrasil.",
       "names": "Monster names: the game's texts and the Italian and French fan translations.",
-      "game": "Dragon Quest Monsters: Joker 3 Professional © Square Enix. This fan project is not affiliated with Square Enix or Nintendo.",
+      "game": "Dragon Quest Monsters: Joker 3 Professional, its characters, monster artwork and the Slime logo © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved. This fan project is not affiliated with or endorsed by Square Enix or Nintendo.",
       "source": "Source code"
     }
+  },
+  "footer": {
+    "copyright": "© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved.",
+    "unofficial": "Unofficial fan site, not affiliated with Square Enix or Nintendo."
   }
 }
