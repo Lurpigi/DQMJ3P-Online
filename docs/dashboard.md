@@ -33,7 +33,11 @@ read-only mount and connection, the NEX tables through a role limited to the tab
 1. **DNS:** an `A` record for the API name (e.g. `stats.example.org`) pointing at `PUBLIC_IP`.
    Without a domain, use the free [sslip.io](https://sslip.io) name of the IP: the production VPS uses
    `78-47-138-100.sslip.io` (the floating IP). Let's Encrypt issues certificates for it like any other name.
-   Open TCP 80/443 and UDP 443 in the firewall (Caddy needs 80 for the certificate).
+   Open TCP 443 and UDP 443 in the firewall, and keep TCP 80 closed: Caddy gets the certificate through
+   the TLS-ALPN challenge on 443 and listens on nothing else. With 80 open, a flood meant for another site
+   that still points at the floating IP filled the kernel connection table and dropped game packets.
+   The VPS also has a larger table (`/etc/sysctl.d/60-conntrack.conf`: 131072 entries, 30 s for closed
+   TCP connections).
 2. **`.env`** on the VPS (see `server/.env.example`):
    ```
    COMPOSE_PROFILES=portal
