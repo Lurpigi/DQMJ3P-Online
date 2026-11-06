@@ -31,6 +31,8 @@ read-only mount and connection, the NEX tables through a role limited to the tab
 ## One-time setup
 
 1. **DNS:** an `A` record for the API name (e.g. `stats.example.org`) pointing at `PUBLIC_IP`.
+   Without a domain, use the free [sslip.io](https://sslip.io) name of the IP: the production VPS uses
+   `78-47-138-100.sslip.io` (the floating IP). Let's Encrypt issues certificates for it like any other name.
    Open TCP 80/443 and UDP 443 in the firewall (Caddy needs 80 for the certificate).
 2. **`.env`** on the VPS (see `server/.env.example`):
    ```
@@ -42,7 +44,8 @@ read-only mount and connection, the NEX tables through a role limited to the tab
    DASHBOARD_ID_SALT=<openssl rand -hex 16>
    ```
    `DASHBOARD_ID_SALT` must never change: public player ids (`/players/p…`) are derived from it.
-   Back it up with `.env`.
+   Back it up with `.env`. On the production VPS these values were generated on 2026-11-06; the previous
+   `.env` is in `/root/env-backup-20261106183230`.
 3. **GitHub:** Settings → Pages → Source: *GitHub Actions*. Settings → Variables → `PORTAL_API_URL` =
    `https://stats.example.org/api/v1`. The next push touching `web/` publishes the site at
    `https://lurpigi.github.io/DQMJ3P-Online/`.
