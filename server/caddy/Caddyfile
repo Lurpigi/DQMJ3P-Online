@@ -1,10 +1,19 @@
 # HTTPS front of the statistics portal API (docs/dashboard.md). Caddy obtains and renews the
 # certificate for DASHBOARD_HOSTNAME; the game services keep their own ports and plain HTTP.
+# HTTPS only, nothing on port 80: the certificate comes through the TLS-ALPN challenge on 443. Port 80
+# drew a stray flood from another site's DNS record that filled the kernel conntrack table and
+# dropped game packets (2026-11-06), so it stays closed in the firewall too.
 {
 	admin off
+	auto_https disable_redirects
 }
 
-{$DASHBOARD_HOSTNAME} {
+https://{$DASHBOARD_HOSTNAME} {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
 	encode zstd gzip
 	request_body {
 		max_size 4KB
