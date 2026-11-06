@@ -36,7 +36,7 @@ The first release covers existing in-game championships. Website-organized event
 Use monster imagery from the user's supplied
 [spreadsheet](https://docs.google.com/spreadsheets/d/1VUfqzY6PmmtJycY0p1Y0egJ8-n9BcqM6lK6osIp8u_w/edit).
 Rows are matched to species ids by name and stats (tools/import-monsters); the portraits are published
-with the site. Family icons and the logo come from the DQMJ3P Randomizer.
+with the site. Family icons come from the DQMJ3P Randomizer; the logo is the pixel-art Slime.
 
 ## Evidence on Hand
 
