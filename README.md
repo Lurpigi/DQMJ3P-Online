@@ -1,7 +1,7 @@
 # DQMJ3P Online
 
 Replacement servers and a game patch to restore the online features of *Dragon Quest Monsters: Joker 3 Professional*
-(3DS, Japanese release `00040000001ACB00` v1.3, including the Italian translation), on consoles running
+(3DS, Japanese release `00040000001ACB00` v1.3, with or without a fan translation), on consoles running
 Luma3DS and on Azahar.
 
 The official Nintendo and Square Enix servers have shut down. This project provides replacement servers
@@ -31,25 +31,25 @@ See [PLAN.md](PLAN.md) for details.
 - Version 1.3 of the game, with or without a translation patch.
 - A [Pretendo Network](https://pretendo.network) account for friends login, which gives each player a
   unique ID. The game does not use any other Pretendo services.
-- The DQMJ3P Online `code.ips` patch matching your platform (3DS or Azahar) and translation patch.
+- The DQMJ3P Online `code.ips` for your platform (3DS or Azahar), built on top of your translation's
+  `code.ips` if it has one: see [Building the patch](#building-the-patch).
 
 ### On 3DS (Luma3DS)
 
 1. Set up Pretendo with [Nimbus](https://pretendo.network/docs/install/3ds) and activate your Pretendo account.
-2. Copy the patch to `SD:/luma/titles/00040000001ACB00/code.ips`. It replaces the translation patch:
-   our patch already includes it.
+2. Copy the patch to `SD:/luma/titles/00040000001ACB00/code.ips`, replacing the translation's `code.ips`
+   (the online patch already contains it). Leave the translation's other files where they are.
 3. In the Luma configuration menu (hold SELECT while powering on), enable **Enable game patching**.
 4. Launch the game and enter the Wi-Fi Plaza.
 
-Use the 3DS patch on a real console. The Azahar patch contains emulator-specific fixes, and using the
-"enhanced" translation patch causes the game to crash at startup on a console.
+Use a patch built without `--azahar` on a real console.
 
 ### On Azahar
 
 1. Set up Pretendo using the [Azahar guide](https://pretendo.network/docs/install/citra):
    you need the online system modules (LLE) and a Pretendo account.
 2. Copy the patch to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`
-   (on Windows, the user directory is usually `%APPDATA%\Azahar`).
+   (on Windows, the user directory is usually `%APPDATA%\Azahar`), replacing the translation's `code.ips`.
 3. Launch the game.
 
 ### Troubleshooting
@@ -71,16 +71,47 @@ Use the 3DS patch on a real console. The Azahar patch contains emulator-specific
 - [Statistics portal](docs/dashboard.md): public championship archive, player histories and monster catalog (API on the VPS, site on GitHub Pages).
 - Reverse engineering notes in [re/notes](re/notes) (currently in Italian).
 
-### Generating the patch
+## Building the patch
 
-You need the decompressed `code.bin` from version 1.3 of the game (not included in the repository) and,
-if applicable, your translation patch:
+Luma and Azahar load only **one** `code.ips` per game. If your translation already has one, the tool
+copies its changes into the online patch, which then replaces it.
 
-```bash
-python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 --merge TRANSLATION_PATCH -o code.ips
-```
+**You need**
 
-Add `--azahar` for Azahar. See [docs/patch.md](docs/patch.md) for the available options.
+- Python 3.
+- The decompressed `code.bin` of the **original** game, version 1.3 (not included in the repository).
+- The translation's `code.ips`, if it has one.
+- The server's two IPv4 addresses: `IP` (main) and `IP2` (second).
+
+**Steps**
+
+1. Put `code.bin` in `re/bin/code.bin`.
+2. Run:
+
+   ```bash
+   python -I re/tools/make_url_patch.py --code re/bin/code.bin \
+     --sil-url http://IP:8381/00300701/ \
+     --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 \
+     --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 \
+     --merge path/to/translation/code.ips \
+     -o code.ips
+   ```
+
+3. Install the new `code.ips` in place of the translation's one, as in the [player guide](#player-guide).
+
+**Variants**
+
+| Case | Change |
+|---|---|
+| Translation with its own `code.ips` | `--merge path/to/translation/code.ips` (as above) |
+| No translation | Remove `--merge` |
+| Translation installed as a full game (CIA) with a modified executable | `--code` = decompressed `code.bin` of the translated game, without `--merge` |
+| Patch for Azahar | Add `--azahar` |
+| Patch for a real 3DS | Without `--azahar` |
+
+The tool stops instead of writing a broken patch if `code.bin` is not version 1.3, or if the
+translation changes the same bytes as the online patch. Every option is described in
+[docs/patch.md](docs/patch.md).
 
 ## License and copyright
 
@@ -102,4 +133,9 @@ The AGPL covers the code only. It does not cover:
 - game texts and names in `server/dashboard/data/monsters.json`.
 
 They remain the property of their owners and are here only to identify the monsters of the game.
-The repository contains no ROMs, CIAs, `code.bin` or other game files
+The repository contains no ROMs, CIAs, `code.bin` or other game files.
+
+## Translations
+
+- [DQMJ3P-IT-FanTranslation](https://github.com/Lurpigi/DQMJ3P-IT-FanTranslation): Italian fan translation.
+- [DQMJ3P-english-fixed](https://github.com/Akoi89/DQMJ3P-english-fixed): the 2021 English fan translation, rebuilt with its defects fixed.
