@@ -7,6 +7,8 @@ Luma3DS and on Azahar.
 The official Nintendo and Square Enix servers have shut down. This project provides replacement servers
 and a game patch that connects to them.
 
+# [Dashboard online](https://lurpigi.github.io/DQMJ3P-Online/#/en)
+
 ## What works
 
 | Feature | Service | Status |
