@@ -100,5 +100,4 @@ The AGPL covers the code only. It does not cover:
 - game texts and names in `server/dashboard/data/monsters.json`.
 
 They remain the property of their owners and are here only to identify the monsters of the game.
-The repository contains no ROMs, CIAs, `code.bin` or other game files (`re/bin` and `re/data` are
-excluded from git): do not add them.
+The repository contains no ROMs, CIAs, `code.bin` or other game files
