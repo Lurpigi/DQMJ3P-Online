@@ -30,8 +30,8 @@
       "short": "Master"
     },
     "limit": {
-      "name": "GP degli Sfidanti",
-      "short": "Sfidanti"
+      "name": "GP Sfida",
+      "short": "Sfida"
     },
     "gcup": {
       "name": "G-Cup",
@@ -79,7 +79,7 @@
   },
   "overview": {
     "title": "I campionati della settimana",
-    "lede": "Le edizioni del Master GP, del GP degli Sfidanti e della G-Cup chiudono ogni settimana. L'archivio le conserva tutte.",
+    "lede": "Le edizioni del Master GP, del GP Sfida e della G-Cup chiudono ogni settimana. L'archivio le conserva tutte.",
     "noEdition": "Ancora nessuna edizione.",
     "noEntries": "Ancora nessun risultato.",
     "entrants_one": "{{count}} giocatore",
@@ -302,7 +302,7 @@
     "reconstructed": "dal profilo attuale",
     "noFinals": "Ancora nessuna classifica finale.",
     "identitySil": "Profilo Grand Prix: risultati caricati dal menu Ranking Battle.",
-    "identityNex": "Profilo G-Cup: tempi caricati nella Wi-Fi Ranking G-Cup. Il nome è quello della squadra inviato con i tempi."
+    "identityNex": "Profilo G-Cup: tempi caricati nella G-Cup classificata. Il nome è quello della squadra inviato con i tempi."
   },
   "chart": {
     "asTable": "Mostra come tabella"
