@@ -197,8 +197,9 @@
     "credits": {
       "title": "Créditos", "art": "Retratos de los monstruos: DQM J3 Professional Master's guide de StrangeServer & Yggdrasil.",
       "names": "Nombres de los monstruos: los textos del juego y las traducciones de fans italiana y francesa.",
-      "game": "Dragon Quest Monsters: Joker 3 Professional © Square Enix. Este proyecto de fans no está afiliado a Square Enix ni a Nintendo.",
+      "game": "Dragon Quest Monsters: Joker 3 Professional, sus personajes, las imágenes de los monstruos y el logo del Slime © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. Todos los derechos reservados. Este proyecto de fans no está afiliado ni respaldado por Square Enix ni Nintendo.",
       "source": "Código fuente"
     }
-  }
+  },
+  "footer": { "copyright": "© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved.", "unofficial": "Sitio de fans no oficial, sin relación con Square Enix ni Nintendo." }
 }

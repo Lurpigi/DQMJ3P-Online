@@ -195,8 +195,9 @@
     "credits": {
       "title": "クレジット", "art": "モンスター画像：StrangeServer & Yggdrasil による DQM J3 Professional Master's guide。",
       "names": "モンスター名：ゲームのテキストと、イタリア語・フランス語のファン翻訳。",
-      "game": "ドラゴンクエストモンスターズ ジョーカー3 プロフェッショナル © SQUARE ENIX。このファンプロジェクトはスクウェア・エニックスおよび任天堂とは関係ありません。",
+      "game": "ドラゴンクエストモンスターズ ジョーカー3 プロフェッショナル、そのキャラクター、モンスター画像、スライムのロゴ © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX All Rights Reserved. このファンプロジェクトはスクウェア・エニックスおよび任天堂とは関係がなく、公認を受けていません。",
       "source": "ソースコード"
     }
-  }
+  },
+  "footer": { "copyright": "© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved.", "unofficial": "非公式ファンサイトです。スクウェア・エニックスおよび任天堂とは関係ありません。" }
 }

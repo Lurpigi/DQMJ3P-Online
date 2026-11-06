@@ -94,6 +94,7 @@ main.wrap { flex: 1; padding-top: 28px; padding-bottom: 56px; }
 .site-footer { background: var(--surface); font-size: 0.9rem; }
 .footer-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-top: 16px; padding-bottom: 16px; }
 .footer-row nav { display: flex; gap: 16px; }
+.copyright { margin: 0; padding-bottom: 16px; color: var(--muted); font-size: 0.8rem; }
 .footer-row nav a { min-height: 24px; display: inline-flex; align-items: center; }
 .fresh { display: inline-flex; align-items: center; gap: 8px; }
 .fresh::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good); }

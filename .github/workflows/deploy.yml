@@ -1,12 +1,16 @@
-# Tests the servers and the portal, then deploys the servers to the VPS on every push to main
-# (see docs/deploy.md). The portal frontend is published by pages.yml.
+# Tests the servers and the portal, then deploys the servers to the VPS on every push to main that
+# changes server/ or the deploy files (see docs/deploy.md). The portal frontend is published by
+# pages.yml, only when web/ or the monster catalog change.
 name: Deploy
 
 on:
   push:
     branches: [main]
+    paths: ["server/**", ".github/deploy/**", ".github/workflows/deploy.yml"]
   pull_request:
     branches: [main]
+    # web/ too: the test job also checks and builds the portal frontend
+    paths: ["server/**", "web/**", ".github/deploy/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 concurrency:

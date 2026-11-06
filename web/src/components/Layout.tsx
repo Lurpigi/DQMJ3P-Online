@@ -73,6 +73,7 @@ export function Layout() {
             <L to="/about">{t("nav.about")}</L>
           </nav>
         </div>
+        <p className="wrap copyright">{t("footer.copyright")} {t("footer.unofficial")}</p>
       </footer>
     </>
   );
