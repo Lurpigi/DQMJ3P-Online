@@ -1,0 +1,202 @@
+{
+  "brand": { "home": "DQMJ3P Online ホーム", "tagline": "大会アーカイブ" },
+  "nav": {
+    "main": "メイン", "secondary": "その他", "skip": "本文へ移動", "language": "言語", "breadcrumb": "パンくずリスト",
+    "overview": "トップ", "championships": "大会", "players": "プレイヤー", "battles": "バトル",
+    "monsters": "モンスター", "records": "記録", "status": "稼働状況", "about": "このサイトについて"
+  },
+  "theme": { "label": "テーマ：{{theme}}。テーマを切り替える", "system": "システム設定", "light": "ライト", "dark": "ダーク" },
+  "mode": {
+    "grade": { "name": "マスターズGP", "short": "マスターズ" },
+    "limit": { "name": "チャレンジャーズGP", "short": "チャレンジャーズ" },
+    "gcup": { "name": "Gカップ", "short": "Gカップ" }
+  },
+  "status": {
+    "upcoming": "開催前", "open": "開催中", "finalizing": "集計中", "final": "確定",
+    "finalizingNote": "この大会は終了しました。最後の結果が取り込まれると最終順位が表示されます。"
+  },
+  "edition": {
+    "gp": "第{{n}}回", "gcup": "カップ{{cup}}・第{{week}}週", "gcupShort": "第{{week}}週",
+    "starts": "開始", "ends": "終了", "revision": "改訂", "previous": "前の大会", "next": "次の大会",
+    "neighbours": "ほかの大会"
+  },
+  "time": {
+    "yours": "あなたの時刻 {{time}}", "left": "締め切りまで {{d}}日 {{h}}時間 {{m}}分", "closed": "終了"
+  },
+  "state": {
+    "loading": "読み込み中…", "more": "さらに表示", "retry": "再試行", "notFound": "ページが見つかりません。リンクが間違っている可能性があります。",
+    "error": "サーバーが応答できませんでした。", "offline": "統計サーバーに接続できません。",
+    "timeout": "統計サーバーの応答に時間がかかりすぎました。", "rateLimited": "リクエストが多すぎます。1分ほど待ってください。",
+    "stale": "{{when}}に読み込んだデータを表示しています。"
+  },
+  "freshness": { "updated": "データ更新：{{when}}", "delayed": "データの取り込みが遅れています", "unknown": "データの更新時刻は不明です" },
+  "overview": {
+    "title": "今週の大会",
+    "lede": "マスターズGP・チャレンジャーズGP・Gカップは毎週締め切られます。アーカイブはすべての大会を保存します。",
+    "noEdition": "まだ大会がありません。", "noEntries": "まだ結果がありません。",
+    "entrants_other": "{{count}}人",
+    "leaders": "上位", "fullStandings": "すべての順位", "previous": "前の大会",
+    "lastChampions": "前回の上位 · {{edition}}", "recent": "最新の結果"
+  },
+  "feed": {
+    "gp": "{{points}}ポイント・{{won}}/3勝", "gcup": "タイム {{time}}", "gcupBest": "自己ベスト {{time}}"
+  },
+  "follow": { "on": "フォロー中", "off": "フォロー", "title": "フォロー中" },
+  "share": { "copy": "リンクをコピー", "copied": "コピーしました" },
+  "archive": {
+    "title": "大会アーカイブ", "lede": "参加者のいなかった大会も含めた、すべての大会です。毎週のリセット後もリンクは変わりません。",
+    "searchHint": "大会番号、週、カップ名", "none": "条件に合う大会はありません。",
+    "edition": "大会", "dates": "期間", "entrants": "参加者", "winner": "優勝"
+  },
+  "filter": {
+    "mode": "種目", "allModes": "すべての種目", "allGp": "両方のGP", "status": "状態", "any": "すべて",
+    "year": "年", "search": "検索", "reset": "条件をクリア", "species": "チームのモンスター", "from": "開始日", "to": "終了日"
+  },
+  "tab": {
+    "label": "セクション", "standings": "順位", "results": "結果", "teams": "チーム", "stats": "統計",
+    "overview": "概要", "championships": "大会"
+  },
+  "view": {
+    "final": "最終", "live": "リアルタイム", "published": "公開", "provisional": "速報",
+    "publishedNote": "ゲームと同じく、{{day}}の前日までの結果です。今日の結果は明日から反映されます。",
+    "provisionalNote": "今日の分も含めて、これまでに届いたすべての結果です。ゲームでは明日公開されます。",
+    "finalNote": "最終順位（改訂{{revision}}）。",
+    "liveNote": "今週のベストタイム。レースが送信されるたびに更新されます。"
+  },
+  "standings": {
+    "view": "順位の種類", "search": "プレイヤーを探す", "searchHint": "名前", "rank": "順位", "player": "プレイヤー",
+    "team": "チーム", "rounds": "勝利数", "entries": "チケット", "points": "ポイント", "time": "タイム", "score": "成績",
+    "details": "詳細", "position": "リストの位置", "toggle": "{{name}}の詳細",
+    "caption": "{{edition}}の順位", "total_other": "{{count}}人がランクイン",
+    "empty": "この大会にはまだ結果がありません。", "noMatch": "この順位にその名前のプレイヤーはいません。",
+    "upcoming": "この大会はまだ始まっていません。",
+    "firstDay": "今日から新しい大会が始まりました。ゲームと同じく、最初の順位は明日公開されます。",
+    "publishedNote": "公開順位",
+    "up": "{{n}}位アップ", "down": "{{n}}位ダウン", "same": "変動なし", "new": "初ランクイン", "newShort": "NEW"
+  },
+  "points": { "total": "合計", "win": "勝利", "popularity": "人気", "strength": "強さ", "evaluation": "評価" },
+  "export": { "label": "ダウンロード" },
+  "rules": {
+    "title": "ルール", "grade": "どんなチームでも参加できます。", "static": "この大会のルールはサーバーのファイルで設定されています。",
+    "allowed": "参加できるモンスター：", "anySpecies": "すべてのモンスターが参加できます。"
+  },
+  "rewards": {
+    "title": "報酬", "champion": "優勝", "top10": "トップ10", "none": "なし",
+    "rank": "{{rank}}位", "ranks": "{{from}}～{{to}}位"
+  },
+  "coins": {
+    "platinum_other": "プラチナコイン×{{count}}", "gold_other": "ゴールドコイン×{{count}}",
+    "silver_other": "シルバーコイン×{{count}}", "bronze_other": "ブロンズコイン×{{count}}"
+  },
+  "cup": {
+    "course": "{{name}}（コース{{variant}}）",
+    "event": { "0": "コースイベントなし", "1": "爆弾岩", "2": "コース上のアイテム" }
+  },
+  "coverage": {
+    "definition": "カップのルールは現在の設定から再構成しています。この大会はアーカイブが記録を始める前に始まりました。",
+    "generic": "{{feature}}：{{level}}",
+    "names": { "reconstructed": "一部の名前はプレイヤーの現在のプロフィールによるものです。これらの結果は名前の記録が始まる前に保存されました。" },
+    "attempts": { "unavailable": "この週のレース記録は保存されていません。最終順位のみがあります。" },
+    "finals": { "reconstructed": "最終順位はゲームの週間アーカイブによるもので、レースの詳細はありません。" }
+  },
+  "teams": {
+    "note": "この大会で各プレイヤーが最後に送信したチームです。",
+    "gcup": "Gカップの送信データにはチームが含まれません。", "entry": "結果"
+  },
+  "team": { "label": "チーム", "none": "チームの記録なし", "level": "Lv{{level}}", "newMember": "NEW" },
+  "results": { "none": "記録された結果はありません。" },
+  "stats": {
+    "entrants": "参加者", "entries": "チケット", "attempts": "レース", "roundsWon": "勝利数", "bestAttempt": "ベストタイム",
+    "perDay": "日別の結果", "day": "日", "players_other": "{{count}}人",
+    "usage": "よく使われるモンスター",
+    "usageNote": "{{count}}チーム（各プレイヤーが大会で最後に使ったチーム）のうち、そのモンスターを含む割合です。",
+    "teamsOf": "{{total}}チーム中{{n}}チーム", "noTeams": "チームの記録なし。"
+  },
+  "players": {
+    "title": "プレイヤー", "lede": "どのプレイヤーでも検索できます。プロフィールと履歴は公開されています。",
+    "search": "名前", "searchHint": "1文字以上", "source": "プロフィールの種類",
+    "identityNote": "グランプリとGカップは別のゲームアカウントを使うため、1人が両方のプロフィールを持つことがあります。同じ名前でも統合はしません。",
+    "none": "「{{q}}」という名前のプレイヤーはいません。", "empty": "まだプレイヤーがいません。", "aka": "別名 {{names}}",
+    "finals_other": "最終順位{{count}}件"
+  },
+  "source": { "sil": "グランプリのプロフィール", "nex": "Gカップのプロフィール" },
+  "player": {
+    "unnamed": "（名前なし）", "seen": "初登場 {{first}} · 最終活動 {{last}}",
+    "current": "開催中の大会", "place_other": "{{count}}人中{{rank}}位",
+    "notRanked": "まだ順位なし", "titles": "優勝", "podiums": "表彰台", "bestRank": "最高順位", "finals": "大会数",
+    "bestTime": "ベストタイム", "aliases": "使った名前",
+    "reconstructed": "現在のプロフィールより", "noFinals": "まだ最終順位がありません。",
+    "identitySil": "グランプリのプロフィール：ランキングバトルのメニューから送信された結果です。",
+    "identityNex": "Gカップのプロフィール：Wi-FiランキングGカップに送信されたタイムです。名前はタイムと一緒に送られたチーム名です。"
+  },
+  "chart": { "asTable": "表で表示" },
+  "result": {
+    "gpEntry": "グランプリの結果", "gcupEntry": "Gカップのレース", "countsFor": "{{day}}分として集計", "received": "受信 {{when}}",
+    "rounds": "対戦", "roundsNote": "チケット1枚で、ほかのプレイヤーやサーバーからダウンロードしたチームと3回対戦します。リアルタイムの対戦ではありません。",
+    "round": "第{{n}}戦", "vs": "vs", "cpu": "サーバーのチーム", "won": "勝利", "notWon": "勝利なし",
+    "roundPoints": "勝利 {{win}} · 人気 {{pop}} · 強さ {{str}} · 評価 {{ev}}",
+    "team": "使用チーム", "signed": "この対戦のゲームのチェックサムは正しい値です。クライアントが作成したことを示すもので、対戦を確認したものではありません。",
+    "frames": "フレーム", "framesNote": "1秒あたり30フレーム", "best": "自己ベスト", "yes": "はい", "no": "いいえ",
+    "back": "大会に戻る"
+  },
+  "validation": {
+    "malformed": "この送信データは不完全なため集計されません。", "source_lost": "ゲームサーバーにこの結果はもうありません（バックアップを復元）。集計されません。",
+    "other_cup": "別のカップ向けに送信されたため、ここでは集計されません。", "unverified": "ゲームから送信"
+  },
+  "provenance": {
+    "reconstructed": "名前は現在のプロフィールによるものです。この結果は名前の記録が始まる前に保存されました。",
+    "unknown": "この結果には名前が記録されていません。"
+  },
+  "battles": {
+    "title": "バトル", "lede": "グランプリの対戦を新しい順に表示します。",
+    "coverage": "記録されるのはグランプリの対戦だけです。Wi-Fiの直接対戦は本体どうしで行われ、サーバーは結果を知りません。",
+    "none": "条件に合う対戦はありません。", "playerFilter": "そのプレイヤーの対戦と、そのチームとの対戦です。"
+  },
+  "monsters": {
+    "title": "モンスター", "lede": "すべてのモンスターを、ゲームのすべての言語の名前とともに。",
+    "searchHint": "どの言語の名前でも、番号でも", "none": "該当するモンスターはいません。", "unknown": "不明なモンスター #{{id}}。",
+    "count_other": "{{count}}体"
+  },
+  "monster": {
+    "rank": "ランク", "family": "系統", "maxStats": "最大ステータス", "usage": "グランプリでの使用",
+    "usageNote": "プレイヤーのチーム（各大会で各プレイヤーが最後に使ったチーム）のうち、このモンスターを含む割合です。",
+    "recent": "最近のチーム", "noTeams": "このモンスターを使ったチームの記録はまだありません。",
+    "artSource": "画像：StrangeServer & Yggdrasil による DQM J3 Professional Master's guide。"
+  },
+  "family": {
+    "slime": "スライム系", "dragon": "ドラゴン系", "beast": "けもの系", "nature": "自然系", "demon": "悪魔系", "undead": "ゾンビ系",
+    "material": "物質系", "corrupted": "凶系", "unknown": "？？？系"
+  },
+  "size": { "0": "S", "1": "S", "2": "M", "3": "G", "4": "メガ" },
+  "stat": { "hp": "HP", "mp": "MP", "atk": "攻撃力", "def": "守備力", "agi": "素早さ", "wis": "賢さ" },
+  "records": {
+    "title": "記録", "lede": "すべての大会の最終順位から。", "champions": "歴代優勝者",
+    "podiums": "表彰台の回数", "participation": "参加大会数", "gcupTimes": "Gカップのベストタイム",
+    "gcupNote": "コースとイベントごとに分けています。同じ条件のレースだけを比べます。", "none": "まだ最終順位がありません。"
+  },
+  "statusPage": {
+    "title": "稼働状況", "ok": "アーカイブは最新です。", "degraded": "アーカイブが遅れているか、読み込めないデータ元があります。ゲームのサービスには影響しません。",
+    "sources": "データ元", "source": "データ元", "asOf": "最後に完了した読み込み", "state": "状態",
+    "failing": "エラー", "healthy": "正常", "current": "開催中の大会", "checks": "チェック",
+    "signatures": "グランプリ対戦のチェックサム：正しい {{valid}}件、不一致 {{invalid}}件。確認方法はまだ検証中です。",
+    "catalog": "モンスターカタログ {{version}}",
+    "src": { "sil-gp": "グランプリの結果", "nex-gcup": "Gカップのレース" }
+  },
+  "about": {
+    "title": "このアーカイブについて",
+    "lede": "DQMJ3P Online のコミュニティサーバーで行われる大会の非公式アーカイブです。アカウントもログインも必要ありません。",
+    "scoring": { "title": "グランプリのポイント", "body": "チケット1枚で3回対戦します。その週のすべてのチケットのポイントを合計します（ゲームサーバーと同じです）。同点のプレイヤーは同じ順位になります。" },
+    "cutoffs": { "title": "公開順位と速報", "body": "ゲームは毎日、前日までの順位を公開します。公開順位はそれと同じで、速報には今日届いた結果も含まれます。大会の日付は、各日時の横に示すグランプリのタイムゾーンに従います。" },
+    "gcup": { "title": "Gカップ", "body": "Gカップは毎週月曜 0:00（UTC）に切り替わり、同じカップは12週ごとに戻ってきます。各週は別の大会として、それぞれ固定のリンクを持ちます。タイムは1秒30フレームで計測されます。" },
+    "identity": { "title": "プレイヤーと名前", "body": "グランプリとGカップは別のゲームアカウントを使うため、プロフィールも別になります。名前は各結果を送信した時点のものを表示し、名前を変えても過去の結果は変わりません。" },
+    "coverage": { "title": "欠けているデータ", "body": "アーカイブができる前に保存された結果には元の名前がない場合があります。上書きされたレース記録や削除されたリプレイは復元できません。該当するページにはその旨を表示します。" },
+    "battles": { "title": "バトル", "body": "グランプリの対戦はダウンロードしたチームとの戦いで、リアルタイムの対戦ではありません。Wi-Fiの直接対戦はサーバーに記録されません。" },
+    "privacy": { "title": "プライバシー", "body": "プロフィールにはランダムな公開IDを使います。フレンドコード、アカウント番号、アドレスは表示しません。フォローや設定はブラウザ内にだけ保存されます。" },
+    "credits": {
+      "title": "クレジット", "art": "モンスター画像：StrangeServer & Yggdrasil による DQM J3 Professional Master's guide。",
+      "names": "モンスター名：ゲームのテキストと、イタリア語・フランス語のファン翻訳。",
+      "game": "ドラゴンクエストモンスターズ ジョーカー3 プロフェッショナル © SQUARE ENIX。このファンプロジェクトはスクウェア・エニックスおよび任天堂とは関係ありません。",
+      "source": "ソースコード"
+    }
+  }
+}

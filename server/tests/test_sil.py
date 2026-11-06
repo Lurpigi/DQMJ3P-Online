@@ -279,6 +279,13 @@ def main():
         db = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3"))
         assert db.execute("SELECT mode, score, day FROM gp_results ORDER BY id LIMIT 2").fetchall() == [
             ("grade", 4321, "2026-01-14"), ("grade", 1000, "2026-01-14")]
+        # portal capture: each uploaded result has its snapshot (name/location at upload, calendar, contest)
+        snaps = db.execute("SELECT g.friend_code, s.calendar, s.contest, s.day, s.name, s.location, s.decoder "
+                           "FROM gp_snapshots s JOIN gp_results g ON g.id = s.result_id ORDER BY s.result_id").fetchall()
+        assert snaps == [(c.friend_code, 1, 2, "2026-01-14", bytes(0x24), 0, 1),
+                         (rival.friend_code, 1, 2, "2026-01-14", "Rival".encode("utf-16-le").ljust(0x24, b"\0"), 76, 1)], snaps
+        assert db.execute("SELECT start, days, offset_source FROM gp_calendars").fetchall() == [("2026-01-05", 7, "local")]
+        assert len(db.execute("SELECT value FROM meta WHERE key = 'generation'").fetchone()[0]) == 16
         db.execute("INSERT INTO present_codes (code, package_id) VALUES ('DQMJ3PTEST', 7)")
         db.commit()
         code = "DQMJ3PTEST".encode("utf-16-le").ljust(0x2a, b"\0")

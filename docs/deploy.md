@@ -1,68 +1,71 @@
-# Deploy automatico
+# Automated deployment
 
-[.github/workflows/deploy.yml](../.github/workflows/deploy.yml) ha due job:
+[.github/workflows/deploy.yml](../.github/workflows/deploy.yml) has two jobs:
 
-- **test**, su ogni pull request verso `main` e su ogni push su `main`:
-  - `gofmt`, `go vet` e i test Go del server NEX;
-  - il test end-to-end del server SIL;
-  - il controllo di `docker-compose.yml`.
-- **deploy**, solo dopo un push su `main` (cioè dopo il merge di una pull request) e solo se `test` passa:
-  1. costruisce l'immagine `server-nex` su GitHub, perché sul VPS ci metterebbe circa 13 minuti;
-  2. la copia sul VPS insieme ai file di `server/`;
-  3. esegue [.github/deploy/remote.sh](../.github/deploy/remote.sh).
+- **test**, on every pull request targeting `main` and every push to `main`:
+  - `gofmt`, `go vet`, and the NEX server's Go tests;
+  - the SIL server's end-to-end test;
+  - the statistics portal's backend tests (PostgreSQL service) and frontend checks/build;
+  - validation of `docker-compose.yml`.
+- **deploy**, only after a push to `main` (normally a pull request merge), and only if `test` passes:
+  1. Builds the `server-nex` and `server-dashboard` images on GitHub, because building them on the VPS would take about 13 minutes.
+  2. Copies it to the VPS along with the files in `server/`.
+  3. Runs [.github/deploy/remote.sh](../.github/deploy/remote.sh).
 
-`remote.sh` lavora in `/opt/dqmj3p`:
-- tiene l'immagine in uso come `server-nex:previous`;
-- carica quella nuova;
-- sovrascrive i file di `server/` che sono nel repository;
-- ricrea i container.
+`remote.sh` works in `/opt/dqmj3p`:
+- Keeps the current image as `server-nex:previous`.
+- Loads the new image.
+- Overwrites the tracked files from `server/`.
+- Recreates the containers.
 
-`.env`, `server/data`, i file SpotPass e i volumi Docker non vengono toccati. Alla fine controlla che i
-servizi siano attivi e che SpotPass risponda. Se qualcosa non va, il job fallisce e GitHub lo segnala.
+`.env`, `server/data`, SpotPass files, and Docker volumes are left untouched. At the end, the script checks
+that the services are running and SpotPass responds. If anything goes wrong, the job fails and GitHub reports it.
 
-Un deploy riavvia `nex`, quindi chi sta giocando online perde la connessione per qualche secondo.
+A deployment restarts `nex`, so online players lose their connection for a few seconds.
 
-Il deploy aggiorna solo i file che esistono nel repository: un file cancellato da `server/` resta sul VPS
-finché non lo si toglie a mano.
+Deployment only updates files present in the repository: a file deleted from `server/` remains on the VPS
+until it is removed manually.
 
-## Da preparare una volta
+## One-time setup
 
-### 1. Chiave SSH per GitHub
+### 1. SSH key for GitHub
 
-Una chiave dedicata, senza passphrase (GitHub la deve usare da sola), diversa dalla tua. In un terminale WSL:
+Create a dedicated key without a passphrase (GitHub must use it unattended), separate from your own key.
+In a WSL terminal:
 
 ```bash
 ssh-keygen -t ed25519 -N "" -C github-actions-deploy -f ~/.ssh/dqmj3p_github_deploy
 ```
 
-Aggiungila al VPS con l'opzione `restrict`, che toglie terminale interattivo e inoltri. Il comando entra
-con la tua chiave di sempre (`~/.ssh/dqmj3p`, chiede la passphrase), dal tuo utente e non con `sudo`:
+Add it to the VPS with the `restrict` option, which disables interactive terminals and forwarding.
+This command connects using your usual key (`~/.ssh/dqmj3p`, prompting for its passphrase). Run it as your
+own local user, without `sudo`:
 
 ```bash
 (printf 'restrict '; cat ~/.ssh/dqmj3p_github_deploy.pub) | ssh -i ~/.ssh/dqmj3p root@188.245.46.173 'cat >> /root/.ssh/authorized_keys'
 ```
 
-Prova che funzioni da sola:
+Check that it works without your usual key or SSH agent:
 
 ```bash
 ssh -o IdentitiesOnly=yes -o IdentityAgent=none -i ~/.ssh/dqmj3p_github_deploy root@188.245.46.173 'docker ps -q | wc -l'
 ```
 
-Deve stampare il numero dei container, cioè 5.
+It should print the number of containers: 5.
 
-### 2. Secret su GitHub
+### 2. GitHub secrets
 
-In **Settings → Secrets and variables → Actions → New repository secret** del repository:
+In the repository's **Settings → Secrets and variables → Actions → New repository secret**:
 
-| Nome | Valore | Come ottenerlo |
+| Name | Value | How to obtain it |
 |---|---|---|
-| `VPS_HOST` | `188.245.46.173` | L'IP principale del VPS |
-| `VPS_SSH_KEY` | Tutto il contenuto della chiave **privata**, righe `BEGIN` e `END` comprese | `cat ~/.ssh/dqmj3p_github_deploy` in WSL. Incollala solo nel campo del secret |
-| `VPS_KNOWN_HOSTS` | La riga della chiave pubblica del VPS | `ssh-keyscan -t ed25519 188.245.46.173` |
+| `VPS_HOST` | `188.245.46.173` | The VPS's primary IP address |
+| `VPS_SSH_KEY` | The full **private** key, including the `BEGIN` and `END` lines | Run `cat ~/.ssh/dqmj3p_github_deploy` in WSL. Paste it only into the secret field |
+| `VPS_KNOWN_HOSTS` | The VPS's public host key line | `ssh-keyscan -t ed25519 188.245.46.173` |
 
-`VPS_KNOWN_HOSTS` fa sì che GitHub si colleghi solo al tuo VPS e non a uno che si spaccia per lui.
+`VPS_KNOWN_HOSTS` ensures GitHub connects only to your VPS, rather than a server impersonating it.
 
-Con la [CLI di GitHub](https://cli.github.com) si può fare senza copiare a mano:
+You can use the [GitHub CLI](https://cli.github.com) to avoid copying values manually:
 
 ```bash
 gh secret set VPS_HOST --body 188.245.46.173
@@ -70,39 +73,39 @@ gh secret set VPS_SSH_KEY < ~/.ssh/dqmj3p_github_deploy
 ssh-keyscan -t ed25519 188.245.46.173 | gh secret set VPS_KNOWN_HOSTS
 ```
 
-Il job `deploy` usa l'environment `production`, che GitHub crea al primo avvio. In **Settings → Environments
-→ production** puoi chiedere un'approvazione manuale prima di ogni deploy, se la vuoi.
+The `deploy` job uses the `production` environment, which GitHub creates on its first run. Under
+**Settings → Environments → production**, you can optionally require manual approval before each deployment.
 
 ### 3. Firewall
 
-I runner di GitHub hanno indirizzi che cambiano, quindi nel Cloud Firewall di Hetzner la porta 22 deve
-essere aperta a tutti. SSH accetta solo chiavi e fail2ban blocca chi prova a indovinare.
+GitHub runners use changing IP addresses, so port 22 must be open to all addresses in the Hetzner Cloud
+Firewall. SSH accepts keys only, and fail2ban blocks repeated failed attempts.
 
-### 4. Protezione di `main`
+### 4. Protecting `main`
 
-In **Settings → Branches → Add branch ruleset** (o *Add rule*) per `main`:
+Under **Settings → Branches → Add branch ruleset** (or *Add rule*) for `main`, enable:
 
-- **Require a pull request before merging**;
-- **Require status checks to pass**, con il controllo `test`;
-- **Block force pushes**;
-- facoltativo: **Require branches to be up to date before merging**.
+- **Require a pull request before merging**.
+- **Require status checks to pass**, selecting the `test` check.
+- **Block force pushes**.
+- Optionally, **Require branches to be up to date before merging**.
 
-Così su `main` si arriva solo con una pull request i cui test passano, e ogni merge fa partire il deploy.
+This ensures changes reach `main` through a pull request with passing tests, and every merge triggers deployment.
 
-### 5. Primo deploy
+### 5. First deployment
 
-Il primo deploy parte quando su `main` arriva il merge che contiene il workflow. Il branch che lo porta deve
-contenere anche tutto il lavoro già sul VPS (oggi `vps-public-test`), altrimenti il deploy rimetterebbe sul
-server il vecchio codice di `main`.
+The first deployment starts when the pull request containing the workflow is merged into `main`. Its
+branch must also contain all work already deployed on the VPS (`vps-public-test` at the time of writing);
+otherwise, deployment would replace the server code with the older code from `main`.
 
-## Operazioni a mano
+## Manual operations
 
-Tornare all'immagine precedente di `nex`:
+Restore the previous `nex` image:
 
 ```bash
 ssh root@188.245.46.173 'cd /opt/dqmj3p/server && docker tag server-nex:previous server-nex:latest && docker compose up -d --no-build nex'
 ```
 
-Rilanciare il deploy senza un nuovo commit: **Actions → Deploy → Run workflow** sul branch `main`.
+Run deployment again without a new commit: **Actions → Deploy → Run workflow** on the `main` branch.
 
-Log dei servizi: `docker compose logs -f nex` (o `sil`, `spotpass`, `nncs`) in `/opt/dqmj3p/server`.
+View service logs with `docker compose logs -f nex` (or `sil`, `spotpass`, `nncs`) in `/opt/dqmj3p/server`.

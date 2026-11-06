@@ -10,6 +10,9 @@ import (
 	"unicode/utf16"
 
 	"dqmj3p-online/nex/globals"
+	"github.com/PretendoNetwork/nex-go/v2/types"
+	"github.com/PretendoNetwork/nex-protocols-go/v2/ranking/constants"
+	ranking_types "github.com/PretendoNetwork/nex-protocols-go/v2/ranking/types"
 	"github.com/PretendoNetwork/plogger-go"
 	"github.com/lib/pq"
 )
@@ -115,7 +118,7 @@ func TestAdvanceGcupWeeks(t *testing.T) {
 		}
 	}
 	dataStoreDir = t.TempDir()
-	exec(`DROP SCHEMA IF EXISTS matchmaking, ranking, datastore CASCADE`)
+	exec(`DROP SCHEMA IF EXISTS matchmaking, ranking, datastore, history CASCADE`)
 	exec(`CREATE SCHEMA matchmaking`)
 	exec(`CREATE TABLE matchmaking.persistent_gatherings (id bigint PRIMARY KEY, community_type integer,
 		attribs bigint[], application_buffer bytea)`)
@@ -212,6 +215,24 @@ func TestAdvanceGcupWeeks(t *testing.T) {
 	if _, err := os.Stat(dataStoreFile(1)); err == nil {
 		t.Error("file of the old replay not removed")
 	}
+	// * Portal history: the full final standings and both weeks' definitions
+	if n := count(`SELECT count(*) FROM history.gcup_finals WHERE week = 616`); n != 2 {
+		t.Errorf("%d history finals for week 616, want 2", n)
+	}
+	var finalName string
+	var finalData []byte
+	if err := db.QueryRow(`SELECT name, common_data FROM history.gcup_finals WHERE week = 616 AND position = 1`).Scan(&finalName, &finalData); err != nil {
+		t.Fatal(err)
+	}
+	if finalName != "Lurpigi" || string(finalData) != string(utf16Bytes("Lurpigi")) {
+		t.Errorf("history final 1: %q %x", finalName, finalData)
+	}
+	if n := count(`SELECT entrants FROM history.gcup_editions WHERE week = 616 AND closed_at IS NOT NULL AND category = 5`); n != 2 {
+		t.Errorf("week 616 edition: %d entrants", n)
+	}
+	if n := count(`SELECT count(*) FROM history.gcup_editions WHERE week = 617 AND closed_at IS NULL AND cup_index = 5`); n != 1 {
+		t.Error("week 617 edition not opened")
+	}
 	want := "G-Cup 6\nG-Cup 5 Top 2\n1 Lurpigi " + gcupRaceTime(3733) + "\n2 JEJ " + gcupRaceTime(4490)
 	if got := ascii(news(6)); got != want {
 		t.Errorf("news %q, want %q", got, want)
@@ -223,6 +244,45 @@ func TestAdvanceGcupWeeks(t *testing.T) {
 	}
 	if n := count(`SELECT count(*) FROM ranking.gcup_weeks`); n != 4 {
 		t.Errorf("%d weeks processed, want 4", n)
+	}
+	if n := count(`SELECT count(*) FROM history.gcup_editions WHERE week BETWEEN 615 AND 619`); n != 5 {
+		t.Errorf("%d editions recorded for weeks 615-619, want 5 (including the empty ones)", n)
+	}
+
+	// * Uploads: every G-Cup upload is kept with whether it became the best; other categories are not
+	upload := func(pid, category, value int) {
+		t.Helper()
+		data := ranking_types.NewRankingScoreData()
+		data.Category = types.NewUInt32(uint32(category))
+		data.Score = types.NewUInt32(uint32(value))
+		data.OrderBy = constants.OrderByAscending
+		data.UpdateMode = constants.UpdateModeNormal
+		data.Groups = types.NewBuffer(nil)
+		data.Param = types.NewUInt64(0)
+		if err := insertRankingScore(types.NewPID(uint64(pid)), data, types.NewUInt64(0)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	upload(300, 8, 5000)
+	upload(300, 8, 5200) // * slower: kept as an attempt, not as the best
+	upload(300, 8, 4800)
+	upload(300, 999, 100) // * not a G-Cup category
+	if n := count(`SELECT count(*) FROM history.gcup_submissions WHERE pid = 300`); n != 3 {
+		t.Errorf("%d submissions recorded, want 3", n)
+	}
+	if n := count(`SELECT count(*) FROM history.gcup_submissions WHERE pid = 300 AND changed_best`); n != 2 {
+		t.Errorf("%d best changes, want 2", n)
+	}
+	if n := count(`SELECT score FROM ranking.scores WHERE pid = 300 AND category = 8`); n != 4800 {
+		t.Errorf("best score %d, want 4800", n)
+	}
+	for _, name := range []string{"A", "A", "B"} {
+		if err := uploadRankingCommonData(types.NewPID(300), types.NewUInt64(0), types.NewBuffer(utf16Bytes(name))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := count(`SELECT count(*) FROM history.gcup_common_data WHERE pid = 300`); n != 2 {
+		t.Errorf("%d common data versions, want 2", n)
 	}
 	if got := ascii(news(8)); !strings.HasPrefix(got, "G-Cup 8\nTop times") {
 		t.Errorf("default news expected: %q", fmt.Sprint(got))

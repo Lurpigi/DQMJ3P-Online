@@ -178,7 +178,20 @@ class Store:
             -- code: the code as typed (UTF-16LE decoded, NULs stripped); status: 0 ok, 1 already used, 2 wrong
             CREATE TABLE IF NOT EXISTS present_codes (code TEXT PRIMARY KEY, package_id INTEGER, single_use INTEGER DEFAULT 1);
             CREATE TABLE IF NOT EXISTS present_code_uses (code TEXT, friend_code TEXT, PRIMARY KEY (code, friend_code));
+            -- Statistics portal (docs/dashboard.md). meta 'generation': random id of this database,
+            -- so a restored or replaced file is not mistaken for the one already imported.
+            CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+            -- Grand Prix calendars the server ran with (start, days, offset); config: rewards/rules options
+            CREATE TABLE IF NOT EXISTS gp_calendars (id INTEGER PRIMARY KEY, start TEXT NOT NULL, days INTEGER NOT NULL,
+                utc_offset REAL, offset_source TEXT, config TEXT, first_used INTEGER DEFAULT (strftime('%s','now')));
+            -- Public data observed with each gp_results row, written in the same transaction: the name and
+            -- location at upload time (00_UserData can change later), the calendar and contest it counted for
+            CREATE TABLE IF NOT EXISTS gp_snapshots (result_id INTEGER PRIMARY KEY REFERENCES gp_results(id),
+                calendar INTEGER, contest INTEGER, day TEXT, name BLOB, location INTEGER, decoder INTEGER,
+                captured INTEGER DEFAULT (strftime('%s','now')));
         """)
+        self.db.execute("INSERT OR IGNORE INTO meta (key, value) VALUES ('generation', ?)", (secrets.token_hex(8),))
+        self.db.commit()
         if "day" not in [c[1] for c in self.db.execute("PRAGMA table_info(gp_results)")]:
             self.db.execute("ALTER TABLE gp_results ADD COLUMN day TEXT")
         if "secret" not in [c[1] for c in self.db.execute("PRAGMA table_info(users)")]:
@@ -188,6 +201,45 @@ class Store:
         """Results stored before gp_results.day existed count for the day they were uploaded."""
         for rid, uploaded in self.q("SELECT id, uploaded FROM gp_results WHERE day IS NULL"):
             self.q("UPDATE gp_results SET day = ? WHERE id = ?", calendar.day_of(uploaded).isoformat(), rid)
+
+    def use_calendar(self, calendar, config):
+        """Id of the Grand Prix calendar in use: a new row when start, days or offset changed."""
+        offset, source = calendar.utc_offset, "fixed"
+        if offset is None:  # this computer's zone: record the offset it has now
+            offset, source = time.localtime().tm_gmtoff / 3600, "local"
+        with self.lock:
+            row = self.db.execute("SELECT id, start, days, utc_offset FROM gp_calendars ORDER BY id DESC LIMIT 1").fetchone()
+            if row and row[1:] == (calendar.start.isoformat(), calendar.days, offset):
+                self.db.execute("UPDATE gp_calendars SET config = ?, offset_source = ? WHERE id = ?",
+                                (json.dumps(config, sort_keys=True), source, row[0]))
+                calendar_id = row[0]
+            else:
+                calendar_id = self.db.execute(
+                    "INSERT INTO gp_calendars (start, days, utc_offset, offset_source, config) VALUES (?, ?, ?, ?, ?)",
+                    (calendar.start.isoformat(), calendar.days, offset, source, json.dumps(config, sort_keys=True))).lastrowid
+            self.db.commit()
+            return calendar_id
+
+    def add_gp_result(self, friend_code, mode, data, day, calendar_id, contest):
+        """Stores a Grand Prix result and its snapshot (name/location from the current 00_UserData)
+        atomically: the portal never sees a result without the data observed with it."""
+        (score,) = struct.unpack_from("<I", data, 0xC)
+        with self.lock:
+            try:
+                user = self.db.execute("SELECT data FROM private_files WHERE friend_code = ? AND name = ?",
+                                       (friend_code, GP_REGISTRATION_FILE)).fetchone()
+                user_data = user[0] if user and user[0] and len(user[0]) >= 0x30 else None
+                rid = self.db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day) VALUES (?, ?, ?, ?, ?)",
+                                      (friend_code, mode, score, data, day)).lastrowid
+                self.db.execute(
+                    "INSERT INTO gp_snapshots (result_id, calendar, contest, day, name, location, decoder) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (rid, calendar_id, contest, day, user_data[0xC:0x30] if user_data else None,
+                     struct.unpack_from("<H", user_data, 4)[0] if user_data else None, GP_DECODER))
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
+            return rid
 
     def q(self, sql, *args):
         with self.lock:
@@ -208,6 +260,7 @@ class SilError(Exception):
 
 
 GP_RESULT_FILES = {"GradeResultPack.bin": "grade", "LimitResultPack.bin": "limit"}
+GP_DECODER = 1  # layout version of gp_results.data the snapshot was taken for (grandprix_formats.md 3.10)
 GP_REGISTRATION_FILE = "00_UserData.bin"
 GP_PRIVATE_OPPONENT_FILES = {"09_Grade_PrivateDlBattle.bin": "grade", "18_Limit_PrivateDlBattle.bin": "limit"}
 GP_DEF_OPPONENT_FILES = {"grade": "147_Grade_Def_DLBattle.bin", "limit": "148_Limit_Def_DLBattle.bin"}
@@ -466,6 +519,7 @@ class Handler(BaseHTTPRequestHandler):
     private_templates_dir: str = None
     self_opponents = False  # also offer players their own team (testing with a single player)
     calendar: GpCalendar = None
+    calendar_id = None  # gp_calendars row of `calendar`
     prize_champion = prize_top10 = 0  # item ids of the end-of-contest Special Present (0 = none)
     coins_champion = coins_top10 = None  # (bronze, silver, gold, platinum) Network Coins, None = none
     present_codes, present_packages = load_present_codes()
@@ -663,9 +717,9 @@ class Handler(BaseHTTPRequestHandler):
             return {"Add-Data-Size": struct.pack("<I", 8), "Add-Data": struct.pack("<II", package_id, status)}
 
         if name in GP_RESULT_FILES and len(data) >= 0x10:
-            (score,) = struct.unpack_from("<I", data, 0xC)
-            self.store.q("INSERT INTO gp_results (friend_code, mode, score, data, day) VALUES (?, ?, ?, ?, ?)",
-                         owner, GP_RESULT_FILES[name], score, data, self.calendar.today().isoformat())
+            day = self.calendar.today()
+            self.store.add_gp_result(owner, GP_RESULT_FILES[name], data, day.isoformat(),
+                                     self.calendar_id, self.calendar.contest(day)[0])
 
         self.store.q("INSERT INTO private_files (friend_code, name, data) VALUES (?, ?, ?) "
                      "ON CONFLICT(friend_code, name) DO UPDATE SET data = excluded.data, updated = strftime('%s','now')",
@@ -956,6 +1010,10 @@ def main():
     Handler.prize_champion, Handler.prize_top10 = args.gp_prize_champion, args.gp_prize_top10
     Handler.coins_champion, Handler.coins_top10 = args.gp_coins_champion, args.gp_coins_top10
     Handler.limit_rotation = not args.gp_limit_static
+    Handler.calendar_id = Handler.store.use_calendar(Handler.calendar, {
+        "prize_champion": args.gp_prize_champion, "prize_top10": args.gp_prize_top10,
+        "coins_champion": args.gp_coins_champion, "coins_top10": args.gp_coins_top10,
+        "limit_rotation": Handler.limit_rotation, "test_today": bool(args.gp_today)})
     n, idx = Handler.calendar.contest(Handler.calendar.today())
     print(f"SIL server on http://{args.host}:{args.port}/{APP_PATH}/ (data: {args.data}); "
           f"Grand Prix contest {n}, day {idx + 1}/{args.gp_days} ({Handler.calendar.today()})", flush=True)

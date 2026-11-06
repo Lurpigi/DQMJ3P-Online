@@ -1,0 +1,33 @@
+# HTTPS front of the statistics portal API (docs/dashboard.md). Caddy obtains and renews the
+# certificate for DASHBOARD_HOSTNAME; the game services keep their own ports and plain HTTP.
+{
+	admin off
+}
+
+{$DASHBOARD_HOSTNAME} {
+	encode zstd gzip
+	request_body {
+		max_size 4KB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+	@api path /api/v1/*
+	handle @api {
+		reverse_proxy dashboard:8090 {
+			transport http {
+				dial_timeout 3s
+				response_header_timeout 15s
+			}
+		}
+	}
+	handle {
+		respond "DQMJ3P Online statistics API: /api/v1/" 404
+	}
+	log {
+		output stdout
+		format console
+	}
+}
