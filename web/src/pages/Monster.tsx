@@ -3,7 +3,7 @@ import { useParams } from "react-router";
 import { apiUrl, useApi, type Mode, type PlayerRef, type TeamMember } from "../api";
 import { artOf, speciesName, useCatalog } from "../catalog";
 import { L, useLocale } from "../components/L";
-import { MonsterPortrait, TeamStrip } from "../components/monsters";
+import { FamilyName, MonsterPortrait, TeamStrip } from "../components/monsters";
 import { PlayerName } from "../components/StandingsTable";
 import { Async, Empty, Facts, Loading, Meter, ModeName, ModeTag, Stat } from "../components/ui";
 import { RANK_LETTERS, percent, relative } from "../format";
@@ -34,7 +34,7 @@ export default function MonsterPage() {
         <MonsterPortrait species={species} size={120} full />
         <div>
           <h1>{speciesName(cat, species, locale)}</h1>
-          <p className="subtitle">#{s.id} · {t("monster.rank")} {s.rank ? RANK_LETTERS[s.rank] : "—"} · {t(`family.${cat.families[String(s.family)] ?? "unknown"}`)} · {t(`size.${s.size}`, { defaultValue: "—" })}</p>
+          <p className="subtitle">#{s.id} · {t("monster.rank")} {s.rank ? RANK_LETTERS[s.rank] : "—"} · <FamilyName family={s.family} /> · {t(`size.${s.size}`, { defaultValue: "—" })}</p>
           <dl className="names">
             {(["en", "it", "fr", "ja"] as const).filter((l) => s.names[l]).map((l) => <div key={l}><dt>{LOCALE_NAMES[l]}</dt><dd lang={l}>{s.names[l]}</dd></div>)}
           </dl>

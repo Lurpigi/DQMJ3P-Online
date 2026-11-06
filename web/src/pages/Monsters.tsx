@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { speciesName, useCatalog } from "../catalog";
 import { L, useLocale, useQuery } from "../components/L";
-import { MonsterPortrait } from "../components/monsters";
+import { FamilyName, MonsterPortrait } from "../components/monsters";
 import { Empty, Loading } from "../components/ui";
 import { RANK_LETTERS } from "../format";
 
@@ -50,7 +50,7 @@ export default function Monsters() {
                 <L to={`/monsters/${s.id}`}>
                   <MonsterPortrait species={s.id} size={64} />
                   <span className="monster-name">{speciesName(cat, s.id, locale)}</span>
-                  <span className="muted small">{s.rank ? RANK_LETTERS[s.rank] : "—"} · {t(`family.${cat.families[String(s.family)] ?? "unknown"}`)}</span>
+                  <span className="muted small">{s.rank ? RANK_LETTERS[s.rank] : "—"} · <FamilyName family={s.family} /></span>
                 </L>
               </li>
             ))}

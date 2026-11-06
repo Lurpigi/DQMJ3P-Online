@@ -40,7 +40,7 @@ export function Layout() {
       <header className="site-header">
         <div className="wrap header-row">
           <L to="/" className="brand" aria-label={t("brand.home")}>
-            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={28} height={28} />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" width={32} height={32} />
             <span><strong>DQMJ3P Online</strong><small>{t("brand.tagline")}</small></span>
           </L>
           <div className="header-tools">

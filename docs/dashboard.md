@@ -71,10 +71,14 @@ It matches every sheet row to game species ids by name and max stats (never by r
 `web/public/monsters/s####.webp` and `tools/import-monsters/report.md` (match evidence, the rows it could
 not match). Large monsters keep their 2–4 stacked tiles, as in the game's party list.
 
-**Portraits are not committed** (`web/.gitignore`): they are game artwork collected by the guide's authors.
-Until their redistribution is cleared, GitHub Pages shows a neutral placeholder for every monster and
-the catalog still works with names. To publish them, remove the ignore rule and commit the `.webp`
-files (about 4 MB).
+The 720 portraits are committed in `web/public/monsters/` (about 2.7 MB, published with the site). Each
+catalog `art` entry records the guide row and the SHA-256 of the source image, so a rerun on another
+machine can be checked against them: on 2026-11-06 the IT guide zip reproduced all 720 files byte for byte.
+
+The family icons (`web/public/families/`, 16 px) and the logo and favicons (`logo.png`, `favicon.png`,
+`apple-touch-icon.png`, the slime die) come from [DQMJ3P-Randomizer](https://github.com/Lurpigi/DQMJ3P-Randomizer)
+(`img/family_icons`, `img/img.png`), re-encoded without metadata. Catalog families 8 and 9 (`corrupted`,
+`unknown`) use its `break` and `special` icons.
 
 ## Maintenance (SSH)
 

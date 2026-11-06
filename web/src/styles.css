@@ -229,6 +229,8 @@ thead th { border-top: 0; font-size: 0.85rem; color: var(--muted); background: v
 /* monsters and teams */
 .portrait { display: inline-block; object-fit: cover; object-position: top; border-radius: 6px; background: var(--surface-2); aspect-ratio: 1; vertical-align: middle; }
 .portrait-full { aspect-ratio: auto; object-fit: contain; }
+.family { white-space: nowrap; }
+.family-icon { width: 16px; height: 16px; image-rendering: pixelated; vertical-align: -3px; margin-right: 4px; }
 .portrait-missing { display: inline-grid; place-items: center; color: var(--muted); font-weight: 700; background: var(--surface-2); border-radius: 6px; font-size: 0.85rem; }
 .team-strip { display: inline-flex; gap: 3px; vertical-align: middle; }
 .team-none { color: var(--muted); font-size: 0.875rem; }
