@@ -39,6 +39,62 @@ func initRankingTables() {
 	if err != nil {
 		globals.Logger.Criticalf("Failed to create the ranking tables: %v", err)
 	}
+	initHistoryTables()
+}
+
+// * history keeps what the statistics portal needs after ranking.scores is overwritten or the week
+// * is reset (docs/dashboard.md). The game never reads it.
+//   - gcup_submissions: every G-Cup score upload, and whether it became the player's best
+//   - gcup_common_data: each new version of a player's common data (team name)
+//   - gcup_editions / gcup_finals: see gcup_week.go
+func initHistoryTables() {
+	_, err := globals.Postgres.Exec(`CREATE SCHEMA IF NOT EXISTS history;
+		CREATE TABLE IF NOT EXISTS history.gcup_submissions (
+			id bigserial PRIMARY KEY,
+			pid bigint NOT NULL,
+			category bigint NOT NULL,
+			unique_id numeric(20,0) NOT NULL,
+			score bigint NOT NULL,
+			order_by smallint NOT NULL,
+			update_mode smallint NOT NULL,
+			groups bytea NOT NULL,
+			param numeric(20,0) NOT NULL,
+			received timestamptz NOT NULL,
+			week integer NOT NULL,
+			changed_best boolean NOT NULL);
+		CREATE INDEX IF NOT EXISTS gcup_submissions_week ON history.gcup_submissions (week, category);
+		CREATE TABLE IF NOT EXISTS history.gcup_common_data (
+			id bigserial PRIMARY KEY,
+			pid bigint NOT NULL,
+			unique_id numeric(20,0) NOT NULL,
+			data bytea NOT NULL,
+			received timestamptz NOT NULL,
+			week integer NOT NULL);
+		CREATE INDEX IF NOT EXISTS gcup_common_data_player ON history.gcup_common_data (pid, unique_id, id);
+		CREATE TABLE IF NOT EXISTS history.gcup_editions (
+			week integer PRIMARY KEY,
+			cup_index integer NOT NULL,
+			category bigint NOT NULL,
+			starts_at timestamptz NOT NULL,
+			ends_at timestamptz NOT NULL,
+			definition bytea NOT NULL,
+			opened_at timestamptz NOT NULL DEFAULT now(),
+			closed_at timestamptz,
+			entrants integer);
+		CREATE TABLE IF NOT EXISTS history.gcup_finals (
+			week integer NOT NULL,
+			position integer NOT NULL,
+			rank integer NOT NULL,
+			pid bigint NOT NULL,
+			unique_id numeric(20,0) NOT NULL,
+			score bigint NOT NULL,
+			update_time timestamp NOT NULL,
+			name text NOT NULL,
+			common_data bytea NOT NULL,
+			PRIMARY KEY (week, position));`)
+	if err != nil {
+		globals.Logger.Criticalf("Failed to create the history tables: %v", err)
+	}
 }
 
 type rankingRow struct {
@@ -56,25 +112,65 @@ func insertRankingScore(pid types.PID, scoreData ranking_types.RankingScoreData,
 	descending := uint8(scoreData.OrderBy) == uint8(constants.OrderByDescending)
 	// * UpdateModeNormal keeps the best score, UpdateModeDeleteOld always replaces it
 	keepBest := uint8(scoreData.UpdateMode) == uint8(constants.UpdateModeNormal)
-	_, err := globals.Postgres.Exec(`INSERT INTO ranking.scores
+	now := time.Now().UTC()
+	tx, err := globals.Postgres.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var changed bool
+	err = tx.QueryRow(`WITH upsert AS (INSERT INTO ranking.scores
 		(pid, category, unique_id, score, order_by, groups, param, update_time)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (pid, category, unique_id) DO UPDATE SET
 			score = excluded.score, order_by = excluded.order_by, groups = excluded.groups,
 			param = excluded.param, update_time = excluded.update_time
 		WHERE NOT $9 OR ($10 AND excluded.score > ranking.scores.score)
-			OR (NOT $10 AND excluded.score < ranking.scores.score)`,
+			OR (NOT $10 AND excluded.score < ranking.scores.score)
+		RETURNING 1) SELECT EXISTS (SELECT 1 FROM upsert)`,
 		uint32(pid), uint32(scoreData.Category), uint64(uniqueID), uint32(scoreData.Score),
-		uint8(scoreData.OrderBy), []byte(scoreData.Groups), uint64(scoreData.Param), time.Now().UTC(),
-		keepBest, descending)
-	return err
+		uint8(scoreData.OrderBy), []byte(scoreData.Groups), uint64(scoreData.Param), now,
+		keepBest, descending).Scan(&changed)
+	if err != nil {
+		return err
+	}
+	// * Only the categories of the G-Cup communities (gcup_week.go) are history
+	_, err = tx.Exec(`INSERT INTO history.gcup_submissions
+		(pid, category, unique_id, score, order_by, update_mode, groups, param, received, week, changed_best)
+		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+		WHERE EXISTS (SELECT 1 FROM matchmaking.persistent_gatherings
+			WHERE id = $2 AND community_type = 2 AND attribs[1] = 0)`,
+		uint32(pid), uint32(scoreData.Category), uint64(uniqueID), uint32(scoreData.Score),
+		uint8(scoreData.OrderBy), uint8(scoreData.UpdateMode), []byte(scoreData.Groups),
+		uint64(scoreData.Param), now, gcupWeek(now), changed)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func uploadRankingCommonData(pid types.PID, uniqueID types.UInt64, commonData types.Buffer) error {
-	_, err := globals.Postgres.Exec(`INSERT INTO ranking.common_data (pid, unique_id, data) VALUES ($1, $2, $3)
+	now := time.Now().UTC()
+	tx, err := globals.Postgres.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.Exec(`INSERT INTO ranking.common_data (pid, unique_id, data) VALUES ($1, $2, $3)
 		ON CONFLICT (pid, unique_id) DO UPDATE SET data = excluded.data`,
 		uint32(pid), uint64(uniqueID), []byte(commonData))
-	return err
+	if err != nil {
+		return err
+	}
+	// * A new version only: the game uploads the same common data before every race
+	_, err = tx.Exec(`INSERT INTO history.gcup_common_data (pid, unique_id, data, received, week)
+		SELECT $1, $2, $3, $4, $5 WHERE $3::bytea IS DISTINCT FROM (SELECT data FROM history.gcup_common_data
+			WHERE pid = $1 AND unique_id = $2 ORDER BY id DESC LIMIT 1)`,
+		uint32(pid), uint64(uniqueID), []byte(commonData), now, gcupWeek(now))
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func rankingCommonData(pid uint32, uniqueID uint64) ([]byte, error) {

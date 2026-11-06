@@ -1,80 +1,79 @@
-# La patch del gioco
+# Game patch
 
-[re/tools/make_url_patch.py](../re/tools/make_url_patch.py) crea il `code.ips` che Luma e Azahar applicano
-al `code.bin` di DQMJ3P v1.3. Luma e Azahar caricano un solo `code.ips` per titolo, quindi lo strumento
-unisce (`--merge`) i record di una patch esistente, per esempio quella della traduzione, ai propri. Se un
-record della patch unita si sovrappone ai nostri, lo strumento si ferma.
+[re/tools/make_url_patch.py](../re/tools/make_url_patch.py) creates the `code.ips` that Luma and Azahar apply
+to DQMJ3P v1.3's `code.bin`. Luma and Azahar load only one `code.ips` per title, so the tool merges
+(`--merge`) records from an existing patch, such as a translation, with its own. If a merged record
+overlaps one of this tool's records, the tool stops.
 
-Ogni record controlla i byte originali: con una versione diversa del gioco lo strumento si ferma invece di
-scrivere una patch sbagliata.
+Each record checks the original bytes: with a different game version, the tool stops rather than
+writing an incorrect patch.
 
-Indirizzi: gli **offset** sono posizioni nel `code.bin`, i **VA** sono gli indirizzi in memoria
-(VA = offset + `0x100000`), che sono quelli di Ghidra e delle note in [re/notes](../re/notes).
+Addresses: **offsets** are positions within `code.bin`; **VAs** are memory addresses
+(VA = offset + `0x100000`), as used in Ghidra and the notes in [re/notes](../re/notes).
 
-## Opzioni per una patch pubblica
+## Options for a public patch
 
 ```bash
-python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 [--azahar] --merge PATCH_DELLA_TRADUZIONE -o code.ips
+python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 [--azahar] --merge TRANSLATION_PATCH -o code.ips
 ```
 
-| Opzione | Cosa cambia | Perché |
+| Option | What it changes | Purpose |
 |---|---|---|
-| `--sil-url` | Stringa `https://dqm32ds.sil2.square-enix.com/00300701/` (offset `0x76C83C`) | Il server SIL di Square Enix è chiuso. L'URL deve finire con `/` |
-| `--spotpass-url` | Base dei task BOSS `https://npdl.cdn.nintendowifi.net/p01/nsa/H7btVjYWs7p5dGj6` (offset `0x76A0C4`) | Il CDN SpotPass di Nintendo è chiuso. Il modulo BOSS accetta anche `http://` |
-| `--nncs IP,IP2` | `nncs1/nncs2.app.nintendowifi.net`, in ASCII (offset `0x7711AA`, `0x7711C5`, usate da Pia) e in UTF-16 (offset `0x7791DE`, `0x779214`, usate da NEX) | Il test NAT di Nintendo è chiuso |
-| `--skip-nasc` | Salta il NASC di Nintendo nel login SIL, nella schermata di connessione della Piazza Wi-Fi e nei menu che richiedono "NEX connesso" | Pretendo non ha il gioco nel suo NASC |
-| `--nex-auth IP:PORTA` | Login NEX diretto sul nostro server di autenticazione | Senza NASC il gioco non saprebbe dove si trova il server NEX |
-| `--nex-player-password` | La password NEX diventa `MD5(sale + password amici)` (primi 16 caratteri esadecimali) | Una password diversa per ogni giocatore, senza mandare la password amici |
-| `--azahar` | Correzioni per i bug di HTTP di Azahar | Solo per l'emulatore |
-| `--merge FILE` | Copia i record di un'altra patch | Luma e Azahar caricano un solo `code.ips` |
+| `--sil-url` | The `https://dqm32ds.sil2.square-enix.com/00300701/` string (offset `0x76C83C`) | Square Enix's SIL server has shut down. The URL must end with `/` |
+| `--spotpass-url` | BOSS task base URL `https://npdl.cdn.nintendowifi.net/p01/nsa/H7btVjYWs7p5dGj6` (offset `0x76A0C4`) | Nintendo's SpotPass CDN has shut down. The BOSS module also accepts `http://` |
+| `--nncs IP,IP2` | `nncs1/nncs2.app.nintendowifi.net`, in ASCII (offsets `0x7711AA`, `0x7711C5`, used by Pia) and UTF-16 (offsets `0x7791DE`, `0x779214`, used by NEX) | Nintendo's NAT check service has shut down |
+| `--skip-nasc` | Skips Nintendo NASC during SIL login, on the Wi-Fi Plaza connection screen, and in menus requiring "NEX connected" | Pretendo does not have this game in its NASC |
+| `--nex-auth IP:PORT` | Direct NEX login to our authentication server | Without NASC, the game would not know the NEX server's address |
+| `--nex-player-password` | Sets the NEX password to `MD5(salt + friends password)` (first 16 hexadecimal characters) | A separate password for each player, without sending the friends password |
+| `--azahar` | Fixes for Azahar's HTTP bugs | Emulator only |
+| `--merge FILE` | Copies records from another patch | Luma and Azahar load only one `code.ips` |
 
-Opzioni di prova, non per i giocatori: `--nex-password` (password condivisa, server in modalità DEV),
-`--skip-frd` e `--pid-offset N` (seconda istanza di Azahar con lo stesso account), `--azahar-hle-boss`,
+Testing options, not intended for players: `--nex-password` (shared password, server in DEV mode),
+`--skip-frd` and `--pid-offset N` (second Azahar instance using the same account), `--azahar-hle-boss`,
 `--spotpass-break`, `--infra-url`.
 
-## Dettaglio dei record
+## Record details
 
 ### `--skip-nasc`
 
-| Offset | Originale | Diventa | Motivo |
+| Offset | Original | Replacement | Reason |
 |---|---|---|---|
-| `0x56CB48` | `bleq 0x66bd38` | `nop` | Il job SIL (`SilAuthJob_Update`, VA `0x66cacc`) non mette in coda il login NEX |
-| `0x56CB90` | `beq` | `nop` | Non aspetta il flag "NEX connesso" |
-| `0x56CBC4` | `beq` | `nop` | Non chiede a NASC un token di servizio (con `--nex-player-password` qui scrive il token del giocatore) |
-| `0x56C4EC` | inizio di `NexLoginJob_Start` | `mov r0,#0; bx lr` | Solo senza `--nex-auth`: finge il login NEX |
-| `0x2CA944` | `beq 0x3ca9b0` | `nop` | La schermata del Grand Prix non richiede una sessione NEX |
-| `0x288044`, `0x2880AC` | stati 7 e 8 della schermata di connessione della Piazza (`0x5e`) | `b 0x3880f8` | Si va allo stato 10 (connesso) anche se il login di rete fallisce: il modulo BOSS ha bisogno solo della connessione |
-| `0x339EC4` e seguenti | `bl FUN_00445fb8` (NEX connesso?) | `mov r0,#1` | Dischi regalo, negozio monete e codici regalo proseguono |
+| `0x56CB48` | `bleq 0x66bd38` | `nop` | The SIL job (`SilAuthJob_Update`, VA `0x66cacc`) does not queue NEX login |
+| `0x56CB90` | `beq` | `nop` | Does not wait for the "NEX connected" flag |
+| `0x56CBC4` | `beq` | `nop` | Does not request a service token from NASC (with `--nex-player-password`, writes the player token here instead) |
+| `0x56C4EC` | Start of `NexLoginJob_Start` | `mov r0,#0; bx lr` | Only without `--nex-auth`: simulates NEX login |
+| `0x2CA944` | `beq 0x3ca9b0` | `nop` | The Grand Prix screen does not require a NEX session |
+| `0x288044`, `0x2880AC` | States 7 and 8 of the Plaza connection screen (`0x5e`) | `b 0x3880f8` | Advances to state 10 (connected) even if network login fails: the BOSS module only needs a connection |
+| `0x339EC4` and following | `bl FUN_00445fb8` (NEX connected?) | `mov r0,#1` | Allows gift discs, coin shop, and present codes to proceed |
 
 ### `--nex-auth`
 
-| Offset | Cosa | Motivo |
+| Offset | Change | Reason |
 |---|---|---|
-| `0x356F90`, `0x3572A4`, `0x3572C0` | `mov r0,#0` al posto della richiesta a frd, dell'attesa e della lettura del risultato | Il gioco non chiede più a NASC l'autenticazione |
-| `0x42D088` (`FUN_0052d088`) | Restituisce un risultato fisso: HTTP 200, host e porta di `--nex-auth`, token fittizio | È il getter da cui il login legge l'indirizzo del server |
-| `0x42C674` (`FUN_0052c674`) | Restituisce la password NEX | Con `--nex-player-password` la chiamata a `0x356B58` va invece a una routine (offset `0x6B9A60`) che calcola la password derivata |
-| `0x4B5878` | `bl FUN_0023d168` → `nop` | Le comunità in evidenza chiedono una lista vuota, e il server risponde con tutte le comunità. Un solo ID salvato sarebbe identico a una ricerca per codice, che deve restare esatta |
+| `0x356F90`, `0x3572A4`, `0x3572C0` | `mov r0,#0` replaces the frd request, wait, and result read | The game no longer requests authentication from NASC |
+| `0x42D088` (`FUN_0052d088`) | Returns a fixed result: HTTP 200, host and port from `--nex-auth`, dummy token | This is the getter from which login reads the server address |
+| `0x42C674` (`FUN_0052c674`) | Returns the NEX password | With `--nex-player-password`, the call at `0x356B58` instead goes to a routine (offset `0x6B9A60`) that computes the derived password |
+| `0x4B5878` | `bl FUN_0023d168` → `nop` | Featured communities request an empty list, and the server returns all communities. A single saved ID would be indistinguishable from a code search, which must remain exact |
 
 ### `--azahar`
 
-| Offset | Motivo |
+| Offset | Reason |
 |---|---|
-| `0x503E88`, `0x503E8C`, `0x6D5F8C` | Azahar non invia mai una POST senza dati: il corpo vuoto diventa un byte `0x00`, che il server SIL tratta come vuoto |
-| `0x504290`, `0x504294` | Azahar riporta male la dimensione degli header di risposta: il buffer degli header diventa fisso di 4 KiB, altrimenti `X-Sil-Digest` non si trova |
-| `0x3AA3B4` → routine a `0x6B9B60` | Azahar manda i pezzi di un upload ordinati per contenuto: il buffer HTTP viene dimensionato per mandare il replay in un pezzo solo |
+| `0x503E88`, `0x503E8C`, `0x6D5F8C` | Azahar never sends a POST with no data: the empty body becomes one `0x00` byte, which the SIL server treats as empty |
+| `0x504290`, `0x504294` | Azahar reports the response header size incorrectly: the header buffer is fixed at 4 KiB, otherwise `X-Sil-Digest` cannot be found |
+| `0x3AA3B4` → routine at `0x6B9B60` | Azahar sends upload chunks sorted by content: the HTTP buffer is sized to send the replay as a single chunk |
 
-### Spazio libero usato
+### Free space used
 
-Le routine aggiunte stanno nel padding a fine `.text`: `0x6B9900` (`--spotpass-break`), `0x6B9A60`
-(`--nex-player-password`), `0x6B9B60` (upload per Azahar). `0x6B9810-0x6B98F3` è occupato da
-`code_enhanced.ips` della traduzione.
+The added routines occupy padding at the end of `.text`: `0x6B9900` (`--spotpass-break`), `0x6B9A60`
+(`--nex-player-password`), `0x6B9B60` (Azahar upload). `0x6B9810-0x6B98F3` is occupied by the translation's
+`code_enhanced.ips`.
 
-## Patch per console e per emulatore
+## Console and emulator patches
 
-- **3DS**: senza `--azahar` e `--spotpass-break`, unita alla `exefs/code.ips` normale della traduzione.
-  `code_enhanced.ips` è solo per emulatore: sulla console il gioco si blocca all'avvio.
-- **Azahar**: con `--azahar`, unita alla patch della traduzione che preferisci.
+- **3DS**: without `--azahar` or `--spotpass-break`, merged with the translation's regular `exefs/code.ips`.
+  `code_enhanced.ips` is emulator-only: it crashes the game at startup on a console.
+- **Azahar**: with `--azahar`, merged with your preferred translation patch.
 
-Per aggiungere a una patch già installata il solo record delle comunità in evidenza, senza rigenerarla,
-basta leggerla con `read_ips`, aggiungere `FEATURED_ALL_SITE` e riscriverla con `write_ips` (stesse funzioni
-dello strumento).
+To add only the featured-communities record to an installed patch without regenerating it, read it with
+`read_ips`, add `FEATURED_ALL_SITE`, and write it back with `write_ips` (the same functions used by the tool).

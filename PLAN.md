@@ -1,37 +1,41 @@
-# DQMJ3P Online – Piano e stato
+# DQMJ3P Online – Plan and status
 
-Obiettivo: riattivare le funzioni online di *Dragon Quest Monsters: Joker 3 Professional* (3DS, JP, `00040000001ACB00`, v1.3) su console (Luma3DS) ed emulatore (Azahar PC/Android).
+Goal: restore the online features of *Dragon Quest Monsters: Joker 3 Professional* (3DS, JP, `00040000001ACB00`, v1.3) on consoles (Luma3DS) and emulators (Azahar PC/Android).
 
-Ultimo aggiornamento: 2026-11-04.
+Last status update: 2026-11-04.
+
+Statistics portal (2026-11-05): implemented, see [portal operations](docs/dashboard.md).
+The game-service status below is unchanged.
 
 ---
 
-## 1. Architettura
+## 1. Architecture
 
-Il gioco parla con **tre servizi distinti**, tutti identificati nel `code.bin` v1.3 con Ghidra:
+The game communicates with **three separate services**, all identified in v1.3's `code.bin` using Ghidra:
 
-| # | Servizio | Cosa fa nel gioco | Come lo sostituiamo | Stato |
+| # | Service | In-game purpose | Replacement | Status |
 |---|---|---|---|---|
-| A | **NEX** (Nintendo, NEX 3.10.1 + Pia) | Lotte Wi-Fi amici e casuali, Comunità, Ranking Race (classifiche + replay) | Game server Go su stack Pretendo → [server/nex](server/nex) | Sul VPS: lotte, comunità e G-Cup verificate in gioco |
-| B | **SpotPass / BOSS** (Nintendo) | Scatole nascoste, mostri StreetPass e mappa celeste, dischi regalo, tabella WiFi Shop | File originali archiviati, serviti così come sono → [server/spotpass](server/spotpass) | Dischi regalo, negozio monete e scatola nascosta (BREAK01) verificati |
-| C | **SIL** (Square Enix, HTTPS proprietario) | **Ranking Battle / Grand Prix**, codici regalo, sfondi, backup del salvataggio corrotto | Server Python → [server/sil](server/sil) + patch URL nel gioco | Grand Prix completo (calendario, avversari, classifiche, premi) e codici regalo |
+| A | **NEX** (Nintendo, NEX 3.10.1 + Pia) | Friend and random Wi-Fi battles, communities, Ranking Race (rankings + replays) | Go game server using the Pretendo stack → [server/nex](server/nex) | On the VPS: battles, communities, and G-Cup verified in-game |
+| B | **SpotPass / BOSS** (Nintendo) | Hidden boxes, StreetPass and sky map monsters, gift discs, WiFi Shop table | Archived original files, served unchanged → [server/spotpass](server/spotpass) | Gift discs, coin shop, and hidden box (BREAK01) verified |
+| C | **SIL** (Square Enix, proprietary HTTPS) | **Ranking Battle / Grand Prix**, present codes, wallpapers, corrupted-save backup | Python server → [server/sil](server/sil) + in-game URL patch | Complete Grand Prix (schedule, opponents, rankings, rewards) and present codes |
 
-Il login a C passa da Nintendo: il gioco chiede a NASC un *service token* (`SVCLOC`, keyhash `994cba6f`), che Pretendo già rilascia.
+The original login to C goes through Nintendo: the game requests a *service token* from NASC (`SVCLOC`, keyhash `994cba6f`), which Pretendo already issues.
 
-### Parametri verificati
+### Verified parameters
 
-| Parametro | Valore |
+| Parameter | Value |
 |---|---|
 | Game server ID | `0x001ACB00` |
-| Access key NEX | `5812c478` (non `994cba6f`, che è la keyhash SVCLOC) |
-| PRUDP | v0, structure header attivi |
-| BOSS app ID | `H7btVjYWs7p5dGj6` (task `BREAK01-03`, `FGONLYT`) |
-| SIL | `https://dqm32ds.sil2.square-enix.com/00300701/`, title code `00200605`, chiave digest MD5 `3Ef7Db65775e4cCF` |
+| NEX access key | `5812c478` (not `994cba6f`, which is the SVCLOC keyhash) |
+| PRUDP | v0, structure headers enabled |
+| BOSS app ID | `H7btVjYWs7p5dGj6` (tasks `BREAK01-03`, `FGONLYT`) |
+| SIL | `https://dqm32ds.sil2.square-enix.com/00300701/`, title code `00200605`, MD5 digest key `3Ef7Db65775e4cCF` |
 
-Guide e documentazione: [README.md](README.md), [docs/architettura.md](docs/architettura.md) (servizi, porte, dati),
-[docs/patch.md](docs/patch.md) (ogni modifica al gioco e il suo indirizzo), [docs/deploy.md](docs/deploy.md) (GitHub Action).
+Guides and documentation: [README.md](README.md), [docs/architettura.md](docs/architettura.md) (services, ports, data),
+[docs/patch.md](docs/patch.md) (each game modification and its address), [docs/deploy.md](docs/deploy.md) (GitHub Action).
 
-Dettagli e indirizzi in [re/notes](re/notes):
+Details and addresses in [re/notes](re/notes) (currently in Italian):
+
 - [nex_usage.md](re/notes/nex_usage.md)
 - [sil_protocol.md](re/notes/sil_protocol.md)
 - [spotpass_boss.md](re/notes/spotpass_boss.md)
@@ -39,119 +43,124 @@ Dettagli e indirizzi in [re/notes](re/notes):
 
 ---
 
-## 2. Come arriva il traffico ai nostri server
+## 2. How traffic reaches our servers
 
-| Servizio | 3DS (Luma) | Azahar |
+| Service | 3DS (Luma) | Azahar |
 |---|---|---|
-| Login amici | **Nimbus** con account Pretendo | Stesso, con Nimbus + moduli LLE (guida Pretendo per Azahar) |
-| NEX, SpotPass, NAT check, SIL | Patch nel gioco (`luma/titles/00040000001ACB00/code.ips`, unita alla patch della traduzione) | Stessa patch in `load/mods/00040000001ACB00/exefs/code.ips` |
+| Friends login | **Nimbus** with a Pretendo account | Same, with Nimbus + LLE modules (Pretendo's Azahar guide) |
+| NEX, SpotPass, NAT check, SIL | Game patch (`luma/titles/00040000001ACB00/code.ips`, merged with the translation patch) | Same patch in `load/mods/00040000001ACB00/exefs/code.ips` |
 
-**Strada scelta (2026-10-30): self-hosting.** Pretendo non ha un canale per aggiungere titoli e sembra voler gestire i giochi da sola, quindi non le chiediamo nulla. I server girano su un nostro VPS e la patch ci porta direttamente il gioco: con `--skip-nasc --nex-auth IP:PORTA` il NASC non serve, quindi non dobbiamo ospitarne uno. Pretendo resta solo per il login amici, che da' un PID univoco.
+**Chosen approach (2026-10-30): self-hosting.** Pretendo has no channel for adding titles and appears to prefer managing games itself, so we are not requesting integration. The servers run on our own VPS, and the patch connects the game directly: `--skip-nasc --nex-auth IP:PORT` removes the need for NASC, so we do not need to host one. Pretendo is used only for friends login, which provides a unique PID.
 
-Se Pretendo non fosse piu' utilizzabile, il piano di riserva e' `--skip-frd` senza Nimbus. Va provato da solo, il PID univoco va risolto e la Battaglia Amici non sarebbe disponibile.
+If Pretendo becomes unusable, the fallback is `--skip-frd` without Nimbus. This needs independent testing, unique PIDs still need a solution, and Friend Battle would be unavailable.
 
 ---
 
-## 3. Fatto
+## 3. Completed
 
-- [x] Ghidra 12.2 + JDK 25 + server MCP `pyghidra-mcp` (configurazione locale, fuori da git) + server di query locale (`re/tools/ghidra_server.py`, `gq.py`).
-- [x] `code.bin` → ELF (`re/tools/codebin_to_elf.py`), progetto analizzato e annotato (prefissi `sil_`, `boss_`, `nex_`).
-- [x] Parametri NEX, protocolli e metodi usati dal gioco, flussi di matchmaking (amici: gameMode 5, attribs[0] = ID host; casuale: gameMode 2/3, attribs[0] = forza).
-- [x] Server NEX (`server/nex`, da template ACNL): login, `SecureConnection`, NAT traversal, matchmaking. `tests/smoke_nex.py` riproduce **lotta amici** (Create → Browse → JoinEx → GetSessionURLs) e **lotta casuale** (AutoMatchmake → stessa sessione).
-- [x] SpotPass: file originali dall'archivio `3ds-boss-data`, server statico, codec `BSDT` con HMAC (`re/tools/bsdt.py`) per creare contenuti nuovi.
-- [x] SIL: specifica completa, server sostitutivo (`server/sil`), test end-to-end (`tests/test_sil.py`).
-- [x] Patch URL con merge della traduzione IT (`re/tools/make_url_patch.py`).
+- [x] Ghidra 12.2 + JDK 25 + `pyghidra-mcp` MCP server (local configuration, outside git) + local query server (`re/tools/ghidra_server.py`, `gq.py`).
+- [x] `code.bin` → ELF (`re/tools/codebin_to_elf.py`), project analyzed and annotated (`sil_`, `boss_`, `nex_` prefixes).
+- [x] NEX parameters, protocols and methods used by the game, matchmaking flows (friends: gameMode 5, attribs[0] = host ID; random: gameMode 2/3, attribs[0] = strength).
+- [x] NEX server (`server/nex`, based on the ACNL template): login, `SecureConnection`, NAT traversal, matchmaking. `tests/smoke_nex.py` reproduces **friend battles** (Create → Browse → JoinEx → GetSessionURLs) and **random battles** (AutoMatchmake → same session).
+- [x] SpotPass: original files from the `3ds-boss-data` archive, static server, `BSDT` codec with HMAC (`re/tools/bsdt.py`) for creating new content.
+- [x] SIL: complete specification, replacement server (`server/sil`), end-to-end test (`tests/test_sil.py`).
+- [x] URL patch with Italian translation merging (`re/tools/make_url_patch.py`).
 
-## 3b. Stato al 2026-10-26 (test su Azahar)
+## 3b. Progress log starting 2026-10-26 (Azahar testing)
 
-- Ranking Battle via SIL **funziona fino al menu**: Piazza Wi-Fi in modalità **offline** → Torre Slime dorata → "Grado Battaglia Wi-Fi". Login amici reale via Nimbus/Pretendo, poi register/login SIL e download di tutte le tabelle pubbliche dal nostro server.
-- Patch usata (`load/mods/00040000001ACB00/exefs/code.ips`, backup della sola traduzione in `code.ips.bak-20261026`):
+Quoted Italian messages below refer to the translation used during testing.
+
+- Ranking Battle through SIL **works up to the menu**: Wi-Fi Plaza in **offline** mode → golden Slime tower → "Grado Battaglia Wi-Fi" (Wi-Fi battle rank). Real friends login through Nimbus/Pretendo, followed by SIL registration/login and downloads of all public tables from our server.
+- Patch used (`load/mods/00040000001ACB00/exefs/code.ips`, translation-only backup in `code.ips.bak-20261026`):
   `python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://127.0.0.1:8381/00300701/ --spotpass-url http://127.0.0.1:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --azahar --merge <mods>/exefs/code.ips.bak-20261026 -o <mods>/exefs/code.ips`
-  - `--skip-nasc`: salta login NEX e token NASC (Pretendo non ha il gioco → 002-0110) e il controllo "NEX connesso" della schermata Ranking Battle. Le funzioni NEX (lotte, comunità, G-Cup) danno 006-0000.
-  - `--azahar`: aggira bug di http:C di Azahar (POST vuoto mai inviato, dimensione header = 1, blocchi POST ordinati per contenuto).
-- Server: `cd server && python -I -u sil/sil_server.py --host 0.0.0.0 --port 8381 --data data >> data/sil_server.log 2>&1`. Serve `data/public/030_GP_WallPapers.arc` = copia di `romfs:/data/Layout/menu/wifi_ranking_battle/upper/download.arc`.
-- **GP dei Maestri giocato end-to-end** (sera del 2026-10-26): iscrizione `00_UserData.bin` → download `147_Grade_Def_DLBattle.bin` (avversari segnaposto CPU1-3) → upload `09_Grade_PrivateDlBattle.bin` → 3 round automatici → upload `GradeResultPack.bin` (salvato in `gp_results`, punteggio 1694), `04_UpdateSaveData.bin`, scambio `171_/28W_Grade_Other_Countries.bin`. Tutti OK.
-  - `azahar_unsort` corretto: un payload staccato può trovarsi subito dopo un record completo (es. `PrivateSCRegister.bin`, Data = "Download_Code" in fondo al corpo); ora prova ogni record come "staccato".
-- **Avversari veri** (2026-10-26): il server costruisce `09/18_*_PrivateDlBattle` dalle ultime squadre (`gp_results`) degli altri giocatori, ordinate in difficile/simile/facile; i round senza squadre restano CPU di `Def_DLBattle`. Testata del blocco squadra decodificata (località/bandiera, nome, principiante, Mii: vedi `re/notes/grandprix_formats.md` 3.8). Verificato in gioco con `--self-opponents` (la propria squadra come avversario, utile con un solo giocatore): "JEJ"/ITA nel round 1, mostri caricati e battaglia normale. Test: `server/tests/test_sil.py`.
-- **Classifiche** (2026-10-26): il server genera da `gp_results` il calendario (`003_Held_Record`: tornei di 7 giorni da `--gp-start`), `089/139_*_Ranking_Pack` (generale fino a ieri con frecce, finale del torneo precedente, per prefettura), `23_UserPackData` (rango, punti, "La tua classifica", torneo precedente) e `141/142_*_ChampionRecord`. Verificato in gioco con `--gp-today 2026-10-27`: "Le classifiche di oggi sono disponibili", JEJ 1° ITA 3/0 1694 in "La tua classifica" e "Classifiche Generali". `PrivateSCRegister.bin` ora OK. Formati in `re/notes/grandprix_formats.md` 3.6/3.7/3.9.
-- **GP dello Sfidante** (2026-10-26): regole di `018_LimitSetting` decodificate (taglia, famiglia, classe di rango, grado squadra) e configurabili con `gp_files.py --limit-rule TIPO:VALORE --limit-text --limit-theme --only 018_LimitSetting.bin`. In gioco: tema mostrato, regola 5:1 rifiuta la squadra, 4:8 la accetta; iscrizione, 3 round, upload `LimitResultPack` (1866 punti) OK; classifiche e dati utente Sfidante generati (verificati offline). Regola attiva sul server: 4:8.
-- **Fine torneo** (simulata con `--gp-today 2026-11-02`): annuncio "1° torneo terminato", top 10, "Campione n°1", ricarica biglietti e menu Campioni verificati in gioco. Corretto `ChampionRecord`: le voci partono da +0 (il contatore sta nella voce 0).
-- **Premi di fine torneo** (verificati in gioco 2026-10-26, date simulate 2/11, 9/11, 16/11):
-  - *Regalo speciale* (`23_UserPackData`+0xfc u16 tipo 1, +0xfe id oggetto = chiave `I%04d` di `ItemMessage.mes`): "SQEX ti ha inviato un regalo speciale! ... Grande Sfera di Luce", una volta per torneo. Server: `--gp-prize-champion ITEM` (default 70 Grande Sfera di Luce), `--gp-prize-top10 ITEM` (default 66 Sfera di Luce).
-  - *Monete di Rete* (blocco torneo precedente +0x1098: +0x44 u16 = 3, +0x48 platino, +0x4a oro, +0x4c argento, +0x4e bronzo): "Hai guadagnato alcune Monete di Rete! ×3 Monete d'Oro". Server: `--gp-coins-champion B,S,G,P` (default 0,0,3,0), `--gp-coins-top10` (default 0,3,0,0).
-- **Regole Sfidante a rotazione** (2026-10-26): il server genera `018_LimitSetting` e `033_Limit_DLNewsMsg` dal numero del torneo, ciclando su 8 set (`LIMIT_RULE_SETS` in `sil_server.py`: libero, Slime, grado<=4, taglia piccola, Drago, grado<=6, Demone, rango SS). Avversari Sfidante solo dal torneo corrente. Verificato in gioco (torneo 4: "Regola: solo mostri di taglia piccola." col tasto Y). `--gp-limit-static` per usare il file fisso.
-  - Il save ora e' al torneo 4 (16/11): il server gira con `--gp-today 2026-11-16`; tornando alla data reale il GP si azzera.
-- **SpotPass: dischi regalo e negozio monete** (verificati in gioco 2026-10-28): Azahar usa il modulo `boss` vero (moduli online LLE), che scarica dal nostro `server/spotpass/serve_spotpass.py` (porta 8380, file originali) grazie a `--spotpass-url`. "Hai ricevuto il Disco Conclavio sacro!" e "Inventario aggiornato." con lo stock originale. Serve la connessione AC del gioco: `--skip-nasc` ora fa passare la schermata di connessione della piazza (0x5e) anche se il login NEX fallisce e forza "NEX connesso" solo in regali e negozio (dettagli in `re/notes/spotpass_boss.md` 6). Server: `python -I -u server/spotpass/serve_spotpass.py re/data/spotpass_archive/canonical 8380 0.0.0.0`.
-  - Gli URL della patch usano `127.0.0.1`: l'IP del PC in LAN cambia (.189 -> .190). Per una console reale usare l'IP del PC.
-- **Codici presente** (verificati in gioco 2026-10-28): codice `SLIME` -> "Hai ricevuto il disco Disco Slime dorato!". I codici stanno nella tabella `present_codes` di `server/data/sil.sqlite3` (`code`, `package_id`, `single_use`), i pacchetti sono `data/public/PresentCodePackageS%02u.bin` (`gp_files.make_present_package`). La tastiera del gioco ha solo lettere: codici senza cifre.
-  - **Codici originali** (2026-11-02): `server/sil/present_codes.json` (da `re/tools/make_present_codes.py`) contiene i 130 codici di DQMJ3 e DQMJ3P (tabella del gioco + elenco Game8) con un alias in lettere per regalo (es. `SEEDOFLIFE`, `GOLDSLIMEDISC`). Attivi sul VPS, test SIL passato, non ancora provati in gioco. Dettagli e dischi della piazza in `re/notes/present_codes.md`.
-- **Ritocchi GP** (2026-10-28): frecce su/giu' verificate in gioco con una copia di prova dei dati (`server/data_test`, ignorata da git) e due giocatori finti: al giorno 3 "Slimerex 1 su, JEJ 2 su, Draghetto 3 giu'". `147/148_*_Def_DLBattle` rigenerati nell'ordine difficile/simile/facile (`gp_files.py server/data/public --only ...`).
-- **Login NEX vero senza NASC** (verificato in Azahar 2026-10-28): `make_url_patch.py --nex-auth 127.0.0.1:45000 --nex-password <PN_DQMJ3P_DEV_PASSWORD>` (con `--skip-nasc`, che allora non finge piu' `NexLoginJob_Start`) + `server/nex` in DEV mode (`LoginEx` accetta qualunque token). Il gioco fa LoginEx -> RequestTicket -> Register sul nostro server col PID Pretendo reale. Avvio: `docker compose -f server/docker-compose.dev.yml -p dqmj3p up -d` (Postgres 127.0.0.1:54329), poi `server/nex/build/dqmj3p-nex.exe` (porte 45000/45001).
-- **G-Cup (Ranking Race) fino all'iscrizione** (2026-10-28): 12 comunita' ufficiali G-Cup (`server/nex/sql/gcup_official_communities.sql`) e protocollo Ranking su Postgres (`server/nex/nex/ranking.go`). In gioco: ricerca coppa, iscrizione (nome squadra), coppa della settimana "Campo Prati Silenziosi", menu "Partecipa alla Corsa". Dettagli in `re/notes/nex_usage.md` 3.9.
-- **G-Cup: gara, punteggio e classifica** (2026-10-28): l'application buffer delle comunita' ufficiali e' la definizione del torneo (avversari CPU, nome, forza, percorso, evento); con avversari a 0 la gara crashava. Ora la gara parte con 4 corridori, il tempo vinto va in classifica (`UploadScore` in frame a 30 fps) e la classifica istantanea lo mostra. DataStore 115 (`server/nex/nex/datastore.go`: metadati su Postgres, file via HTTP locale) gestisce i replay; upload, download e riproduzione del replay (solo con nuovo record nei primi 3) verificati in gioco.
-- **Comunita' (Sfida Comunitaria)** (verificate in Azahar 2026-10-28): creazione, "Tua Comunita' Attuale" con codice, comunita' ufficiali (`server/nex/sql/official_communities.sql`, attribs[0] = 1) e iscrizione funzionano. Le "Comunita' in Evidenza" originali arrivano via StreetPass (dal 2026-11-04 il server le mostra tutte, vedi sotto). "Cerca Avversario" si fermava dopo `ReportNATProperties` per lo stesso problema delle lotte Wi-Fi (vedi sotto). Dettagli in `re/notes/nex_usage.md` 3.8.
-- **Lotte Wi-Fi: ricerca avversario da host** (verificata in Azahar 2026-10-29): server NAT check `server/nncs/nncs_server.py` (porting di PretendoNetwork/nncs) su 127.0.0.1/127.0.0.2 e patch `make_url_patch.py --nncs 127.0.0.1,127.0.0.2`. Battaglia Libera crea il gathering con `AutoMatchmakeWithSearchCriteria_Postpone`, lo apre per 30 s e poi "Non trovo avversari". L'errore senza codice era Azahar: con NordVPN attivo `gethostid` restituisce 0, l'URL NEX resta senza `address=` e Pia lo rifiuta (`0xD8A148C1`). Senza VPN funziona. Una volta e' uscito 006-0105 dopo `ReplaceURL`, non riprodotto. Dettagli in `re/notes/nex_usage.md` 6.
-- **Lotta Wi-Fi tra due giocatori** (verificata 2026-10-29): due Azahar sullo stesso PC si trovano con Battaglia Libera ("Vuoi sfidare Lurpigi?") e la battaglia parte con turni sincronizzati e si conclude (vittoria/sconfitta, salvataggio, ritorno al menu; al server solo `SendReport` + `EndParticipation`). La seconda istanza e' una copia portabile con patch `--skip-frd --pid-offset 1` (Pretendo non accetta due sessioni amici dello stesso account). Dettagli in `re/notes/nex_usage.md` 6.
-- **Battaglia Classificata tra due giocatori** (verificata 2026-10-29): stesso matchmaking della Battaglia Libera (gameMode 3), lotta con punti giudice, al vincitore +10P ("Nuovo Arrivato" -> "Esploratore Apprendista"), perdente invariato. Grado e punti restano nel salvataggio: nessun upload a NEX o SIL. Corretto il server: il gioco manda flag di password casuali nella sessione, che la rendevano invisibile all'avversario (`server/nex/nex/matchmake_extension/password_flags.go`).
-- **Sfida Comunitaria tra due giocatori** (verificata in gioco 2026-10-29): funziona tutto. La Battaglia Amici non e' verificabile: richiede due account con l'amicizia sul server amici 3DS di Pretendo.
-- **SpotPass: eventi sul campo BREAK01-03** (2026-10-29): con `make_url_patch.py --spotpass-break`, alla connessione della piazza il gioco scarica i tre file dal nostro server (`BREAK01/BossStealthBox.bin`, `BREAK03/BossSkyMapMonster.bin`, `BREAK02/BossPassingMonster.bin`, tutti 200). Verificata in gioco la scatola nascosta di BREAK01: compare nella piazza e aprendola "Hai trovato Super Seme dell'Agi". Da verificare il mostro della mappa celeste (BREAK03) e il sicario StreetPass (BREAK02). In Azahar i task periodici falliscono (il modulo BOSS chiede `ac:u GetConnectingLocation`, non implementato), quindi la patch li scarica come task in primo piano "FGONLYT". Dettagli in `re/notes/spotpass_boss.md` 6.
-- **Prossimo passo:** vedi sezione 4 (verifiche BREAK03/02, poi produzione).
+  - `--skip-nasc`: skips NEX login, the NASC token (Pretendo does not have the game → 002-0110), and the Ranking Battle screen's "NEX connected" check. NEX features (battles, communities, G-Cup) return 006-0000.
+  - `--azahar`: works around Azahar's http:C bugs (empty POST never sent, header size = 1, POST chunks sorted by content).
+- Server: `cd server && python -I -u sil/sil_server.py --host 0.0.0.0 --port 8381 --data data >> data/sil_server.log 2>&1`. Requires `data/public/030_GP_WallPapers.arc`, a copy of `romfs:/data/Layout/menu/wifi_ranking_battle/upper/download.arc`.
+- **Masters GP played end-to-end** (evening of 2026-10-26): registration with `00_UserData.bin` → download `147_Grade_Def_DLBattle.bin` (CPU1-3 placeholder opponents) → upload `09_Grade_PrivateDlBattle.bin` → 3 automatic rounds → upload `GradeResultPack.bin` (stored in `gp_results`, score 1694), `04_UpdateSaveData.bin`, exchange `171_/28W_Grade_Other_Countries.bin`. All successful.
+  - Fixed `azahar_unsort`: a detached payload may immediately follow a complete record (e.g. `PrivateSCRegister.bin`, Data = "Download_Code" at the end of the body); it now tries every record as "detached".
+- **Real opponents** (2026-10-26): the server builds `09/18_*_PrivateDlBattle` from other players' latest teams (`gp_results`), ordered hard/similar/easy; rounds without teams retain the CPUs from `Def_DLBattle`. Team block header decoded (location/flag, name, beginner, Mii: see `re/notes/grandprix_formats.md` 3.8). Verified in-game with `--self-opponents` (own team as opponent, useful with only one player): "JEJ"/ITA in round 1, monsters loaded and battle played normally. Test: `server/tests/test_sil.py`.
+- **Rankings** (2026-10-26): from `gp_results`, the server generates the schedule (`003_Held_Record`: 7-day tournaments starting at `--gp-start`), `089/139_*_Ranking_Pack` (overall through yesterday with arrows, previous tournament final, by prefecture), `23_UserPackData` (rank, points, personal ranking, previous tournament), and `141/142_*_ChampionRecord`. Verified in-game with `--gp-today 2026-10-27`: today's rankings available, JEJ 1st ITA 3/0 1694 in personal and overall rankings. `PrivateSCRegister.bin` now works. Formats in `re/notes/grandprix_formats.md` 3.6/3.7/3.9.
+- **Challenger GP** (2026-10-26): `018_LimitSetting` rules decoded (size, family, rank class, team grade) and configurable with `gp_files.py --limit-rule TYPE:VALUE --limit-text --limit-theme --only 018_LimitSetting.bin`. In-game: theme displayed, rule 5:1 rejects the team, 4:8 accepts it; registration, 3 rounds, and `LimitResultPack` upload (1866 points) successful; Challenger rankings and user data generated (verified offline). Active server rule: 4:8.
+- **Tournament end** (simulated with `--gp-today 2026-11-02`): first-tournament completion announcement, top 10, champion no. 1, ticket refill, and Champions menu verified in-game. Fixed `ChampionRecord`: entries start at +0 (the counter is inside entry 0).
+- **End-of-tournament rewards** (verified in-game on 2026-10-26, simulated dates 2026-11-02, 2026-11-09, 2026-11-16):
+  - *Special gift* (`23_UserPackData`+0xfc u16 type 1, +0xfe item ID = `I%04d` key in `ItemMessage.mes`): SQEX special gift message, awarding "Grande Sfera di Luce", once per tournament. Server: `--gp-prize-champion ITEM` (default 70, "Grande Sfera di Luce"), `--gp-prize-top10 ITEM` (default 66, "Sfera di Luce").
+  - *Network coins* (previous tournament block +0x1098: +0x44 u16 = 3, +0x48 platinum, +0x4a gold, +0x4c silver, +0x4e bronze): reward message awarding 3 gold coins. Server: `--gp-coins-champion B,S,G,P` (default 0,0,3,0), `--gp-coins-top10` (default 0,3,0,0).
+- **Rotating Challenger rules** (2026-10-26): the server generates `018_LimitSetting` and `033_Limit_DLNewsMsg` from the tournament number, cycling through 8 sets (`LIMIT_RULE_SETS` in `sil_server.py`: unrestricted, Slime, grade<=4, small size, Dragon, grade<=6, Demon, SS rank). Challenger opponents come only from the current tournament. Verified in-game (tournament 4: small monsters only, displayed with Y). Use `--gp-limit-static` for a fixed file.
+  - The test save is now at tournament 4 (2026-11-16): the server runs with `--gp-today 2026-11-16`; returning to the real date resets the GP.
+- **SpotPass: gift discs and coin shop** (verified in-game 2026-10-28): Azahar uses the real `boss` module (online LLE modules), downloading from our `server/spotpass/serve_spotpass.py` (port 8380, original files) through `--spotpass-url`. Gift-disc receipt ("Disco Conclavio sacro") and inventory update messages appear with the original stock. The game's AC connection is required: `--skip-nasc` now bypasses the Plaza connection screen (0x5e) even when NEX login fails, forcing "NEX connected" only for gifts and the shop (details in `re/notes/spotpass_boss.md` 6). Server: `python -I -u server/spotpass/serve_spotpass.py re/data/spotpass_archive/canonical 8380 0.0.0.0`.
+  - Patch URLs use `127.0.0.1`: the PC's LAN IP changes (.189 -> .190). For a real console, use the PC's IP address.
+- **Present codes** (verified in-game 2026-10-28): code `SLIME` awards the golden Slime disc ("Disco Slime dorato"). Codes are stored in the `present_codes` table in `server/data/sil.sqlite3` (`code`, `package_id`, `single_use`); packages are `data/public/PresentCodePackageS%02u.bin` (`gp_files.make_present_package`). The game's keyboard only has letters: no digits in codes.
+  - **Original codes** (2026-11-02): `server/sil/present_codes.json` (from `re/tools/make_present_codes.py`) contains the 130 DQMJ3 and DQMJ3P codes (game table + Game8 list), with a letters-only alias per gift (e.g. `SEEDOFLIFE`, `GOLDSLIMEDISC`). Active on the VPS, SIL test passed, not yet tested in-game. Details and Plaza discs in `re/notes/present_codes.md`.
+- **GP refinements** (2026-10-28): up/down arrows verified in-game using a test data copy (`server/data_test`, ignored by git) and two mock players: on day 3, Slimerex 1 up, JEJ 2 up, Draghetto 3 down. `147/148_*_Def_DLBattle` regenerated in hard/similar/easy order (`gp_files.py server/data/public --only ...`).
+- **Real NEX login without NASC** (verified on Azahar 2026-10-28): `make_url_patch.py --nex-auth 127.0.0.1:45000 --nex-password <PN_DQMJ3P_DEV_PASSWORD>` (with `--skip-nasc`, which then no longer simulates `NexLoginJob_Start`) + `server/nex` in DEV mode (`LoginEx` accepts any token). The game performs LoginEx -> RequestTicket -> Register on our server with the real Pretendo PID. Start with `docker compose -f server/docker-compose.dev.yml -p dqmj3p up -d` (Postgres 127.0.0.1:54329), then `server/nex/build/dqmj3p-nex.exe` (ports 45000/45001).
+- **G-Cup (Ranking Race) through registration** (2026-10-28): 12 official G-Cup communities (`server/nex/sql/gcup_official_communities.sql`) and the Ranking protocol on Postgres (`server/nex/nex/ranking.go`). In-game: cup search, registration (team name), weekly cup "Campo Prati Silenziosi", race entry menu. Details in `re/notes/nex_usage.md` 3.9.
+- **G-Cup: race, score, and ranking** (2026-10-28): official communities' application buffer defines the tournament (CPU opponents, name, strength, course, event); zeroed opponents caused the race to crash. Races now start with 4 racers, the winning time is uploaded (`UploadScore` in frames at 30 fps), and the live ranking displays it. DataStore 115 (`server/nex/nex/datastore.go`: metadata in Postgres, files over local HTTP) handles replays; upload, download, and playback (only for a new top-3 record) verified in-game.
+- **Communities (Community Challenge)** (verified on Azahar 2026-10-28): creation, current community with code, official communities (`server/nex/sql/official_communities.sql`, attribs[0] = 1), and joining work. Original featured communities come through StreetPass (since 2026-11-04 the server displays all of them, see below). Opponent search stalled after `ReportNATProperties` due to the same issue as Wi-Fi battles (see below). Details in `re/notes/nex_usage.md` 3.8.
+- **Wi-Fi battles: opponent search as host** (verified on Azahar 2026-10-29): NAT check server `server/nncs/nncs_server.py` (port of PretendoNetwork/nncs) on 127.0.0.1/127.0.0.2 and patch `make_url_patch.py --nncs 127.0.0.1,127.0.0.2`. Free Battle creates the gathering with `AutoMatchmakeWithSearchCriteria_Postpone`, opens it for 30 seconds, then reports no opponents found. The error without a code was caused by Azahar: with NordVPN active, `gethostid` returns 0, the NEX URL has no `address=`, and Pia rejects it (`0xD8A148C1`). It works without the VPN. Error 006-0105 appeared once after `ReplaceURL`, not reproduced. Details in `re/notes/nex_usage.md` 6.
+- **Wi-Fi battle between two players** (verified 2026-10-29): two Azahar instances on the same PC find each other in Free Battle (prompt to challenge Lurpigi), then play a battle with synchronized turns through completion (win/loss, save, return to menu; only `SendReport` + `EndParticipation` reach the server). The second instance is a portable copy with `--skip-frd --pid-offset 1` (Pretendo does not accept two friends sessions for the same account). Details in `re/notes/nex_usage.md` 6.
+- **Ranked Battle between two players** (verified 2026-10-29): same matchmaking as Free Battle (gameMode 3), battle with judge points, winner gains +10P ("Nuovo Arrivato" -> "Esploratore Apprendista"), loser unchanged. Rank and points remain in the save: no NEX or SIL upload. Server fix: the game sends random session password flags, which made the session invisible to opponents (`server/nex/nex/matchmake_extension/password_flags.go`).
+- **Community Challenge between two players** (verified in-game 2026-10-29): everything works. Friend Battle cannot yet be verified: it requires two accounts registered as friends on Pretendo's 3DS friends server.
+- **SpotPass: BREAK01-03 field events** (2026-10-29): with `make_url_patch.py --spotpass-break`, connecting to the Plaza downloads all three files from our server (`BREAK01/BossStealthBox.bin`, `BREAK03/BossSkyMapMonster.bin`, `BREAK02/BossPassingMonster.bin`, all HTTP 200). BREAK01's hidden box verified in-game: it appears in the Plaza and awards "Super Seme dell'Agi" when opened. The sky map monster (BREAK03) and StreetPass assassin (BREAK02) still need verification. Periodic tasks fail on Azahar (the BOSS module requests the unimplemented `ac:u GetConnectingLocation`), so the patch downloads them as foreground "FGONLYT" tasks. Details in `re/notes/spotpass_boss.md` 6.
+- **Next step:** see section 4 (verify BREAK03/02, then production).
 
-## 4. Da fare
+## 4. To do
 
-Aggiornato il 2026-10-29: in Azahar, con i server locali, funzionano lotte Wi-Fi (libera e classificata), comunita',
-G-Cup con replay, Grand Prix via SIL, codici regalo e SpotPass (regali, negozio, BREAK01). Resta soprattutto la produzione.
+Updated 2026-10-29: on Azahar with local servers, Wi-Fi battles (free and ranked), communities, G-Cup with
+replays, Grand Prix through SIL, present codes, and SpotPass (gifts, shop, BREAK01) work. The main remaining work is production.
 
-### Fase A – Verifiche in gioco
-- [ ] SpotPass BREAK03 (mostro della mappa celeste) e BREAK02 (sicario StreetPass): file scaricati, non ancora visti in gioco.
-- [ ] Battaglia Amici in gioco: serve che i due account Pretendo siano amici.
-- [ ] Backup del salvataggio corrotto via SIL: previsto dal protocollo, mai provato in gioco.
-- [ ] Notifiche Pia (eventi 4000-4999) da controllare a runtime (le lotte funzionano comunque).
-- [ ] Regole delle comunita' (0x18 byte a +0x60 del buffer) da decodificare, per comunita' ufficiali con regole diverse.
-- [ ] SpotPass con contenuti nuovi: non previsto. Il server serve i file originali (negozio: 7 inventari, uno
-  per giorno della settimana giapponese, decodificati in `re/notes/spotpass_boss.md`).
+### Phase A – In-game verification
 
-### Fase B – Produzione
-- [x] Stack di prova sul VPS Hetzner (2026-10-31): attivo su `188.245.46.173` e `78.47.138.100`. Da fuori passano `smoke_nex.py`, SpotPass e nncs, e dopo un riavvio del server riparte tutto. Porte 33334-33335/udp non provate.
-- [x] Gioco contro il VPS, primo ingresso (2026-10-31): da "Visita Piazza Wi-Fi" su Azahar, con traduzione enhanced, login NEX col PID reale e download dei tre file BREAK (200) dal VPS. `BREAK_CAVE` e' stato spostato a `0x6B9900` perche' collideva con `code_enhanced.ips`. Il gioco resta circa 30 s su "Gioco Salvato!" prima di connettersi.
-- [x] SIL in gioco sul VPS (2026-10-31): login, classifiche e dati utente copiati dal database locale. `nuser/getnonce` adotta i friend code sconosciuti, ma un utente senza `00_UserData.bin` non risulta registrato al Grand Prix e il gioco dice che i dati non ci sono piu'.
-- [ ] Prima di distribuire: capire cosa vede chi arriva con un save registrato altrove, senza dati sul server.
-- [ ] Prima di distribuire: la routine BREAK deve scaricare solo i file mancanti (`GetNsDataIdList`). Riscaricarli costa 22 s a ogni connessione e non aggiorna nulla, quindi la patch attiva di Azahar non include `--spotpass-break`.
-- [ ] Sul VPS manca ancora: oggetti BREAK visti in gioco.
-- [x] Comunita' sul VPS (2026-11-04): una ufficiale per lingua (italiano, inglese, spagnolo, francese, giapponese, testi nella
-  loro lingua) e "Comunita' in Evidenza" con tutte le comunita' (ufficiali e dei giocatori, massimo 100). La patch con
-  `--nex-auth` manda la richiesta vuota (`0x5b5878`: `bl FUN_0023d168` -> `nop`), perche' un solo ID salvato e' identico a
-  una ricerca per codice. Verificato su Azahar; patch del 3DS preparata.
-- [x] G-Cup a rotazione (2026-11-03): percorso, evento e avversari cambiano ogni settimana; coppa 6 verificata in gioco.
-- [x] Sicurezza del VPS (2026-11-04): SSH solo con chiave, fail2ban, aggiornamenti, Cloud Firewall Hetzner con le sole porte
-  del gioco. Nei servizi: limite di 512 KiB al SIL, massimo 64 connessioni e timeout per SIL, SpotPass e DataStore,
-  limiti di memoria e processi per ogni container. Dettagli in `docs/architettura.md`.
-- [ ] Deploy automatico (2026-11-04): `.github/workflows/deploy.yml` prova e aggiorna il VPS a ogni push su `main`. Mancano
-  la chiave di deploy sul VPS, i secret su GitHub e la protezione di `main` (`docs/deploy.md`).
-- [x] Lotta 3DS reale contro Azahar tramite il VPS (2026-11-01): login con PID diversi, nncs in gioco (tipi 101-103) e sessione 14 completata. Stessa rete di casa: stesso IP pubblico per i due dispositivi.
-- [ ] Lotta tra due reti diverse: mai provata. Le lotte Pia sono P2P e non c'e' un relay, quindi verificare cosa succede con CGNAT e NAT simmetrico.
-- [x] Password per giocatore (2026-10-31): `accounts.passwords` e `make_url_patch.py --nex-player-password` (password derivata con MD5 dalla password amici, registrata al primo accesso). Verificata sul VPS con `tests/auth_nex.py` e in gioco su Azahar. Dettagli e limiti in `server/README.md`.
-- [ ] Fine torneo G-Cup: coppe con flag 513, premi per fascia e notizie nel buffer (`gcup_official_communities.sql`, mappa in `re/notes/nex_usage.md` 3.9), applicati sul VPS il 2026-11-01. Primo cambio coppa provato su Azahar il 2026-11-02 (dopo la correzione di `started_time`): uscita dalla coppa 5, ingresso nella 6, Monete d'Oro al 1° posto (`+0x97` = oro). Restano da vedere le notizie col podio, il cambio sul 3DS e le fasce dal 2° posto.
-- [ ] Settimana G-Cup nel server NEX (`nex/gcup_week.go`, 2026-11-01): ogni minuto controlla la settimana, salva i risultati in `ranking.gcup_results`, azzera i vecchi punteggi della coppa che inizia, rimuove i replay vecchi e scrive il podio nelle notizie. Provato su Postgres locale, manca il primo cambio reale.
-- [ ] Notizie Grand Prix: `032_Grade_DLNewsMsg.bin` e' un testo fisso in inglese; i vincitori si possono generare in `sil_server.py` senza job, come per `033`.
-- [x] Sicurezza SIL (2026-10-31): friend code legato allo SHA-256 del token del giocatore (`users.secret`), token nella patch con `--nex-player-password`. Verificata con `tests/test_sil.py` e in gioco su Azahar.
-- [ ] DataStore: URL di upload con token casuale per versione. `tests/smoke_nex.py` lo verifica, manca una gara vera in gioco che carichi un replay.
-- [x] Battaglia Amici lato server (2026-11-04, sul VPS): il gioco crea la sessione solo amici (policy 98), che senza il gRPC amici di Pretendo nessuno trovava. Il server le da' la policy 95 della lotta casuale: l'amico la trova cercando il PID esatto dell'host. `tests/smoke_nex.py` lo verifica (fallisce senza la modifica). Per la prova in gioco servono due account Pretendo amici.
-- [ ] Test su 3DS reale, avviato il 2026-11-01. Funzionano avvio, login NEX con password per giocatore e lotta. Da provare: SIL, classifiche, G-Cup e replay, comunita', eventi BREAK in standby.
-  - Patch per console: senza `--azahar` e `--spotpass-break`, con `--merge` della `exefs/code.ips` normale. `code_enhanced.ips` e' solo per emulatore e sul 3DS fa crashare il gioco all'avvio.
+- [ ] SpotPass BREAK03 (sky map monster) and BREAK02 (StreetPass assassin): files downloaded, not yet seen in-game.
+- [ ] Friend Battle in-game: the two Pretendo accounts must be friends.
+- [ ] Corrupted-save backup through SIL: supported by the protocol, never tested in-game.
+- [ ] Pia notifications (events 4000-4999) need runtime checks (battles work regardless).
+- [ ] Decode community rules (0x18 bytes at buffer +0x60) for official communities with different rules.
+- [ ] SpotPass with new content: not planned. The server serves original files (shop: 7 inventories, one
+  per day of the week in Japan, decoded in `re/notes/spotpass_boss.md`).
 
-### Fase C – Distribuzione
-- [ ] Pubblicare i sorgenti: `server/nex` e `server/nncs` derivano da codice AGPL-3.0, quindi chi usa il server deve poterli ottenere (il repository su GitHub).
-- [ ] Controllare le regole di Pretendo sull'uso dell'account per il login amici con una patch.
-- [x] Guida utente 3DS e Azahar nel [README](README.md) (2026-11-04).
-- [ ] Distribuire le patch gia' pronte per 3DS e Azahar, per ogni versione della traduzione.
+### Phase B – Production
+
+- [x] Test stack on the Hetzner VPS (2026-10-31): running on `188.245.46.173` and `78.47.138.100`. External `smoke_nex.py`, SpotPass, and nncs checks pass; everything restarts after a server reboot. Ports 33334-33335/udp not tested.
+- [x] Game connecting to the VPS for the first time (2026-10-31): from the Wi-Fi Plaza entry menu on Azahar with the enhanced translation, NEX login with the real PID and downloads of the three BREAK files (HTTP 200) from the VPS. `BREAK_CAVE` moved to `0x6B9900` because it overlapped `code_enhanced.ips`. The game stays on the save confirmation ("Gioco Salvato!") for about 30 seconds before connecting.
+- [x] SIL in-game on the VPS (2026-10-31): login, rankings, and user data copied from the local database. `nuser/getnonce` adopts unknown friend codes, but a user without `00_UserData.bin` is not registered in the Grand Prix, and the game reports that the data is no longer available.
+- [ ] Before distribution: determine what players see when using a save registered elsewhere, with no data on the server.
+- [ ] Before distribution: the BREAK routine must download only missing files (`GetNsDataIdList`). Downloading them again costs 22 seconds per connection without updating anything, so the active Azahar patch does not include `--spotpass-break`.
+- [ ] Still missing on the VPS: seeing BREAK objects in-game.
+- [x] Communities on the VPS (2026-11-04): one official community per language (Italian, English, Spanish, French, Japanese, with text in
+  the corresponding language), and featured communities displaying all communities (official and player-created, maximum 100). The patch with
+  `--nex-auth` sends an empty request (`0x5b5878`: `bl FUN_0023d168` -> `nop`), because a single saved ID is indistinguishable from
+  a code search. Verified on Azahar; 3DS patch prepared.
+- [x] Rotating G-Cup (2026-11-03): course, event, and opponents change every week; cup 6 verified in-game.
+- [x] VPS security (2026-11-04): key-only SSH, fail2ban, updates, Hetzner Cloud Firewall allowing only game ports.
+  Services: SIL's 512 KiB limit, maximum 64 connections and timeouts for SIL and SpotPass, DataStore timeouts,
+  memory and process limits for every container. Details in `docs/architettura.md`.
+- [ ] Automated deployment (2026-11-04): `.github/workflows/deploy.yml` tests and updates the VPS on every push to `main`. Still needed:
+  the deployment key on the VPS, GitHub secrets, and `main` protection (`docs/deploy.md`).
+- [x] Real 3DS battle against Azahar through the VPS (2026-11-01): login with different PIDs, in-game nncs (types 101-103), and session 14 completed. Same home network: both devices shared a public IP.
+- [ ] Battle between two different networks: never tested. Pia battles are P2P with no relay, so behavior with CGNAT and symmetric NAT needs verification.
+- [x] Per-player passwords (2026-10-31): `accounts.passwords` and `make_url_patch.py --nex-player-password` (password derived from the friends password using MD5, recorded on first login). Verified on the VPS with `tests/auth_nex.py` and in-game on Azahar. Details and limitations in `server/README.md`.
+- [ ] G-Cup tournament end: cups with flag 513, rewards by placement, and news in the buffer (`gcup_official_communities.sql`, map in `re/notes/nex_usage.md` 3.9), applied on the VPS on 2026-11-01. First cup rollover tested on Azahar on 2026-11-02 (after fixing `started_time`): leaving cup 5, entering cup 6, gold coins for 1st place (`+0x97` = gold). Still to verify: podium news, rollover on 3DS, and reward tiers from 2nd place onward.
+- [ ] G-Cup week in the NEX server (`nex/gcup_week.go`, 2026-11-01): every minute, checks the week, saves results in `ranking.gcup_results`, resets old scores for the incoming cup, removes old replays, and writes the podium in the news. Tested on local Postgres; first real rollover still pending.
+- [ ] Grand Prix news: `032_Grade_DLNewsMsg.bin` is fixed English text; winners can be generated in `sil_server.py` without a job, as with `033`.
+- [x] SIL security (2026-10-31): friend code bound to the SHA-256 hash of the player token (`users.secret`), token in the patch through `--nex-player-password`. Verified with `tests/test_sil.py` and in-game on Azahar.
+- [ ] DataStore: upload URLs with a random token per version. Verified by `tests/smoke_nex.py`; a real in-game race uploading a replay is still needed.
+- [x] Server-side Friend Battle (2026-11-04, on the VPS): the game creates a friends-only session (policy 98), which nobody could find without Pretendo's friends gRPC. The server assigns random-battle policy 95: the friend finds it by searching for the host's exact PID. `tests/smoke_nex.py` verifies this (fails without the change). In-game testing requires two Pretendo accounts registered as friends.
+- [ ] Real 3DS testing, started 2026-11-01. Startup, NEX login with a per-player password, and battles work. Still to test: SIL, rankings, G-Cup and replays, communities, BREAK events in standby.
+  - Console patch: without `--azahar` or `--spotpass-break`, using `--merge` with the regular `exefs/code.ips`. `code_enhanced.ips` is emulator-only and crashes the game at startup on 3DS.
+
+### Phase C – Distribution
+
+- [ ] Publish the source: `server/nex` and `server/nncs` derive from AGPL-3.0 code, so server users must be able to obtain it (the GitHub repository).
+- [ ] Check Pretendo's rules on using accounts for friends login with a patch.
+- [x] 3DS and Azahar player guide in the [README](README.md) (2026-11-04).
+- [ ] Distribute ready-to-use patches for 3DS and Azahar, for each translation version.
 
 ---
 
-## 5. Rischi
+## 5. Risks
 
-- **Grand Prix:** dipende da dati Square Enix andati persi; ricostruirlo richiede di decodificare formati non documentati.
-- **Pretendo:** il login amici dipende da un servizio che non controlliamo e che puo' cambiare.
-- **NAT:** senza relay, i giocatori dietro CGNAT o NAT simmetrico potrebbero non riuscire a lottare.
-- **Sicurezza:** token del giocatore in chiaro su HTTP verso SIL; contro un DDoS grande resta solo la protezione del provider.
-- **Legale:** distribuire solo server, patch e strumenti. Mai ROM, CIA o i file originali scaricati (`re/data`, escluso da git). I file SpotPass originali serviti dal nostro server restano il punto piu' delicato.
+- **Grand Prix:** depends on lost Square Enix data; reconstruction requires decoding undocumented formats.
+- **Pretendo:** friends login depends on a service we do not control and which may change.
+- **NAT:** without a relay, players behind CGNAT or symmetric NAT may be unable to battle.
+- **Security:** player tokens travel in plaintext over HTTP to SIL; large DDoS attacks can only be mitigated by the provider's protection.
+- **Legal:** distribute only servers, patches, and tools. Never ROMs, CIAs, or downloaded original files (`re/data`, excluded from git). Original SpotPass files served by our server remain the most sensitive issue.

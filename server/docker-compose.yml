@@ -1,4 +1,5 @@
-# Public test stack for one VPS: NEX, Postgres, SIL, SpotPass and the NAT check server.
+# Public test stack for one VPS: NEX, Postgres, SIL, SpotPass and the NAT check server, plus the
+# optional statistics portal (profile "portal": dashboard + Caddy HTTPS).
 # Settings come from .env (see .env.example), setup steps are in README.md.
 # Memory limits keep one flooded service from taking the whole VPS (1 GB, about 100 MB in use).
 x-service: &service
@@ -123,6 +124,72 @@ services:
     volumes:
       - ./nncs:/app:ro
 
+  # --- Statistics portal (docs/dashboard.md), enabled with COMPOSE_PROFILES=portal ---------------
+  # One-shot: portal tables, then the two database roles (importer: portal writes + game tables it
+  # imports; api: portal reads only). Waits for the tables the NEX server creates at startup.
+  dashboard-migrate:
+    image: server-dashboard:latest
+    build: ./dashboard
+    profiles: ["portal"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DASHBOARD_ADMIN_DB_URL: postgres://dqmj3p:${POSTGRES_PASSWORD}@postgres:5432/dqmj3p?sslmode=disable
+      DASHBOARD_IMPORTER_PASSWORD: ${DASHBOARD_IMPORTER_PASSWORD:-}
+      DASHBOARD_API_PASSWORD: ${DASHBOARD_API_PASSWORD:-}
+    command: ["python", "-m", "dashboard", "migrate", "--wait",
+              "ranking.scores,ranking.gcup_weeks,history.gcup_finals,matchmaking.persistent_gatherings"]
+
+  # Importer + public read-only API, one process. It reads the SIL database read-only: stopping it
+  # never affects the game, and the game never waits for it.
+  dashboard:
+    <<: *service
+    image: server-dashboard:latest
+    build: ./dashboard
+    profiles: ["portal"]
+    mem_limit: 192m
+    user: "1000:1000"
+    read_only: true
+    depends_on:
+      dashboard-migrate:
+        condition: service_completed_successfully
+    environment:
+      DASHBOARD_DB_URL: postgres://dashboard_importer:${DASHBOARD_IMPORTER_PASSWORD:-}@postgres:5432/dqmj3p?sslmode=disable
+      DASHBOARD_API_DB_URL: postgres://dashboard_api:${DASHBOARD_API_PASSWORD:-}@postgres:5432/dqmj3p?sslmode=disable
+      DASHBOARD_SIL_DB: /sil-data/sil.sqlite3
+      DASHBOARD_SIL_CODE: /sil/sil_server.py
+      DASHBOARD_SERVER_ID: ${DASHBOARD_SERVER_ID:-production}
+      DASHBOARD_ID_SALT: ${DASHBOARD_ID_SALT:-}
+      DASHBOARD_ALLOWED_ORIGINS: ${DASHBOARD_ALLOWED_ORIGINS:-}
+      DASHBOARD_TRUST_PROXY: "1"
+    expose:
+      - "8090"
+    volumes:
+      - ./sil:/sil:ro
+      - ${DATA_DIR:-./data}:/sil-data:ro
+
+  caddy:
+    <<: *service
+    image: caddy:2.10.2-alpine
+    profiles: ["portal"]
+    mem_limit: 64m
+    depends_on:
+      - dashboard
+    environment:
+      DASHBOARD_HOSTNAME: ${DASHBOARD_HOSTNAME:-localhost}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pg:
   datastore:
+  caddy_data:
+  caddy_config:

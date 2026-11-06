@@ -1,87 +1,89 @@
 # DQMJ3P Online
 
-Server e patch per riattivare le funzioni online di *Dragon Quest Monsters: Joker 3 Professional*
-(3DS, versione giapponese `00040000001ACB00` v1.3, anche con la traduzione italiana), su console con
-Luma3DS e su Azahar.
+Replacement servers and a game patch to restore the online features of *Dragon Quest Monsters: Joker 3 Professional*
+(3DS, Japanese release `00040000001ACB00` v1.3, including the Italian translation), on consoles running
+Luma3DS and on Azahar.
 
-I server ufficiali di Nintendo e Square Enix sono chiusi. Qui ci sono dei server sostitutivi e una patch
-del gioco che lo collega a loro.
+The official Nintendo and Square Enix servers have shut down. This project provides replacement servers
+and a game patch that connects to them.
 
-## Cosa funziona
+## What works
 
-| Funzione | Dove | Stato |
+| Feature | Service | Status |
 |---|---|---|
-| Battaglia Libera e Battaglia Classificata Wi-Fi | NEX | Verificate tra Azahar e Azahar e tra 3DS e Azahar |
-| Battaglia Amici | NEX | Lato server pronta, manca una prova con due account amici |
-| Comunità: creazione, ufficiali per lingua, in evidenza, Sfida Comunitaria | NEX | Verificate |
-| G-Cup (Ranking Race): coppe settimanali, classifiche, replay, premi | NEX | Verificata |
-| Grand Prix (Ranking Battle): Maestri e Sfidante, classifiche, premi | SIL | Verificato |
-| Codici regalo (i 130 codici originali) | SIL | Verificati sul server |
-| Dischi regalo, negozio monete della Piazza Wi-Fi | SpotPass | Verificati |
-| Eventi sul campo (scatola nascosta, mappa celeste, sicario StreetPass) | SpotPass | Solo la scatola nascosta verificata |
+| Free Battle and Ranked Wi-Fi Battle | NEX | Verified between two Azahar instances and between 3DS and Azahar |
+| Friend Battle | NEX | Server implementation ready; testing with two mutually registered friend accounts is still needed |
+| Communities: creation, official communities by language, featured communities, Community Challenge | NEX | Verified |
+| G-Cup (Ranking Race): weekly cups, rankings, replays, rewards | NEX | Verified |
+| Grand Prix (Ranking Battle): Masters and Challenger, rankings, rewards | SIL | Verified |
+| Present codes (all 130 original codes) | SIL | Verified on the server |
+| Gift discs, Wi-Fi Plaza coin shop | SpotPass | Verified |
+| Field events (hidden box, sky map monster, StreetPass assassin) | SpotPass | Only the hidden box has been verified |
 
-Per il dettaglio vedi [PLAN.md](PLAN.md).
+See [PLAN.md](PLAN.md) for details.
 
-## Guida per i giocatori
+## Player guide
 
-### Cosa serve
+### Requirements
 
-- Il gioco alla versione 1.3, con o senza la traduzione.
-- Un account [Pretendo Network](https://pretendo.network): serve per il login amici, che dà a ogni
-  giocatore un ID univoco. Il gioco non usa nient'altro di Pretendo.
-- La patch `code.ips` di DQMJ3P Online, adatta alla piattaforma (3DS o Azahar) e alla traduzione che usi.
+- Version 1.3 of the game, with or without a translation patch.
+- A [Pretendo Network](https://pretendo.network) account for friends login, which gives each player a
+  unique ID. The game does not use any other Pretendo services.
+- The DQMJ3P Online `code.ips` patch matching your platform (3DS or Azahar) and translation patch.
 
-### Su 3DS (Luma3DS)
+### On 3DS (Luma3DS)
 
-1. Configura Pretendo con [Nimbus](https://pretendo.network/docs/install/3ds) e attiva l'account Pretendo.
-2. Copia la patch in `SD:/luma/titles/00040000001ACB00/code.ips`. Sostituisce la patch della traduzione:
-   la nostra la contiene già.
-3. Nella configurazione di Luma (tieni SELECT all'accensione) attiva **Enable game patching**.
-4. Avvia il gioco ed entra nella Piazza Wi-Fi.
+1. Set up Pretendo with [Nimbus](https://pretendo.network/docs/install/3ds) and activate your Pretendo account.
+2. Copy the patch to `SD:/luma/titles/00040000001ACB00/code.ips`. It replaces the translation patch:
+   our patch already includes it.
+3. In the Luma configuration menu (hold SELECT while powering on), enable **Enable game patching**.
+4. Launch the game and enter the Wi-Fi Plaza.
 
-Sulla console usa la patch per 3DS. Quella per Azahar contiene correzioni solo per l'emulatore, e con la
-versione "enhanced" della traduzione il gioco si blocca all'avvio.
+Use the 3DS patch on a real console. The Azahar patch contains emulator-specific fixes, and using the
+"enhanced" translation patch causes the game to crash at startup on a console.
 
-### Su Azahar
+### On Azahar
 
-1. Configura Pretendo seguendo la [guida per Azahar](https://pretendo.network/docs/install/citra):
-   servono i moduli di sistema online (LLE) e un account Pretendo.
-2. Copia la patch in `<cartella utente di Azahar>/load/mods/00040000001ACB00/exefs/code.ips`
-   (su Windows di solito `%APPDATA%\Azahar`).
-3. Avvia il gioco.
+1. Set up Pretendo using the [Azahar guide](https://pretendo.network/docs/install/citra):
+   you need the online system modules (LLE) and a Pretendo account.
+2. Copy the patch to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`
+   (on Windows, the user directory is usually `%APPDATA%\Azahar`).
+3. Launch the game.
 
-### Problemi comuni
+### Troubleshooting
 
-- **Errore senza codice o "Errore di comunicazione" nelle lotte, su Azahar:** una VPN (per esempio
-  NordVPN) impedisce ad Azahar di leggere l'indirizzo locale. Disattivala.
-- **Il gioco resta circa 30 secondi su "Gioco Salvato!" prima della Piazza Wi-Fi:** è normale.
-- **Le lotte non partono tra reti diverse:** le lotte sono dirette tra le console (P2P) e non c'è un
-  server di relay. Con alcune reti (CGNAT, NAT simmetrico) può non funzionare.
-- **Login NEX rifiutato dopo aver cambiato account Pretendo:** il server lega ogni ID alla prima password.
-  Chiedi all'amministratore di azzerarla.
+- **An error without a code, or a communication error during battles on Azahar:** a VPN (such as
+  NordVPN) can prevent Azahar from reading the local address. Disable it.
+- **The game stays on the save confirmation ("Gioco Salvato!" in Italian) for about 30 seconds before entering the Wi-Fi Plaza:** this is normal.
+- **Battles do not start between different networks:** battles connect the consoles directly (P2P),
+  with no relay server. Some networks (CGNAT, symmetric NAT) may not work.
+- **NEX login rejected after changing Pretendo accounts:** the server binds each ID to the first password
+  it receives. Ask the administrator to reset it.
 
-## Per chi gestisce il server
+## Server administration
 
-- [Installazione e uso dello stack](server/README.md): Docker Compose su un VPS con due IPv4.
-- [Come funziona il server](docs/architettura.md): servizi, porte, indirizzi e dati.
-- [La patch del gioco](docs/patch.md): ogni modifica, il suo indirizzo e perché serve.
-- [Deploy automatico](docs/deploy.md): GitHub Action, secret, protezione di `main`.
-- Note di reverse engineering in [re/notes](re/notes).
+- [Stack setup and usage](server/README.md): Docker Compose on a VPS with two IPv4 addresses.
+- [Server architecture](docs/architettura.md): services, ports, addresses, and data.
+- [Game patch](docs/patch.md): each modification, its address, and its purpose.
+- [Automated deployment](docs/deploy.md): GitHub Actions, secrets, and `main` protection.
+- [Statistics portal](docs/dashboard.md): public championship archive, player histories and monster catalog (API on the VPS, site on GitHub Pages).
+- Reverse engineering notes in [re/notes](re/notes) (currently in Italian).
 
-### Generare la patch
+### Generating the patch
 
-Serve il `code.bin` decompresso del gioco v1.3 (non è nel repository) e la patch della traduzione, se la usi:
+You need the decompressed `code.bin` from version 1.3 of the game (not included in the repository) and,
+if applicable, your translation patch:
 
 ```bash
-python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 --merge PATCH_DELLA_TRADUZIONE -o code.ips
+python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:8381/00300701/ --spotpass-url http://IP:8380/p01/nsa/H7btVjYWs7p5dGj6 --skip-nasc --nex-auth IP:45000 --nex-player-password --nncs IP,IP2 --merge TRANSLATION_PATCH -o code.ips
 ```
 
-Per Azahar aggiungi `--azahar`. Le opzioni sono spiegate in [docs/patch.md](docs/patch.md).
+Add `--azahar` for Azahar. See [docs/patch.md](docs/patch.md) for the available options.
 
-## Licenze e materiale protetto
+## Licensing and copyrighted material
 
-- `server/nex` e `server/nncs` derivano da codice di Pretendo Network con licenza AGPL-3.0 (`server/nex/LICENSE`):
-  chi usa il server deve poterne ottenere i sorgenti, che sono questo repository.
-- Il repository non contiene ROM, CIA, il `code.bin` né i file originali di Nintendo e Square Enix
-  (`re/bin` e `re/data` sono esclusi da git). Non aggiungerli.
-- Dragon Quest Monsters è un marchio di Square Enix. Il progetto non ha legami con Square Enix, Nintendo o Pretendo.
+- `server/nex` and `server/nncs` are derived from Pretendo Network code licensed under AGPL-3.0
+  (`server/nex/LICENSE`). Server users must be able to obtain the source code, which is this repository.
+- This repository contains no ROMs, CIAs, `code.bin`, or original Nintendo and Square Enix files
+  (`re/bin` and `re/data` are excluded from git). Do not add them.
+- Dragon Quest Monsters is a Square Enix trademark. This project is not affiliated with Square Enix, Nintendo, or Pretendo.

@@ -23,6 +23,9 @@ import (
 // *     for the prizes
 // *   - remove replays older than the previous week
 // *   - write the winners into the news of the cup that starts
+//   - for the statistics portal: keep the definition of each week's cup (history.gcup_editions) and
+//     the full final standings with their unique ids and common data (history.gcup_finals), before
+//     the cleanup, in the same transaction
 // * The week runs inside the server rather than from a cron, so a server that was down catches up.
 
 const (
@@ -37,9 +40,12 @@ const (
 var gcupEpoch = time.Date(2015, 1, 5, 0, 0, 0, 0, time.UTC)
 
 type gcupResult struct {
-	pid   uint32
-	score uint32
-	name  string
+	pid        uint32
+	score      uint32
+	name       string
+	uniqueID   uint64
+	updateTime time.Time
+	data       []byte
 }
 
 func gcupWeek(now time.Time) int {
@@ -145,7 +151,7 @@ func gcupCommunity(tx *sql.Tx, week int) (uint32, []byte, error) {
 // * Closes the week that ended before `week` and prepares its cup
 func processGcupWeek(tx *sql.Tx, week int) (removed []dataStoreRemoval, err error) {
 	start := gcupWeekStart(week)
-	previousID, _, err := gcupCommunity(tx, week-1)
+	previousID, previousBuffer, err := gcupCommunity(tx, week-1)
 	if err != nil {
 		return nil, fmt.Errorf("cup of week %d: %w", week-1, err)
 	}
@@ -154,7 +160,7 @@ func processGcupWeek(tx *sql.Tx, week int) (removed []dataStoreRemoval, err erro
 		return nil, fmt.Errorf("cup of week %d: %w", week, err)
 	}
 
-	rows, err := tx.Query(`SELECT s.pid, s.score, COALESCE(c.data, ''::bytea) FROM ranking.scores s
+	rows, err := tx.Query(`SELECT s.pid, s.score, COALESCE(c.data, ''::bytea), s.unique_id, s.update_time FROM ranking.scores s
 		LEFT JOIN ranking.common_data c ON c.pid = s.pid AND c.unique_id = s.unique_id
 		WHERE s.category = $1 AND s.update_time >= $2 AND s.update_time < $3
 		ORDER BY s.score, s.update_time`, previousID, gcupWeekStart(week-1), start)
@@ -165,11 +171,12 @@ func processGcupWeek(tx *sql.Tx, week int) (removed []dataStoreRemoval, err erro
 	for rows.Next() {
 		var result gcupResult
 		var data []byte
-		if err := rows.Scan(&result.pid, &result.score, &data); err != nil {
+		if err := rows.Scan(&result.pid, &result.score, &data, &result.uniqueID, &result.updateTime); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		result.name = gcupTeamName(data)
+		result.data = data
 		results = append(results, result)
 	}
 	rows.Close()
@@ -183,6 +190,21 @@ func processGcupWeek(tx *sql.Tx, week int) (removed []dataStoreRemoval, err erro
 		if err != nil {
 			return nil, err
 		}
+		_, err = tx.Exec(`INSERT INTO history.gcup_finals
+			(week, position, rank, pid, unique_id, score, update_time, name, common_data)
+			VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (week, position) DO NOTHING`,
+			week-1, i+1, result.pid, result.uniqueID, result.score, result.updateTime, result.name, result.data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// * The edition that ended (its definition, if the week opened before history existed) and the new one
+	if err := gcupOpenEdition(tx, week-1, previousID, previousBuffer); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(`UPDATE history.gcup_editions SET closed_at = now(), entrants = $2 WHERE week = $1`,
+		week-1, len(results)); err != nil {
+		return nil, err
 	}
 
 	if _, err := tx.Exec(`DELETE FROM ranking.scores WHERE category = $1 AND update_time < $2`, cupID, start); err != nil {
@@ -212,9 +234,21 @@ func processGcupWeek(tx *sql.Tx, week int) (removed []dataStoreRemoval, err erro
 	globals.Logger.Infof("G-Cup week %d: %d results of cup %d, removed replays %v", week, len(results), previousID, pq.Array(ids))
 
 	news := gcupNews(week%gcupCups+1, (week-1)%gcupCups+1, results)
+	buffer = gcupBufferWithNews(buffer, news)
 	_, err = tx.Exec(`UPDATE matchmaking.persistent_gatherings SET application_buffer = $1 WHERE id = $2`,
-		gcupBufferWithNews(buffer, news), cupID)
-	return removed, err
+		buffer, cupID)
+	if err != nil {
+		return nil, err
+	}
+	return removed, gcupOpenEdition(tx, week, cupID, buffer)
+}
+
+// * Records the cup definition (application buffer: course, rules, prizes) of a week, once
+func gcupOpenEdition(tx *sql.Tx, week int, category uint32, buffer []byte) error {
+	_, err := tx.Exec(`INSERT INTO history.gcup_editions (week, cup_index, category, starts_at, ends_at, definition)
+		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (week) DO NOTHING`,
+		week, week%gcupCups, category, gcupWeekStart(week), gcupWeekStart(week+1), buffer)
+	return err
 }
 
 type dataStoreRemoval struct {

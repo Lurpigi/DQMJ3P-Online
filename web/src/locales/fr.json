@@ -1,0 +1,204 @@
+{
+  "brand": { "home": "DQMJ3P Online – accueil", "tagline": "Archives des championnats" },
+  "nav": {
+    "main": "Principal", "secondary": "Plus", "skip": "Aller au contenu", "language": "Langue", "breadcrumb": "Fil d'Ariane",
+    "overview": "Aperçu", "championships": "Championnats", "players": "Joueurs", "battles": "Combats",
+    "monsters": "Monstres", "records": "Records", "status": "État", "about": "À propos"
+  },
+  "theme": { "label": "Thème : {{theme}}. Changer de thème", "system": "Thème du système", "light": "Thème clair", "dark": "Thème sombre" },
+  "mode": {
+    "grade": { "name": "Masters GP", "short": "Masters" },
+    "limit": { "name": "Challengers GP", "short": "Challengers" },
+    "gcup": { "name": "G-Cup", "short": "G-Cup" }
+  },
+  "status": {
+    "upcoming": "À venir", "open": "En cours", "finalizing": "Clôture", "final": "Terminé",
+    "finalizingNote": "Cette édition est terminée. Le classement final apparaît dès que les derniers résultats sont importés."
+  },
+  "edition": {
+    "gp": "Tournoi {{n}}", "gcup": "Coupe {{cup}} · semaine {{week}}", "gcupShort": "semaine {{week}}",
+    "starts": "Début", "ends": "Fin", "revision": "Révision", "previous": "Édition précédente", "next": "Édition suivante",
+    "neighbours": "Autres éditions"
+  },
+  "time": {
+    "yours": "votre heure {{time}}", "left": "Ferme dans {{d}} j {{h}} h {{m}} min", "closed": "Fermé"
+  },
+  "state": {
+    "loading": "Chargement…", "more": "Afficher plus", "retry": "Réessayer", "notFound": "Rien ici : le lien est peut-être erroné.",
+    "error": "Le serveur n'a pas pu répondre.", "offline": "Le serveur de statistiques est injoignable.",
+    "timeout": "Le serveur de statistiques a mis trop de temps à répondre.", "rateLimited": "Trop de requêtes : attendez une minute.",
+    "stale": "Données chargées {{when}}."
+  },
+  "freshness": { "updated": "Données mises à jour {{when}}", "delayed": "L'import des données est en retard", "unknown": "Fraîcheur des données inconnue" },
+  "overview": {
+    "title": "Les championnats de la semaine",
+    "lede": "Les éditions du Masters GP, du Challengers GP et de la G-Cup se terminent chaque semaine. Les archives les conservent toutes.",
+    "noEdition": "Pas encore d'édition.", "noEntries": "Pas encore de résultat.",
+    "entrants_one": "{{count}} joueur", "entrants_many": "{{count}} joueurs", "entrants_other": "{{count}} joueurs",
+    "leaders": "En tête", "fullStandings": "Classement complet", "previous": "Édition précédente",
+    "lastChampions": "Derniers vainqueurs · {{edition}}", "recent": "Derniers résultats"
+  },
+  "feed": {
+    "gp": "{{points}} points · {{won}}/3 manches gagnées", "gcup": "course en {{time}}", "gcupBest": "nouveau record {{time}}"
+  },
+  "follow": { "on": "Suivi", "off": "Suivre", "title": "Suivis" },
+  "share": { "copy": "Copier le lien", "copied": "Lien copié" },
+  "archive": {
+    "title": "Archives des championnats", "lede": "Toutes les éditions, même celles sans participant. Les liens restent valables après la remise à zéro hebdomadaire.",
+    "searchHint": "Numéro du tournoi, semaine, nom de la coupe", "none": "Aucune édition ne correspond aux filtres.",
+    "edition": "Édition", "dates": "Dates", "entrants": "Joueurs", "winner": "Vainqueur"
+  },
+  "filter": {
+    "mode": "Compétition", "allModes": "Toutes les compétitions", "allGp": "Les deux Grand Prix", "status": "État", "any": "Tous",
+    "year": "Année", "search": "Rechercher", "reset": "Effacer les filtres", "species": "Monstre dans l'équipe", "from": "Du", "to": "Au"
+  },
+  "tab": {
+    "label": "Sections", "standings": "Classement", "results": "Résultats", "teams": "Équipes", "stats": "Statistiques",
+    "overview": "Aperçu", "championships": "Championnats"
+  },
+  "view": {
+    "final": "Final", "live": "En direct", "published": "Publié", "provisional": "Provisoire",
+    "publishedNote": "Comme dans le jeu : résultats jusqu'à la veille du {{day}}. Ceux d'aujourd'hui comptent à partir de demain.",
+    "provisionalNote": "Tous les résultats reçus jusqu'ici, aujourd'hui compris. Le jeu les publie demain.",
+    "finalNote": "Classement final, révision {{revision}}.",
+    "liveNote": "Les meilleurs temps de la semaine, mis à jour à chaque course envoyée."
+  },
+  "standings": {
+    "view": "Type de classement", "search": "Trouver un joueur", "searchHint": "Nom", "rank": "Rang", "player": "Joueur",
+    "team": "Équipe", "rounds": "Manches gagnées", "entries": "Tickets", "points": "Points", "time": "Temps", "score": "Score",
+    "details": "Détails", "position": "Position dans la liste", "toggle": "Détails de {{name}}",
+    "caption": "Classement de {{edition}}", "total_one": "{{count}} joueur classé", "total_many": "{{count}} joueurs classés", "total_other": "{{count}} joueurs classés",
+    "empty": "Personne n'a de résultat dans cette édition.", "noMatch": "Aucun joueur de ce nom dans ce classement.",
+    "upcoming": "Cette édition n'a pas encore commencé.",
+    "firstDay": "Un nouveau tournoi a commencé aujourd'hui : comme dans le jeu, son premier classement est publié demain.",
+    "publishedNote": "classement publié",
+    "up": "monte de {{n}}", "down": "descend de {{n}}", "same": "inchangé", "new": "Nouveau dans le classement", "newShort": "nouveau"
+  },
+  "points": { "total": "Total", "win": "Victoire", "popularity": "Popularité", "strength": "Force", "evaluation": "Évaluation" },
+  "export": { "label": "Télécharger" },
+  "rules": {
+    "title": "Règles", "grade": "Ouvert à toutes les équipes.", "static": "Règles fixées par le fichier du serveur pour cette édition.",
+    "allowed": "Monstres autorisés :", "anySpecies": "Tous les monstres peuvent participer."
+  },
+  "rewards": {
+    "title": "Récompenses", "champion": "Champion", "top10": "Top 10", "none": "Aucune",
+    "rank": "{{rank}}e place", "ranks": "Places {{from}}–{{to}}"
+  },
+  "coins": {
+    "platinum_one": "{{count}} pièce de platine", "platinum_many": "{{count}} pièces de platine", "platinum_other": "{{count}} pièces de platine",
+    "gold_one": "{{count}} pièce d'or", "gold_many": "{{count}} pièces d'or", "gold_other": "{{count}} pièces d'or",
+    "silver_one": "{{count}} pièce d'argent", "silver_many": "{{count}} pièces d'argent", "silver_other": "{{count}} pièces d'argent",
+    "bronze_one": "{{count}} pièce de bronze", "bronze_many": "{{count}} pièces de bronze", "bronze_other": "{{count}} pièces de bronze"
+  },
+  "cup": {
+    "course": "{{name}}, parcours {{variant}}",
+    "event": { "0": "Pas d'événement sur le parcours", "1": "Rochers explosifs", "2": "Objets sur le parcours" }
+  },
+  "coverage": {
+    "definition": "Règles de la coupe reconstruites à partir de la définition actuelle : l'édition a commencé avant que les archives les enregistrent.",
+    "generic": "{{feature}} : {{level}}",
+    "names": { "reconstructed": "Certains noms viennent du profil actuel des joueurs : ces résultats ont été enregistrés avant que les noms le soient." },
+    "attempts": { "unavailable": "Les tentatives de cette semaine n'ont pas été enregistrées : seul le classement final existe." },
+    "finals": { "reconstructed": "Classement final issu des archives hebdomadaires du jeu, sans détails des courses." }
+  },
+  "teams": {
+    "note": "La dernière équipe envoyée par chaque joueur dans cette édition.",
+    "gcup": "Les envois de la G-Cup ne contiennent pas d'équipe.", "entry": "résultat"
+  },
+  "team": { "label": "Équipe", "none": "Aucune équipe enregistrée", "level": "Niv. {{level}}", "newMember": "Nouveau" },
+  "results": { "none": "Aucun résultat enregistré." },
+  "stats": {
+    "entrants": "Joueurs", "entries": "Tickets", "attempts": "Courses", "roundsWon": "Manches gagnées", "bestAttempt": "Meilleur temps",
+    "perDay": "Résultats par jour", "day": "Jour", "players_one": "{{count}} joueur", "players_many": "{{count}} joueurs", "players_other": "{{count}} joueurs",
+    "usage": "Monstres les plus utilisés",
+    "usageNote": "Part des {{count}} équipes de joueurs (la dernière de chacun dans l'édition) qui contiennent le monstre.",
+    "teamsOf": "{{n}} équipes sur {{total}}", "noTeams": "Aucune équipe enregistrée."
+  },
+  "players": {
+    "title": "Joueurs", "lede": "Cherchez n'importe quel joueur : profils et historiques sont publics.",
+    "search": "Nom", "searchHint": "Au moins une lettre", "source": "Type de profil",
+    "identityNote": "Le Grand Prix et la G-Cup utilisent des comptes de jeu différents : un joueur peut avoir un profil de chaque type. Les noms identiques ne sont pas fusionnés.",
+    "none": "Aucun joueur nommé « {{q}} ».", "empty": "Pas encore de joueur.", "aka": "aussi {{names}}",
+    "finals_one": "{{count}} classement final", "finals_many": "{{count}} classements finaux", "finals_other": "{{count}} classements finaux"
+  },
+  "source": { "sil": "Profil Grand Prix", "nex": "Profil G-Cup" },
+  "player": {
+    "unnamed": "(sans nom)", "seen": "Vu pour la première fois le {{first}} · dernière activité {{last}}",
+    "current": "En cours", "place_one": "{{rank}}e sur {{count}}", "place_many": "{{rank}}e sur {{count}}", "place_other": "{{rank}}e sur {{count}}",
+    "notRanked": "Pas encore classé", "titles": "Titres", "podiums": "Podiums", "bestRank": "Meilleur rang", "finals": "Éditions",
+    "bestTime": "Meilleur temps", "aliases": "Noms utilisés",
+    "reconstructed": "du profil actuel", "noFinals": "Pas encore de classement final.",
+    "identitySil": "Profil Grand Prix : résultats envoyés depuis le menu Ranking Battle.",
+    "identityNex": "Profil G-Cup : temps envoyés à la Wi-Fi Ranking G-Cup. Le nom est celui de l'équipe envoyé avec eux."
+  },
+  "chart": { "asTable": "Afficher en tableau" },
+  "result": {
+    "gpEntry": "Résultat du Grand Prix", "gcupEntry": "Course de la G-Cup", "countsFor": "Compte pour le {{day}}", "received": "Reçu le {{when}}",
+    "rounds": "Manches", "roundsNote": "Chaque ticket joue trois manches contre des équipes téléchargées depuis d'autres joueurs ou le serveur. Ce ne sont pas des matchs en direct.",
+    "round": "Manche {{n}}", "vs": "contre", "cpu": "équipe du serveur", "won": "Gagnée", "notWon": "Non gagnée",
+    "roundPoints": "victoire {{win}} · popularité {{pop}} · force {{str}} · évaluation {{ev}}",
+    "team": "Équipe utilisée", "signed": "La somme de contrôle du jeu pour ces manches est valide. Elle montre que le client les a créées, pas qu'elles ont été observées.",
+    "frames": "Images", "framesNote": "30 images par seconde", "best": "Record personnel", "yes": "Oui", "no": "Non",
+    "back": "Retour à l'édition"
+  },
+  "validation": {
+    "malformed": "Cet envoi est incomplet : il ne compte pas.", "source_lost": "Le serveur de jeu n'a plus ce résultat (sauvegarde restaurée) : il ne compte pas.",
+    "other_cup": "Envoyé pour une autre coupe : il ne compte pas ici.", "unverified": "Envoyé par le jeu"
+  },
+  "provenance": {
+    "reconstructed": "Nom tiré du profil actuel : ce résultat a été enregistré avant que les noms le soient.",
+    "unknown": "Aucun nom n'a été enregistré avec ce résultat."
+  },
+  "battles": {
+    "title": "Combats", "lede": "Les manches du Grand Prix, des plus récentes aux plus anciennes.",
+    "coverage": "Seules les manches du Grand Prix sont enregistrées. Les combats Wi-Fi directs se jouent entre consoles et le serveur n'en connaît jamais l'issue.",
+    "none": "Aucune manche ne correspond aux filtres.", "playerFilter": "Manches jouées par le joueur ou contre son équipe."
+  },
+  "monsters": {
+    "title": "Monstres", "lede": "Tous les monstres avec leur portrait, dans toutes les langues du jeu.",
+    "searchHint": "Nom dans n'importe quelle langue ou numéro", "none": "Aucun monstre ne correspond.", "unknown": "Monstre inconnu n° {{id}}.",
+    "count_one": "{{count}} monstre", "count_many": "{{count}} monstres", "count_other": "{{count}} monstres"
+  },
+  "monster": {
+    "rank": "Rang", "family": "Famille", "maxStats": "Statistiques maximales", "usage": "Utilisation au Grand Prix",
+    "usageNote": "Part des équipes de joueurs (la dernière de chacun dans chaque édition) qui contiennent ce monstre.",
+    "recent": "Équipes récentes", "noTeams": "Aucune équipe enregistrée n'utilise encore ce monstre.",
+    "artSource": "Portrait tiré du DQM J3 Professional Master's guide de StrangeServer & Yggdrasil."
+  },
+  "family": {
+    "slime": "Gluant", "dragon": "Dragon", "beast": "Bête", "nature": "Nature", "demon": "Démon", "undead": "Mort-vivant",
+    "material": "Matériau", "corrupted": "Corrompu", "unknown": "???"
+  },
+  "size": { "0": "Petit", "1": "Petit", "2": "Moyen", "3": "Giga", "4": "Méga" },
+  "stat": { "hp": "PV", "mp": "PM", "atk": "ATQ", "def": "DÉF", "agi": "AGI", "wis": "SAG" },
+  "records": {
+    "title": "Records", "lede": "D'après les classements finaux de chaque édition.", "champions": "Palmarès des champions",
+    "podiums": "Le plus de podiums", "participation": "Le plus d'éditions", "gcupTimes": "Meilleurs temps de la G-Cup",
+    "gcupNote": "Regroupés par parcours et événement : seules les courses identiques sont comparées.", "none": "Pas encore de classement final."
+  },
+  "statusPage": {
+    "title": "État", "ok": "Les archives sont à jour.", "degraded": "Les archives sont en retard ou une source est illisible. Les services de jeu ne sont pas touchés.",
+    "sources": "Sources des données", "source": "Source", "asOf": "Dernière lecture complète", "state": "État",
+    "failing": "Erreurs", "healthy": "OK", "current": "Éditions en cours", "checks": "Contrôles",
+    "signatures": "Sommes de contrôle des manches du Grand Prix : {{valid}} valides, {{invalid}} non conformes. La méthode de vérification reste à confirmer.",
+    "catalog": "Version du catalogue des monstres {{version}}",
+    "src": { "sil-gp": "Résultats du Grand Prix", "nex-gcup": "Courses de la G-Cup" }
+  },
+  "about": {
+    "title": "À propos de ces archives",
+    "lede": "Des archives non officielles des compétitions des serveurs communautaires de DQMJ3P Online. Aucun compte ni connexion n'est nécessaire.",
+    "scoring": { "title": "Points du Grand Prix", "body": "Chaque ticket joue trois manches. Les points de tous les tickets de la semaine s'additionnent, exactement comme sur le serveur de jeu ; les joueurs à égalité partagent le rang." },
+    "cutoffs": { "title": "Classement publié et provisoire", "body": "Chaque jour, le jeu publie le classement jusqu'à la veille. La vue publiée montre la même chose ; la vue provisoire ajoute les résultats reçus aujourd'hui. Les jours du tournoi suivent le fuseau horaire du Grand Prix indiqué à côté de chaque date." },
+    "gcup": { "title": "G-Cup", "body": "La G-Cup change chaque lundi à 00:00 UTC et chaque coupe revient toutes les douze semaines. Chaque semaine est une édition distincte avec son lien permanent. Les temps sont mesurés en images, à 30 par seconde." },
+    "identity": { "title": "Joueurs et noms", "body": "Le Grand Prix et la G-Cup utilisent des comptes de jeu différents, ils ont donc des profils séparés. Les noms s'affichent tels qu'ils étaient lors de l'envoi de chaque résultat ; changer de nom ne modifie pas les anciens résultats." },
+    "coverage": { "title": "Ce qui manque", "body": "Les résultats enregistrés avant l'existence des archives peuvent ne pas avoir le nom d'origine ; les tentatives de course écrasées et les replays supprimés ne peuvent pas être récupérés. Les pages le signalent lorsque c'est le cas." },
+    "battles": { "title": "Combats", "body": "Les manches du Grand Prix se jouent contre des équipes téléchargées, pas contre des adversaires en direct. Les combats Wi-Fi directs ne sont pas enregistrés par le serveur." },
+    "privacy": { "title": "Confidentialité", "body": "Les profils utilisent des identifiants publics aléatoires : codes ami, numéros de compte et adresses ne sont jamais affichés. Les joueurs suivis et les réglages restent dans votre navigateur." },
+    "credits": {
+      "title": "Crédits", "art": "Portraits des monstres : DQM J3 Professional Master's guide de StrangeServer & Yggdrasil.",
+      "names": "Noms des monstres : les textes du jeu et les traductions de fans italienne et française.",
+      "game": "Dragon Quest Monsters: Joker 3 Professional © Square Enix. Ce projet de fans n'est affilié ni à Square Enix ni à Nintendo.",
+      "source": "Code source"
+    }
+  }
+}

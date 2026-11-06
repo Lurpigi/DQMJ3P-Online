@@ -1,4 +1,5 @@
-# Tests the servers, then deploys them to the VPS on every push to main (see docs/deploy.md).
+# Tests the servers and the portal, then deploys the servers to the VPS on every push to main
+# (see docs/deploy.md). The portal frontend is published by pages.yml.
 name: Deploy
 
 on:
@@ -15,6 +16,16 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dqmj3p
+          POSTGRES_PASSWORD: dqmj3p
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U dqmj3p" --health-interval 5s --health-timeout 3s --health-retries 12
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +36,10 @@ jobs:
 
       - name: Go vet and tests
         working-directory: server/nex
+        env:
+          PN_DQMJ3P_TEST_POSTGRES_URI: postgres://dqmj3p:dqmj3p@127.0.0.1:5432/gcup_test?sslmode=disable
         run: |
+          PGPASSWORD=dqmj3p psql -h 127.0.0.1 -U dqmj3p -d test -c "CREATE DATABASE gcup_test"
           test -z "$(gofmt -l ./nex)" || { gofmt -l ./nex; exit 1; }
           go vet ./...
           go test ./...
@@ -36,6 +50,28 @@ jobs:
 
       - name: SIL test
         run: python -I server/tests/test_sil.py
+
+      - name: Portal backend tests
+        working-directory: server/dashboard
+        env:
+          DASHBOARD_TEST_DB: postgresql://dqmj3p:dqmj3p@127.0.0.1:5432/dashboard_test
+        run: |
+          PGPASSWORD=dqmj3p psql -h 127.0.0.1 -U dqmj3p -d test -c "CREATE DATABASE dashboard_test"
+          python -m pip install --quiet -r requirements-dev.txt
+          python -m pytest -q tests
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Portal frontend checks
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check
+          npm run build
 
       - name: Compose file
         working-directory: server
@@ -54,10 +90,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build the NEX image
+      - name: Build the NEX and portal images
         run: |
           docker build --build-arg BUILD_STRING="dqmj3p.${GITHUB_SHA::7}" -t server-nex:latest server/nex
-          docker save server-nex:latest | gzip > server-nex.tar.gz
+          docker build -t server-dashboard:latest server/dashboard
+          docker save server-nex:latest server-dashboard:latest | gzip > server-nex.tar.gz
           git archive --format=tar.gz -o server.tar.gz HEAD server
 
       - name: SSH key

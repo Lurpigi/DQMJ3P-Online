@@ -1,109 +1,109 @@
-# Come funziona il server
+# Server architecture
 
-Il gioco usava tre servizi online diversi. Lo stack li sostituisce tutti e gira su un solo VPS con
-Docker Compose ([server/docker-compose.yml](../server/docker-compose.yml)).
+The game used three separate online services. This stack replaces all of them and runs on a single VPS
+with Docker Compose ([server/docker-compose.yml](../server/docker-compose.yml)).
 
 ```text
-                    login amici (ID univoco del giocatore)
+                    Friends login (unique player ID)
   3DS / Azahar  ─────────────────────────────────────────────▶  Pretendo Network
        │
-       │  patch code.ips: tutti gli altri indirizzi puntano al VPS
+       │  code.ips patch: all other addresses point to the VPS
        ▼
-  ┌──────────────────────────── VPS ────────────────────────────┐
-  │  nex       UDP 45000-45001   lotte, comunità, G-Cup          │
-  │            TCP 45080         upload e download dei replay     │──▶ postgres
-  │  sil       TCP 8381          Grand Prix, codici regalo        │──▶ sqlite in DATA_DIR
-  │  spotpass  TCP 8380          dischi regalo, negozio, eventi   │
-  │  nncs      UDP 10025, 10125, 33334-33335 (due IP)  NAT check  │
+  ┌──────────────────────────── VPS ─────────────────────────────┐
+  │  nex       UDP 45000-45001   Battles, communities, G-Cup       │
+  │            TCP 45080         Replay uploads and downloads     │──▶ postgres
+  │  sil       TCP 8381          Grand Prix, present codes        │──▶ SQLite in DATA_DIR
+  │  spotpass  TCP 8380          Gift discs, shop, events          │
+  │  nncs      UDP 10025, 10125, 33334-33335 (two IPs)  NAT check │
   └──────────────────────────────────────────────────────────────┘
        ▲
-       │  lotte: dati di gioco diretti tra le console (Pia, P2P)
-  altra console
+       │  Battles: game data sent directly between consoles (Pia, P2P)
+  Other console
 ```
 
-## Servizi
+## Services
 
-| Servizio | Codice | Porte | Cosa fa |
+| Service | Code | Ports | Purpose |
 |---|---|---|---|
-| `nex` | Go, [server/nex](../server/nex) | 45000/udp (autenticazione), 45001/udp (secure), 45080/tcp (HTTP DataStore) | Server di gioco Nintendo NEX 3.10.1: login, matchmaking delle lotte, comunità, classifiche e replay della G-Cup |
-| `postgres` | immagine `postgres:16-alpine` | solo rete interna | Dati di `nex` |
-| `seed` | SQL in [server/nex/sql](../server/nex/sql) | nessuna | Crea o aggiorna le comunità ufficiali e le 12 coppe G-Cup a ogni avvio dello stack, poi si ferma |
-| `sil` | Python, [server/sil](../server/sil) | 8381/tcp | Sostituto del server SIL di Square Enix: Grand Prix, codici regalo, sfondi, backup del salvataggio |
-| `spotpass` | Python, [server/spotpass](../server/spotpass) | 8380/tcp | Serve i file SpotPass (BOSS) originali, cifrati come li distribuiva Nintendo |
-| `nncs` | Python, [server/nncs](../server/nncs) | 10025/udp, 10125/udp, 33334-33335/udp | Test NAT di Nintendo, che Pia usa prima di ogni lotta |
+| `nex` | Go, [server/nex](../server/nex) | 45000/udp (authentication), 45001/udp (secure), 45080/tcp (HTTP DataStore) | Nintendo NEX 3.10.1 game server: login, battle matchmaking, communities, G-Cup rankings and replays |
+| `postgres` | `postgres:16-alpine` image | Internal network only | `nex` data |
+| `seed` | SQL in [server/nex/sql](../server/nex/sql) | None | Creates or updates official communities and the 12 G-Cup cups whenever the stack starts, then exits |
+| `sil` | Python, [server/sil](../server/sil) | 8381/tcp | Replacement for Square Enix's SIL server: Grand Prix, present codes, wallpapers, save backup |
+| `spotpass` | Python, [server/spotpass](../server/spotpass) | 8380/tcp | Serves original SpotPass (BOSS) files, encrypted as originally distributed by Nintendo |
+| `nncs` | Python, [server/nncs](../server/nncs) | 10025/udp, 10125/udp, 33334-33335/udp | Nintendo NAT check, used by Pia before every battle |
 
-## Perché due indirizzi IP
+## Why two IP addresses are needed
 
-Il test NAT (`nncs`) deve rispondere sia dallo stesso indirizzo e porta della richiesta, sia da un'altra
-porta, sia da **un altro indirizzo**, per capire che tipo di NAT ha la console. Per questo il VPS ha due
-IPv4 pubblici configurati sulla scheda di rete (`PUBLIC_IP` e `PUBLIC_IP2` in `.env`), e `nncs` usa la
-rete dell'host invece di quella di Docker. Un NAT 1:1 del provider non va bene: il servizio deve poter
-fare il bind sugli IP pubblici.
+The NAT check (`nncs`) must respond from the same address and port as the request, from a different
+port, and from **a different address** to determine the console's NAT type. The VPS therefore needs two
+public IPv4 addresses configured on its network interface (`PUBLIC_IP` and `PUBLIC_IP2` in `.env`), and
+`nncs` uses host networking instead of Docker networking. Provider-side 1:1 NAT is unsuitable: the service
+must be able to bind to the public IP addresses.
 
-Il VPS di prova usa `188.245.46.173` (principale) e `78.47.138.100` (floating IP).
+The test VPS uses `188.245.46.173` (primary) and `78.47.138.100` (floating IP).
 
-## Il percorso di una connessione
+## Connection flow
 
-1. **Login amici.** La console entra in Pretendo con il suo account. Da lì il gioco prende l'ID del
-   giocatore (PID) e la password amici.
-2. **Login NEX senza NASC.** Il gioco originale chiedeva a Nintendo (NASC) l'indirizzo del server e un
-   token. La patch salta la richiesta e usa direttamente `IP:45000`. La password NEX è derivata dalla
-   password amici, che non lascia mai la console: il server la registra al primo accesso di ogni PID
-   (`accounts.passwords`) e poi la confronta.
-3. **Lotte.** `nex` fa solo il matchmaking: trova l'avversario e passa a ciascuna console l'indirizzo
-   dell'altra. I dati della lotta viaggiano direttamente tra le console con Pia. Non c'è un relay.
-4. **SIL.** Il Grand Prix e i codici regalo passano in HTTP dal server `sil`. Il token del giocatore è lo
-   stesso valore derivato del punto 2, legato al suo friend code SIL.
-5. **SpotPass.** Il modulo BOSS della console scarica i file da `spotpass` quando il gioco apre la Piazza
-   Wi-Fi.
+1. **Friends login.** The console signs into Pretendo with its account. The game retrieves the player ID
+   (PID) and friends password.
+2. **NEX login without NASC.** The original game asked Nintendo (NASC) for the server address and a
+   token. The patch skips that request and uses `IP:45000` directly. The NEX password is derived from the
+   friends password, which never leaves the console: the server records the derived value on each PID's
+   first login (`accounts.passwords`) and checks it on subsequent logins.
+3. **Battles.** `nex` handles matchmaking only: it finds an opponent and gives each console the other's
+   address. Battle data travels directly between consoles using Pia. There is no relay.
+4. **SIL.** Grand Prix and present codes use HTTP through the `sil` server. The player token is the same
+   derived value as in step 2, bound to the player's SIL friend code.
+5. **SpotPass.** The console's BOSS module downloads files from `spotpass` when the game opens the
+   Wi-Fi Plaza.
 
-## Dati
+## Data
 
-| Dove | Contenuto |
+| Location | Contents |
 |---|---|
-| Volume `pg` (Postgres) | Password NEX dei giocatori, sessioni e comunità (`matchmaking.*`), classifiche e risultati G-Cup (`ranking.*`), metadati dei replay |
-| Volume `datastore` | File dei replay della G-Cup |
-| `DATA_DIR` (`server/data`) | `sil.sqlite3` (utenti, risultati e squadre del Grand Prix, codici regalo usati) e i file pubblici del Grand Prix in `public/` |
-| `SPOTPASS_DIR` | File SpotPass originali (`re/data/spotpass_archive/canonical`, non nel repository) |
-| `.env` | Indirizzi e password interne (`POSTGRES_PASSWORD`, `KERBEROS_PASSWORD`), mai in git |
+| `pg` volume (Postgres) | Player NEX passwords, sessions and communities (`matchmaking.*`), G-Cup rankings and results (`ranking.*`), replay metadata |
+| `datastore` volume | G-Cup replay files |
+| `DATA_DIR` (`server/data`) | `sil.sqlite3` (users, Grand Prix results and teams, redeemed present codes) and public Grand Prix files in `public/` |
+| `SPOTPASS_DIR` | Original SpotPass files (`re/data/spotpass_archive/canonical`, not included in the repository) |
+| `.env` | Addresses and internal passwords (`POSTGRES_PASSWORD`, `KERBEROS_PASSWORD`), never committed to git |
 
-## Lavori periodici
+## Scheduled work
 
-- **Settimana G-Cup** ([gcup_week.go](../server/nex/nex/gcup_week.go)): ogni minuto `nex` controlla la
-  settimana (dal lunedì 2015-01-05, 12 coppe a rotazione). Al cambio salva i risultati, azzera la coppa che
-  inizia, cancella i replay vecchi e scrive il podio nelle notizie. Percorso, evento, avversari e premi di
-  ogni coppa sono in [gcup_official_communities.sql](../server/nex/sql/gcup_official_communities.sql).
-- **Calendario del Grand Prix**: `sil` lo calcola a ogni richiesta (tornei di 7 giorni, giorno che cambia
-  secondo `GP_UTC_OFFSET`). Le regole dello Sfidante ruotano su 8 set a ogni torneo.
-- **Comunità in evidenza**: a ogni richiesta vuota `nex` restituisce tutte le comunità mostrabili
+- **G-Cup week** ([gcup_week.go](../server/nex/nex/gcup_week.go)): every minute, `nex` checks the current
+  week (counted from Monday, 2015-01-05, with 12 rotating cups). At rollover, it saves results, resets the
+  incoming cup, deletes old replays, and publishes the podium in the news. Each cup's course, event,
+  opponents, and rewards are defined in [gcup_official_communities.sql](../server/nex/sql/gcup_official_communities.sql).
+- **Grand Prix schedule**: `sil` calculates it on every request (7-day tournaments, with the day changing
+  according to `GP_UTC_OFFSET`). Challenger rules rotate through 8 sets, one per tournament.
+- **Featured communities**: for each empty-list request, `nex` returns all communities eligible for display
   ([featured.go](../server/nex/nex/matchmake_extension/featured.go)).
 
-## Correzioni lato server per il gioco
+## Server-side game fixes
 
-- **Flag password casuali** ([password_flags.go](../server/nex/nex/matchmake_extension/password_flags.go)):
-  il gioco manda i flag password delle sessioni senza inizializzarli, e una sessione con quei flag era
-  invisibile all'avversario. Il server li azzera.
-- **Battaglia Amici**: il gioco crea la sessione "solo amici" (policy 98), che la libreria NEX
-  controllerebbe con il server amici di Pretendo, al quale non abbiamo accesso. Il server le dà la policy
-  della lotta casuale. L'amico deve comunque cercare il PID esatto dell'host, preso dalla lista amici della
-  console.
-- **Comunità**: `JoinCommunity` e `UpdateCommunity` mancano nella libreria comune e sono implementate in
-  [community.go](../server/nex/nex/matchmake_extension/community.go). Ogni gathering ha un `started_time`,
-  senza il quale uscire da una comunità dava l'errore 006-0102.
-- **Replay da Azahar**: Azahar invia i pezzi di un upload in ordine sbagliato. La patch per Azahar li manda in
-  un pezzo solo, e il server riordina quelli già caricati.
+- **Random password flags** ([password_flags.go](../server/nex/nex/matchmake_extension/password_flags.go)):
+  the game sends uninitialized session password flags, making the session invisible to opponents.
+  The server clears them.
+- **Friend Battle**: the game creates a friends-only session (policy 98), which the NEX library would
+  check against Pretendo's friends server, to which we have no access. The server assigns the random-battle
+  policy instead. The friend must still search for the host's exact PID, taken from the console's friends
+  list.
+- **Communities**: `JoinCommunity` and `UpdateCommunity` are missing from the common library and are
+  implemented in [community.go](../server/nex/nex/matchmake_extension/community.go). Every gathering has a
+  `started_time`; without it, leaving a community caused error 006-0102.
+- **Azahar replays**: Azahar sends upload chunks in the wrong order. The Azahar patch sends them as one
+  chunk, and the server reorders previously uploaded data.
 
-## Sicurezza
+## Security
 
-- Login SSH solo con chiave, fail2ban sul log di SSH, aggiornamenti automatici di sicurezza.
-- Firewall del provider con aperte solo le porte della tabella e la 22. Le porte pubblicate da Docker
-  scavalcano le regole iptables del server, quindi il filtro va fatto prima.
-- Ogni container ha un limite di memoria e di processi. I log Docker ruotano (10 MB × 3).
-- `sil` rifiuta richieste oltre 512 KiB. `sil` e `spotpass` accettano al massimo 64 connessioni insieme e
-  chiudono i client fermi da 15 s. L'HTTP del DataStore ha timeout di lettura e scrittura.
-- Gli upload dei replay hanno un token casuale per versione, che riceve solo chi ha preparato l'upload.
+- Key-only SSH login, fail2ban monitoring the SSH log, automatic security updates.
+- Provider firewall allowing only the ports in the table and port 22. Docker-published ports bypass the
+  server's iptables rules, so filtering must happen upstream.
+- Each container has memory and process limits. Docker logs rotate (10 MB × 3).
+- `sil` rejects requests larger than 512 KiB. `sil` and `spotpass` accept at most 64 concurrent connections
+  and close clients idle for 15 seconds. DataStore HTTP has read and write timeouts.
+- Replay uploads use a random token per version, given only to the client that prepared the upload.
 
-Limiti noti:
-- il token del giocatore viaggia in chiaro su HTTP verso `sil` e con una chiave fissa su PRUDP;
-- chi arriva per primo su un PID o un friend code senza proprietario lo occupa;
-- contro un attacco DDoS grande resta solo la protezione di rete del provider.
+Known limitations:
+- Player tokens travel in plaintext over HTTP to `sil` and using a fixed key over PRUDP.
+- The first client to claim an unowned PID or friend code takes ownership.
+- Large DDoS attacks can only be mitigated by the provider's network protection.
