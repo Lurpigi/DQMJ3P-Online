@@ -3,7 +3,7 @@
   "nav": {
     "main": "Principal", "secondary": "Plus", "skip": "Aller au contenu", "language": "Langue", "breadcrumb": "Fil d'Ariane",
     "overview": "Aperçu", "championships": "Championnats", "players": "Joueurs", "battles": "Combats",
-    "monsters": "Monstres", "records": "Records", "status": "État", "about": "À propos"
+    "monsters": "Monstres", "records": "Records", "status": "État", "about": "À propos", "play": "Jouer en ligne"
   },
   "theme": { "label": "Thème : {{theme}}. Changer de thème", "system": "Thème du système", "light": "Thème clair", "dark": "Thème sombre" },
   "mode": {
@@ -200,6 +200,15 @@
       "game": "Dragon Quest Monsters: Joker 3 Professional, ses personnages, les images des monstres et le logo Slime © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. Tous droits réservés. Ce projet de fans n'est ni affilié ni approuvé par Square Enix ou Nintendo.",
       "source": "Code source"
     }
+  },
+  "play": {
+    "title": "Jouer en ligne",
+    "lede": "Le compte qu'il vous faut dépend de l'endroit où vous jouez et de votre utilisation de Pretendo Network. Si vous jouez sur Azahar sans Pretendo, vous pouvez créer votre compte ici.",
+    "types": {"title": "Types de compte", "feature": "Fonction", "t3ds": "3DS avec Pretendo", "azahar": "Azahar avec Pretendo", "personal": "Azahar sans Pretendo", "patch": "Patch", "patchRelease": "Patch de la version publiée", "patchPersonal": "Patch personnel de cette page", "needs": "Il vous faut", "needs3ds": "Un compte Pretendo configuré avec Nimbus", "needsAzahar": "Un compte Pretendo et les modules système en ligne d'Azahar (LLE)", "needsPersonal": "Rien d'autre", "online": "Combats Wi-Fi, communautés, G-Cup, Grand Prix", "friend": "Combat entre amis", "spotpass": "SpotPass", "yes": "Oui", "no": "Non", "note": "Avec Pretendo, la connexion au service d'amis donne à chaque joueur son propre identifiant. Sans lui, Azahar donne le même identifiant à tous : cette page vous en attribue donc un et l'écrit dans un patch personnel. Un compte personnel est distinct d'un compte Pretendo : si vous passez de l'un à l'autre, votre progression en ligne n'est pas transférée.", "guide": "Guide d'installation pour 3DS et pour Azahar avec Pretendo"},
+    "variant": {"jp": "Japonais, ou English Fixed v2.21", "it": "Traduction italienne 1.1.9"},
+    "create": {"title": "Créer un compte pour Azahar sans Pretendo", "variant": "Votre jeu", "button": "Créer le compte et télécharger code.ips", "working": "Création du compte…", "done": "Compte créé : identifiant joueur {{pid}}, code ami {{code}}. Le téléchargement de code.ips a commencé.", "again": "Télécharger code.ips à nouveau", "keep": "Ce fichier est votre compte : gardez-en une copie et ne le partagez pas, car quiconque l'a joue à votre place. Si vous le perdez, le compte ne peut pas être récupéré.", "off": "La création de comptes n'est pas disponible pour le moment.", "limit": "Trop de comptes ont été créés depuis votre connexion aujourd'hui. Réessayez demain.", "error": "Une erreur s'est produite. Réessayez plus tard."},
+    "update": {"title": "Mettre à jour votre patch ou changer sa langue", "body": "Quand une nouvelle version du patch sort, ou si vous changez de traduction, choisissez ici votre code.ips personnel actuel : la page crée le nouveau avec le même compte. Le fichier n'est envoyé nulle part.", "file": "Votre code.ips personnel", "button": "Créer le nouveau code.ips", "notPersonal": "Ce fichier n'est pas un patch personnel créé sur cette page.", "done": "Nouveau code.ips téléchargé pour l'identifiant joueur {{pid}}."},
+    "install": {"title": "Installation", "step1": "Mettez le jeu à jour en v1.3. Si vous jouez avec une traduction, installez-la d'abord en suivant son guide.", "step2": "Copiez code.ips à cet emplacement, en remplaçant le fichier existant (sous Windows, le dossier utilisateur est généralement %APPDATA%\\Azahar) :", "step3": "Dans Emulation > Configure > System, activez le mode New 3DS et désactivez « Enable required LLE modules for online features ».", "step4": "Désactivez tout VPN, lancez le jeu et entrez dans la Place Wi-Fi.", "gp": "Grand Prix : une sauvegarde qui a déjà joué au Grand Prix avec un autre compte garde le code ami de ce compte, et le serveur le refuse. Dans ce cas, ouvrez une issue sur GitHub."}
   },
   "footer": { "copyright": "© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved.", "unofficial": "Site de fans non officiel, non affilié à Square Enix ni à Nintendo." }
 }

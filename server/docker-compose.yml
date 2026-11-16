@@ -125,8 +125,9 @@ services:
       - ./nncs:/app:ro
 
   # --- Statistics portal (docs/dashboard.md), enabled with COMPOSE_PROFILES=portal ---------------
-  # One-shot: portal tables, then the two database roles (importer: portal writes + game tables it
-  # imports; api: portal reads only). Waits for the tables the NEX server creates at startup.
+  # One-shot: portal tables, then the database roles (importer: portal writes + game tables it
+  # imports; api: portal reads only; accounts: inserts Azahar accounts into accounts.passwords and
+  # nothing else). Waits for the tables the NEX server creates at startup.
   dashboard-migrate:
     image: server-dashboard:latest
     build: ./dashboard
@@ -139,8 +140,9 @@ services:
       DASHBOARD_ADMIN_DB_URL: postgres://dqmj3p:${POSTGRES_PASSWORD}@postgres:5432/dqmj3p?sslmode=disable
       DASHBOARD_IMPORTER_PASSWORD: ${DASHBOARD_IMPORTER_PASSWORD:-}
       DASHBOARD_API_PASSWORD: ${DASHBOARD_API_PASSWORD:-}
+      DASHBOARD_ACCOUNTS_PASSWORD: ${DASHBOARD_ACCOUNTS_PASSWORD:-}
     command: ["python", "-m", "dashboard", "migrate", "--wait",
-              "ranking.scores,ranking.gcup_weeks,history.gcup_finals,matchmaking.persistent_gatherings"]
+              "ranking.scores,ranking.gcup_weeks,history.gcup_finals,matchmaking.persistent_gatherings,accounts.passwords"]
 
   # Importer + public read-only API, one process. It reads the SIL database read-only: stopping it
   # never affects the game, and the game never waits for it.
@@ -158,6 +160,8 @@ services:
     environment:
       DASHBOARD_DB_URL: postgres://dashboard_importer:${DASHBOARD_IMPORTER_PASSWORD:-}@postgres:5432/dqmj3p?sslmode=disable
       DASHBOARD_API_DB_URL: postgres://dashboard_api:${DASHBOARD_API_PASSWORD:-}@postgres:5432/dqmj3p?sslmode=disable
+      # Azahar accounts page: without DASHBOARD_ACCOUNTS_PASSWORD the URL has no password and the page is off
+      DASHBOARD_ACCOUNTS_DB_URL: postgres://dashboard_accounts:${DASHBOARD_ACCOUNTS_PASSWORD:-}@postgres:5432/dqmj3p?sslmode=disable
       DASHBOARD_SIL_DB: /sil-data/sil.sqlite3
       DASHBOARD_SIL_CODE: /sil/sil_server.py
       DASHBOARD_SERVER_ID: ${DASHBOARD_SERVER_ID:-production}

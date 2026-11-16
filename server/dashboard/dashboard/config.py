@@ -1,5 +1,6 @@
 """Settings from the environment (server/.env, docker-compose.yml)."""
 import os
+from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -7,6 +8,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 def _list(value):
     return [v.strip().rstrip("/") for v in value.split(",") if v.strip()]
+
+
+def _with_password(url):
+    """docker-compose.yml always builds the URL; without DASHBOARD_ACCOUNTS_PASSWORD it has no password."""
+    return url if url and urlsplit(url).password else ""
 
 
 @dataclass
@@ -26,6 +32,11 @@ class Settings:
     trust_proxy: bool = False   # take the client address from X-Forwarded-For (only behind Caddy)
     rate_limit: int = 300       # requests per minute and client address
     statement_timeout_ms: int = 3000
+    # Azahar accounts (POST /azahar/accounts): role that may only insert into accounts.passwords.
+    # Empty, or a URL without a password: the endpoint answers 503.
+    accounts_db_url: str = ""
+    accounts_per_client_day: int = 3
+    accounts_per_day: int = 200
 
     @classmethod
     def from_env(cls, env=os.environ):
@@ -44,6 +55,9 @@ class Settings:
             catalog=env.get("DASHBOARD_CATALOG", cls.catalog),
             trust_proxy=env.get("DASHBOARD_TRUST_PROXY", "0") == "1",
             rate_limit=int(env.get("DASHBOARD_RATE_LIMIT", "300")),
+            accounts_db_url=_with_password(env.get("DASHBOARD_ACCOUNTS_DB_URL", "")),
+            accounts_per_client_day=int(env.get("DASHBOARD_ACCOUNTS_PER_CLIENT_DAY", "3")),
+            accounts_per_day=int(env.get("DASHBOARD_ACCOUNTS_PER_DAY", "200")),
         )
 
     def check(self):

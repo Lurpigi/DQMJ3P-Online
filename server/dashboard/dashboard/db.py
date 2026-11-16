@@ -10,6 +10,8 @@ from psycopg_pool import ConnectionPool
 
 MIGRATIONS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "migrations")
 IMPORTER_ROLE, API_ROLE = "dashboard_importer", "dashboard_api"
+# Azahar accounts: may only add rows to the NEX player passwords (server/nex/globals/password_from_pid.go)
+ACCOUNTS_ROLE = "dashboard_accounts"
 
 # Source tables the importer may read (column lists where the table holds anything private)
 SOURCE_GRANTS = [
@@ -54,7 +56,7 @@ def wait_for_tables(url, tables, timeout, log=print):
         time.sleep(3)
 
 
-def migrate(admin_url, importer_password=None, api_password=None, log=print):
+def migrate(admin_url, importer_password=None, api_password=None, log=print, accounts_password=None):
     """Applies migrations/*.sql in order, then (re)creates the two roles and their grants. Run with
     the database owner (dashboard-migrate service); the long-running service uses the roles."""
     with connect(admin_url, autocommit=True) as conn:
@@ -73,6 +75,11 @@ def migrate(admin_url, importer_password=None, api_password=None, log=print):
         if importer_password and api_password:
             grant_roles(conn, importer_password, api_password)
             log("roles updated")
+        if accounts_password:
+            if grant_accounts_role(conn, accounts_password):
+                log("accounts role updated")
+            else:
+                log("accounts.passwords does not exist yet (the NEX server creates it): accounts role not granted")
 
 
 def _ensure_role(conn, role, password):
@@ -107,3 +114,15 @@ def grant_roles(conn, importer_password, api_password):
                 sql.SQL(", ").join(map(sql.Identifier, columns)), target, imp))
         else:
             conn.execute(sql.SQL("GRANT SELECT ON {} TO {}").format(target, imp))
+
+
+def grant_accounts_role(conn, password):
+    """INSERT (pid, password) on accounts.passwords and nothing else: no reads, so the role can neither
+    list accounts nor learn their passwords."""
+    if not conn.execute("SELECT to_regclass('accounts.passwords')").fetchone()["to_regclass"]:
+        return False
+    _ensure_role(conn, ACCOUNTS_ROLE, password)
+    role = sql.Identifier(ACCOUNTS_ROLE)
+    conn.execute(sql.SQL("GRANT USAGE ON SCHEMA accounts TO {}").format(role))
+    conn.execute(sql.SQL("GRANT INSERT (pid, password) ON accounts.passwords TO {}").format(role))
+    return True

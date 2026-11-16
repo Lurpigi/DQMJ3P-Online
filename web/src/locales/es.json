@@ -3,7 +3,7 @@
   "nav": {
     "main": "Principal", "secondary": "Más", "skip": "Ir al contenido", "language": "Idioma", "breadcrumb": "Ruta",
     "overview": "Resumen", "championships": "Campeonatos", "players": "Jugadores", "battles": "Combates",
-    "monsters": "Monstruos", "records": "Récords", "status": "Estado", "about": "Acerca de"
+    "monsters": "Monstruos", "records": "Récords", "status": "Estado", "about": "Acerca de", "play": "Jugar en línea"
   },
   "theme": { "label": "Tema: {{theme}}. Cambiar tema", "system": "Tema del sistema", "light": "Tema claro", "dark": "Tema oscuro" },
   "mode": {
@@ -200,6 +200,15 @@
       "game": "Dragon Quest Monsters: Joker 3 Professional, sus personajes, las imágenes de los monstruos y el logo del Slime © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. Todos los derechos reservados. Este proyecto de fans no está afiliado ni respaldado por Square Enix ni Nintendo.",
       "source": "Código fuente"
     }
+  },
+  "play": {
+    "title": "Jugar en línea",
+    "lede": "La cuenta que necesitas depende de dónde juegas y de si usas Pretendo Network. Si juegas en Azahar sin Pretendo, puedes crear tu cuenta aquí.",
+    "types": {"title": "Tipos de cuenta", "feature": "Función", "t3ds": "3DS con Pretendo", "azahar": "Azahar con Pretendo", "personal": "Azahar sin Pretendo", "patch": "Parche", "patchRelease": "Parche de la versión publicada", "patchPersonal": "Parche personal de esta página", "needs": "Necesitas", "needs3ds": "Una cuenta de Pretendo configurada con Nimbus", "needsAzahar": "Una cuenta de Pretendo y los módulos de sistema en línea de Azahar (LLE)", "needsPersonal": "Nada más", "online": "Combates Wi-Fi, comunidades, G-Cup, Grand Prix", "friend": "Combate con amigos", "spotpass": "SpotPass", "yes": "Sí", "no": "No", "note": "Con Pretendo, el inicio de sesión de amigos da a cada jugador su propio ID. Sin él, Azahar da el mismo ID a todos, así que esta página te asigna uno y lo escribe en un parche personal. Una cuenta personal es independiente de una de Pretendo: si cambias de una a otra, el progreso en línea no se transfiere.", "guide": "Guía de instalación para 3DS y para Azahar con Pretendo"},
+    "variant": {"jp": "Japonés, o English Fixed v2.21", "it": "Traducción italiana 1.1.9"},
+    "create": {"title": "Crea una cuenta para Azahar sin Pretendo", "variant": "Tu juego", "button": "Crear la cuenta y descargar code.ips", "working": "Creando la cuenta…", "done": "Cuenta creada: ID de jugador {{pid}}, código de amigo {{code}}. La descarga de code.ips ha comenzado.", "again": "Descargar code.ips de nuevo", "keep": "El archivo es tu cuenta: guarda una copia y no lo compartas, porque quien lo tenga juega como tú. Si lo pierdes, la cuenta no se puede recuperar.", "off": "La creación de cuentas no está disponible en este momento.", "limit": "Hoy se han creado demasiadas cuentas desde tu conexión. Inténtalo mañana.", "error": "Algo ha fallado. Inténtalo más tarde."},
+    "update": {"title": "Actualiza tu parche o cambia su idioma", "body": "Cuando salga una nueva versión del parche, o cambies de traducción, elige aquí tu code.ips personal actual: la página crea el nuevo con la misma cuenta. El archivo no se envía a ningún sitio.", "file": "Tu code.ips personal", "button": "Crear el nuevo code.ips", "notPersonal": "Este archivo no es un parche personal creado en esta página.", "done": "Descargado el nuevo code.ips para el ID de jugador {{pid}}."},
+    "install": {"title": "Instalación", "step1": "Actualiza el juego a la v1.3. Si juegas con una traducción, instálala antes siguiendo su guía.", "step2": "Copia code.ips en esta ruta y sustituye el archivo que haya (en Windows la carpeta de usuario suele ser %APPDATA%\\Azahar):", "step3": "En Emulation > Configure > System, activa el modo New 3DS y desactiva \"Enable required LLE modules for online features\".", "step4": "Desactiva cualquier VPN, inicia el juego y entra en la Plaza Wi-Fi.", "gp": "Grand Prix: una partida guardada que ya jugó el Grand Prix con otra cuenta conserva el código de amigo de esa cuenta, y el servidor lo rechaza. En ese caso, abre una issue en GitHub."}
   },
   "footer": { "copyright": "© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved.", "unofficial": "Sitio de fans no oficial, sin relación con Square Enix ni Nintendo." }
 }

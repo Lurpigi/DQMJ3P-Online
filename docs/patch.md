@@ -28,6 +28,13 @@ python -I re/tools/make_url_patch.py --code re/bin/code.bin --sil-url http://IP:
 | `--azahar` | Fixes for Azahar's HTTP bugs | Emulator only |
 | `--merge FILE` | Copies records from another patch | Luma and Azahar load only one `code.ips` |
 
+Accounts for Azahar without Pretendo: `--identity PID:SECRET` (with `--nex-player-password`) gives
+the patch a fixed PID from the reserved range and a 16-character secret. Azahar's HLE friends module
+reports PID 0 and has no friends password, so without it the server refuses the login. Players do not
+build this patch themselves: [re/tools/azahar_identity.py](../re/tools/azahar_identity.py) issues the
+account, writes the personal `code.ips` from a release Azahar patch, and writes the SQL that registers
+the PID on the server. See [re/notes/azahar_hle_identity.md](../re/notes/azahar_hle_identity.md).
+
 Testing options, not intended for players: `--nex-password` (shared password, server in DEV mode),
 `--skip-frd` and `--pid-offset N` (second Azahar instance using the same account), `--azahar-hle-boss`,
 `--spotpass-break`, `--infra-url`.
@@ -66,7 +73,9 @@ Testing options, not intended for players: `--nex-password` (shared password, se
 ### Free space used
 
 The added routines occupy padding at the end of `.text`: `0x6B9900` (`--spotpass-break`), `0x6B9A60`
-(`--nex-player-password`), `0x6B9B60` (Azahar upload). `0x6B9810-0x6B98F3` is occupied by the translation's
+(`--nex-player-password`), `0x6B9B60` (Azahar upload), `0x6B9B70-0x6B9BB3` (`--identity`: secret and PID
+routines; the call at `0x6B9A6C` and the GetMyFriendKey wrapper at `0x42D48C` jump there).
+`0x6B9C00-0x6BA000` is reserved for the translation fix. `0x6B9810-0x6B98F3` is occupied by the translation's
 `code_enhanced.ips`.
 
 ## Console and emulator patches

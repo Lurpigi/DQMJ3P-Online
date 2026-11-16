@@ -3,7 +3,7 @@
   "nav": {
     "main": "メイン", "secondary": "その他", "skip": "本文へ移動", "language": "言語", "breadcrumb": "パンくずリスト",
     "overview": "トップ", "championships": "大会", "players": "プレイヤー", "battles": "バトル",
-    "monsters": "モンスター", "records": "記録", "status": "稼働状況", "about": "このサイトについて"
+    "monsters": "モンスター", "records": "記録", "status": "稼働状況", "about": "このサイトについて", "play": "オンラインで遊ぶ"
   },
   "theme": { "label": "テーマ：{{theme}}。テーマを切り替える", "system": "システム設定", "light": "ライト", "dark": "ダーク" },
   "mode": {
@@ -198,6 +198,15 @@
       "game": "ドラゴンクエストモンスターズ ジョーカー3 プロフェッショナル、そのキャラクター、モンスター画像、スライムのロゴ © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX All Rights Reserved. このファンプロジェクトはスクウェア・エニックスおよび任天堂とは関係がなく、公認を受けていません。",
       "source": "ソースコード"
     }
+  },
+  "play": {
+    "title": "オンラインで遊ぶ",
+    "lede": "必要なアカウントは、遊ぶ環境とPretendo Networkを使うかどうかで決まります。PretendoなしでAzaharを使う場合は、ここでアカウントを作成できます。",
+    "types": {"title": "アカウントの種類", "feature": "機能", "t3ds": "3DS（Pretendoあり）", "azahar": "Azahar（Pretendoあり）", "personal": "Azahar（Pretendoなし）", "patch": "パッチ", "patchRelease": "リリース版のパッチ", "patchPersonal": "このページで作る個人用パッチ", "needs": "必要なもの", "needs3ds": "Nimbusで設定したPretendoアカウント", "needsAzahar": "PretendoアカウントとAzaharのオンライン用システムモジュール（LLE）", "needsPersonal": "ほかには不要", "online": "Wi-Fi対戦、コミュニティ、Gカップ、グランプリ", "friend": "フレンド対戦", "spotpass": "いつの間に通信", "yes": "可", "no": "不可", "note": "Pretendoでは、フレンドサーバーへのログインでプレイヤーごとに固有のIDが割り当てられます。PretendoがないとAzaharは全員に同じIDを使うため、このページでIDを発行し、個人用パッチに書き込みます。個人用アカウントはPretendoのアカウントとは別のものなので、切り替えるとオンラインの進行状況は引き継がれません。", "guide": "3DSとPretendoありのAzahar向けインストールガイド"},
+    "variant": {"jp": "日本語版、またはEnglish Fixed v2.21", "it": "イタリア語ファン翻訳 1.1.9"},
+    "create": {"title": "PretendoなしのAzahar用アカウントを作成", "variant": "お使いのゲーム", "button": "アカウントを作成してcode.ipsをダウンロード", "working": "アカウントを作成中…", "done": "アカウントを作成しました：プレイヤーID {{pid}}、フレンドコード {{code}}。code.ipsのダウンロードを開始しました。", "again": "code.ipsをもう一度ダウンロード", "keep": "このファイルがあなたのアカウントです。コピーを保管し、他人と共有しないでください。ファイルを持つ人は誰でもあなたとして遊べます。なくした場合、アカウントは復元できません。", "off": "現在、アカウントの作成はできません。", "limit": "今日はお使いの接続から作成されたアカウントが多すぎます。明日もう一度お試しください。", "error": "問題が発生しました。しばらくしてからもう一度お試しください。"},
+    "update": {"title": "パッチの更新・言語の変更", "body": "新しいバージョンのパッチが出たときや翻訳を変えるときは、ここで今の個人用code.ipsを選んでください。同じアカウントで新しいファイルを作成します。ファイルはどこにも送信されません。", "file": "個人用code.ips", "button": "新しいcode.ipsを作成", "notPersonal": "このファイルは、このページで作成した個人用パッチではありません。", "done": "プレイヤーID {{pid}} の新しいcode.ipsをダウンロードしました。"},
+    "install": {"title": "インストール", "step1": "ゲームをv1.3に更新してください。翻訳版で遊ぶ場合は、先にその手順に従って翻訳をインストールしてください。", "step2": "code.ipsを次の場所にコピーし、既存のファイルがあれば置き換えてください（Windowsのユーザーフォルダーは通常%APPDATA%\\Azaharです）：", "step3": "「Emulation > Configure > System」でNew 3DSモードをオンにし、「Enable required LLE modules for online features」をオフにしてください。", "step4": "VPNをオフにしてゲームを起動し、Wi-Fiひろばに入ってください。", "gp": "グランプリ：別のアカウントでグランプリに参加したことのあるセーブデータには、そのアカウントのフレンドコードが残っており、サーバーに拒否されます。その場合はGitHubでissueを作成してください。"}
   },
   "footer": { "copyright": "© ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved.", "unofficial": "非公式ファンサイトです。スクウェア・エニックスおよび任天堂とは関係ありません。" }
 }

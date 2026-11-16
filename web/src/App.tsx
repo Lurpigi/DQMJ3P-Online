@@ -18,6 +18,7 @@ const MonsterPage = lazy(() => import("./pages/Monster"));
 const Records = lazy(() => import("./pages/Records"));
 const StatusPage = lazy(() => import("./pages/Status"));
 const About = lazy(() => import("./pages/About"));
+const Play = lazy(() => import("./pages/Play"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function ToLocale() {
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="records" element={<Records />} />
               <Route path="status" element={<StatusPage />} />
               <Route path="about" element={<About />} />
+              <Route path="play" element={<Play />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

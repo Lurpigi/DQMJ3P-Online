@@ -351,3 +351,14 @@ thead th { border-top: 0; font-size: 0.85rem; color: var(--muted); background: v
   .btn:active:not(:disabled), .segmented button:active, .main-nav a:active, .chips a:active, .monster-grid a:active { transform: none; }
   .btn-icon .icon { transition: none; }
 }
+
+/* Play online page (pages/Play.tsx) */
+.play .table-wrap { margin: 12px 0; }
+.play .table-wrap th[scope="row"] { text-align: left; }
+.play code { overflow-wrap: anywhere; }
+.play .choice { border: 0; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
+.play .choice legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+.play .choice label, .play .file-field { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.play .file-field { flex-wrap: wrap; margin: 12px 0; font-weight: 700; }
+.play .btn { margin: 4px 0 12px; }
+.play .btn-primary { background: var(--accent); color: var(--on-accent, #fff); }
