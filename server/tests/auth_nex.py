@@ -2,7 +2,8 @@
 
 A fake client logs in like the patched game, with LoginEx and the player password as the token:
 the first login of a PID stores the password, later logins must match and a client that only
-knows the PID gets nowhere. Plain Login must be refused.
+knows the PID gets nowhere. Plain Login must be refused, and so must a PID of the issued range
+that has no account.
 
 usage: python auth_nex.py [host] [auth_port]
 Prints the test PID, so it can be removed from accounts.passwords on a shared server.
@@ -17,6 +18,7 @@ from nintendo.nex import authentication, backend, common, settings
 
 HOST = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 45000
+ISSUED_PID_MIN = 0xF0000000  # server/nex/globals/accounts.go IssuedPIDMin
 
 
 def make_settings():
@@ -78,6 +80,12 @@ async def main():
     error = await login(pid, password, None)
     assert error is not None, "plain Login accepted"
     print("[auth] plain Login refused:", error)
+
+    # issued accounts (Azahar without Pretendo, re/tools/azahar_identity.py) never register
+    issued = random.randint(ISSUED_PID_MIN, 0xFFFFFFFE)
+    error = await login(issued, password, password)
+    assert error is not None, "PID of the issued range registered itself"
+    print("[auth] unissued PID of the issued range refused:", error)
 
     print("AUTH TEST OK")
 

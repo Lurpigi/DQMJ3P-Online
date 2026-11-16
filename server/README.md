@@ -51,6 +51,8 @@ Without `PN_DQMJ3P_DEV_PASSWORD`, the server uses a separate password for each p
 
 The same value is used for the SIL token. The SIL server stores its SHA-256 hash per friend code: the first `nuser/register` or `nuser/login` binds it, and subsequent logins must match. Another `nuser/register` with the same value returns the previously assigned friend code.
 
+PIDs from `0xF0000000` up are issued accounts for Azahar without Pretendo (`re/tools/azahar_identity.py`). They never register on their first login: the NEX server accepts them only once `accounts.passwords` has their row, which the tool's SQL file adds (`docker compose exec -T postgres psql -U dqmj3p dqmj3p < account.sql`).
+
 DataStore upload URLs contain a random token, valid for one version until `Complete`, which is only given to the client that prepared the upload.
 
 To test patches without `--nex-player-password` locally: `sil_server.py --dev-tokens`.

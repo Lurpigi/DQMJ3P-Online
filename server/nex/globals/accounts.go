@@ -11,6 +11,15 @@ var AuthenticationServerAccount *nex.Account
 
 var SecureServerAccount *nex.Account
 
+// * PIDs of accounts issued for Azahar's HLE friends module (re/tools/azahar_identity.py,
+// * make_url_patch.py --identity). Pretendo's PIDs are far below.
+const IssuedPIDMin = 0xF0000000
+
+// IsIssuedPID reports whether the PID belongs to the range of issued accounts
+func IsIssuedPID(pid types.PID) bool {
+	return uint64(pid) >= IssuedPIDMin
+}
+
 func InitAccounts() {
 	AuthenticationServerAccount = nex.NewAccount(types.NewPID(1), "Quazal Authentication", KerberosPassword, false)
 	SecureServerAccount = nex.NewAccount(types.NewPID(2), "Quazal Rendez-Vous", KerberosPassword, false)
@@ -59,6 +68,12 @@ func AccountDetailsByUsername(username string) (*nex.Account, *nex.Error) {
 
 	password, errorCode := PasswordFromPID(&pid)
 	if errorCode == nex.ResultCodes.RendezVous.InvalidUsername {
+		// * Issued accounts (Azahar without Pretendo) never register themselves: anyone can
+		// * put a PID of the range in a patch
+		if IsIssuedPID(pid) {
+			return nil, nex.NewError(nex.ResultCodes.RendezVous.InvalidUsername, "PID reserved for issued accounts")
+		}
+
 		// * First login: ValidatePlayerLogin fills in the password from the token
 		account := nex.NewAccount(pid, username, "", false)
 		unregisteredAccounts.Store(pid, account)

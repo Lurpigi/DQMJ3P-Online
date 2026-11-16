@@ -22,3 +22,6 @@ tmp/
 .mcp.json
 /code.ips
 re/tools/azahar/*.ps1
+
+# Account Azahar emessi (contengono i segreti dei giocatori)
+azahar_accounts*.tsv

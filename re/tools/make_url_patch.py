@@ -7,13 +7,14 @@ usage (python -I):
   make_url_patch.py --code code.bin --sil-url http://example.org/00300701/ \
       [--infra-url http://example.org/infra/] [--spotpass-url http://example.org:8380/p01/nsa/H7btVjYWs7p5dGj6] \
       [--nex-auth 127.0.0.1:45000 --nex-password PW] [--skip-nasc] [--skip-frd] [--azahar] [--azahar-hle-boss]
-      [--nncs 127.0.0.1,127.0.0.2] [--pid-offset 1] [--spotpass-break]
+      [--nncs 127.0.0.1,127.0.0.2] [--pid-offset 1] [--identity PID:SECRET] [--spotpass-break]
       [--merge other/code.ips] -o code.ips
 
 Install: SD:/luma/titles/00040000001ACB00/code.ips  (3DS, "Enable game patching" on)
          <Azahar user dir>/load/mods/00040000001ACB00/exefs/code.ips
 """
 import argparse
+import hashlib
 import struct
 import sys
 
@@ -251,6 +252,75 @@ def nex_login_records(code, auth, password):
     assert len(auth_data) <= 0x74 and len(password_data) <= 0x78
     return [code_record(code, site) for site in NEX_LOGIN_SKIP_FRD] + [
         (NEX_AUTH_DATA, auth_data), (NEX_PASSWORD, password_data)]
+
+
+# --identity PID:SECRET: a fixed identity for Azahar's HLE friends module (no Pretendo). That
+# module logs in, but GetMyFriendKey returns PID 0 and GetMyPassword is not implemented (the
+# password buffer stays empty), so the server refuses the login. The PID replaces the friend key
+# the game reads (same site as --pid-offset), and the call to GetMyPassword in the
+# --nex-player-password routine copies SECRET instead. The routine hashes it as usual, so NEX and
+# SIL get MD5(salt + SECRET) as the player password. The server accepts PIDs in the range only
+# when the account was issued (re/tools/azahar_identity.py, server/nex/globals/accounts.go).
+IDENTITY_CAVE = 0x6B9B70  # after the Azahar upload stub, before the translation padding 0x6B9C00
+IDENTITY_PID_MIN, IDENTITY_PID_MAX = 0xF0000000, 0xFFFFFFFE
+IDENTITY_SECRET_CALL = PLAYER_CAVE + 0x0C  # bl 0x52c674 (GetMyPassword) in the player routine
+IDENTITY_SECRET_LENGTH = 16  # the routine hashes 16 bytes, like a friends password
+
+
+def friend_code(pid):
+    """3DS friend code (local friend code) of a PID: the checksum is the top 7 bits of SHA-1(PID)."""
+    return (hashlib.sha1(struct.pack("<I", pid)).digest()[0] >> 1) << 32 | pid
+
+
+def player_password(secret):
+    """What the --nex-player-password routine makes of a friends password (or an --identity secret)."""
+    return hashlib.md5(PLAYER_SALT + secret).hexdigest()[:16]
+
+
+def apply_identity(records, pid, secret):
+    """Turn the records of a --nex-player-password patch into a fixed identity, in place.
+    Works on a finished IPS too: the records are fixed bytes, no code.bin needed."""
+    if not IDENTITY_PID_MIN <= pid <= IDENTITY_PID_MAX:
+        sys.exit(f"--identity PID must be between {IDENTITY_PID_MIN} and {IDENTITY_PID_MAX}")
+    if len(secret) != IDENTITY_SECRET_LENGTH or b"\0" in secret:
+        sys.exit(f"--identity SECRET must be {IDENTITY_SECRET_LENGTH} bytes without NUL")
+    original_call = arm(branch(IDENTITY_SECRET_CALL, 0x52C674 - 0x100000, link=True))
+    for i, (off, payload) in enumerate(records):
+        at = IDENTITY_SECRET_CALL - off
+        if 0 <= at <= len(payload) - 4:
+            if payload[at:at + 4] != original_call:
+                sys.exit("the patch has no player-password routine at its usual place (needs --nex-player-password)")
+            call = arm(branch(IDENTITY_SECRET_CALL, IDENTITY_CAVE, link=True))
+            records[i] = (off, payload[:at] + call + payload[at + 4:])
+            break
+    else:
+        sys.exit("the patch has no player-password routine (needs --nex-player-password)")
+    secret_routine = arm(
+        0xE28F100C,  # adr r1,secret
+        0xE891100E,  # ldm r1,{r1-r3,r12}
+        0xE880100E,  # stm r0,{r1-r3,r12}     into the caller's password buffer
+        0xE3A00000,  # mov r0,#0              success
+        0xE12FFF1E,  # bx lr
+    ) + secret
+    pid_routine = arm(  # called from the GetMyFriendKey wrapper: r4 = cmdbuf, r5 = FriendKey
+        0xE59F0010,  # ldr r0,high
+        0xE585000C,  # str r0,[r5,#0xc]       friend code high word
+        0xE59F100C,  # ldr r1,pid
+        0xE3A02000,  # mov r2,#0              padding
+        0xE1A03001,  # mov r3,r1              friend code low word = PID
+        0xE12FFF1E,  # bx lr                  the wrapper stores r1-r3 at FriendKey+0
+        friend_code(pid) >> 32, pid,
+    )
+    cave = secret_routine + pid_routine
+    assert len(secret_routine) == 0x24 and IDENTITY_CAVE + len(cave) <= 0x6B9C00
+    site = arm(branch(PID_OFFSET_SITE, IDENTITY_CAVE + len(secret_routine), link=True)) + ARM_NOP * 3
+    ours = [(PID_OFFSET_SITE, site), (IDENTITY_CAVE, cave)]
+    for off, payload in records:
+        for o, p in ours:
+            if off < o + len(p) and o < off + len(payload):
+                sys.exit(f"the patch already has a record at {off:#x} (identity or --pid-offset?)")
+    records += ours
+    return records
 
 
 def nex_player_records(code, auth):
@@ -503,6 +573,9 @@ def main():
                     help="NAT check servers, e.g. 127.0.0.1,127.0.0.2 with server/nncs (local battles)")
     ap.add_argument("--pid-offset", type=int,
                     help="add N to the player's PID (second test emulator, same friends account)")
+    ap.add_argument("--identity", metavar="PID:SECRET",
+                    help="fixed PID and 16-character secret for Azahar's HLE friends module (issued accounts, "
+                         "see re/tools/azahar_identity.py)")
     ap.add_argument("--spotpass-break", action="store_true",
                     help="download the BREAK01-03 SpotPass files when the plaza connects (Azahar has no sleep mode)")
     ap.add_argument("--merge", action="append", default=[], help="existing code.ips to include")
@@ -523,6 +596,10 @@ def main():
         ap.error("--nex-auth needs --nex-password or --nex-player-password")
     if args.nex_player_password and not args.skip_nasc:
         ap.error("--nex-player-password needs --skip-nasc")
+    if args.identity and not args.nex_player_password:
+        ap.error("--identity needs --nex-player-password")
+    if args.identity and args.pid_offset:
+        ap.error("--identity and --pid-offset exclude each other")
     if args.nex_auth:
         ours.append(code_record(code, FEATURED_ALL_SITE))
     if args.nex_player_password:
@@ -544,10 +621,20 @@ def main():
         ours.append(pid_offset_record(code, args.pid_offset))
     if args.spotpass_break:
         ours += spotpass_break_records(code)
+    if args.identity:
+        pid, _, secret = args.identity.partition(":")
+        if not pid.isdigit():
+            ap.error("--identity: expected PID:SECRET")
+        if code[PID_OFFSET_SITE:PID_OFFSET_SITE + 16] != PID_OFFSET_ORIGINAL:
+            sys.exit(f"code.bin does not contain {PID_OFFSET_ORIGINAL.hex()} at {PID_OFFSET_SITE:#x}: wrong version (needs v1.3)")
+        if code[IDENTITY_CAVE:0x6B9C00] != bytes(0x6B9C00 - IDENTITY_CAVE):
+            sys.exit(f"code.bin has data at {IDENTITY_CAVE:#x}: wrong version (needs v1.3)")
+        apply_identity(ours, int(pid), secret.encode())
 
     # records this tool wrote into a previously merged patch are replaced, not kept
     own_offsets = {SIL_URL[0], INFRA_URL[0], SPOTPASS_URL[0], NEX_AUTH_DATA, NEX_PASSWORD, PID_OFFSET_SITE, BREAK_HOOK, BREAK_CAVE,
-                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, UPLOAD_SIZE_SITE[0], UPLOAD_SIZE_CAVE, FEATURED_ALL_SITE[0]} | {
+                   PLAYER_PASSWORD_CALL[0], PLAYER_CAVE, UPLOAD_SIZE_SITE[0], UPLOAD_SIZE_CAVE, FEATURED_ALL_SITE[0],
+                   IDENTITY_CAVE} | {
         off for off, _, _ in SKIP_NASC + SKIP_FRD + AZAHAR_FIXES + AZAHAR_HLE_BOSS + NEX_LOGIN_SKIP_FRD} | {
         off for off, _ in NNCS_ASCII + NNCS_UTF16}
     merged = []
