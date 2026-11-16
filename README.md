@@ -33,7 +33,7 @@ Every player needs their own player ID. There are three kinds of account:
 | | 3DS with Pretendo | Azahar with Pretendo | Azahar without Pretendo |
 |---|---|---|---|
 | Where the ID comes from | Pretendo friends login | Pretendo friends login | A personal account from the [portal](https://lurpigi.github.io/DQMJ3P-Online/#/en/play) |
-| Patch | 3DS patch | Azahar patch | Personal Azahar patch, made by the portal |
+| Patch | Release: `3ds/code.ips` | Release: `azahar-enhanced/code.ips` | Personal `code.ips` from the portal |
 | You need | A Pretendo account, Nimbus | A Pretendo account, Azahar's online system modules (LLE) | Nothing else |
 | Wi-Fi battles, communities, G-Cup, Grand Prix, present codes | Yes | Yes | Yes |
 | Friend Battle | Yes | Yes | No (needs a friends list) |
@@ -52,14 +52,22 @@ Every player needs their own player ID. There are three kinds of account:
   account belongs to the password.
 
 All players need version 1.3 of the game, with or without a translation. If you play a translation,
-install it first. The 3DS and Azahar patches are in the
-[releases](https://github.com/Lurpigi/DQMJ3P-Online/releases), or you can build them yourself
-(see [Building the patch](#building-the-patch)).
+install it first.
+
+**Which patch file:**
+- **3DS with Pretendo** and **Azahar with Pretendo:** the
+  [releases](https://github.com/Lurpigi/DQMJ3P-Online/releases) have a ready `code.ips` for each game
+  language (no translation, Italian, English Fixed). Use the `3ds` folder on a console and the
+  `azahar-enhanced` folder on Azahar. You can also build them yourself (see
+  [Building the patch](#building-the-patch)).
+- **Azahar without Pretendo:** the release files do not work, because they have no player ID. Use the
+  personal patch from the portal. It is the release's `azahar-enhanced` patch for your language with
+  your account added, so it has the same Azahar fixes and improvements, and it also needs New 3DS mode.
 
 ### On 3DS (Luma3DS)
 
 1. Set up Pretendo with [Nimbus](https://pretendo.network/docs/install/3ds) and activate your Pretendo account.
-2. Copy the 3DS patch to `SD:/luma/titles/00040000001ACB00/code.ips`, replacing the translation's `code.ips`
+2. Copy the release's `3ds/code.ips` to `SD:/luma/titles/00040000001ACB00/code.ips`, replacing the translation's `code.ips`
    (the online patch already contains it). Leave the translation's other files where they are.
 3. In the Luma configuration menu (hold SELECT while powering on), enable **Enable game patching**.
 4. Launch the game and enter the Wi-Fi Plaza.
@@ -70,7 +78,7 @@ Never use an Azahar patch on a real console: it can crash the game at startup.
 
 1. Set up Pretendo using the [Azahar guide](https://pretendo.network/docs/install/citra):
    you need the online system modules (LLE) and a Pretendo account.
-2. Copy the Azahar patch to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`
+2. Copy the release's `azahar-enhanced/code.ips` to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`
    (on Windows, the user directory is usually `%APPDATA%\Azahar`), replacing the translation's `code.ips`.
 3. Turn on New 3DS mode (Emulation > Configure > System) and launch the game.
 
