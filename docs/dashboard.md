@@ -46,6 +46,7 @@ read-only mount and connection, the NEX tables through a role limited to the tab
    DASHBOARD_IMPORTER_PASSWORD=<openssl rand -hex 16>
    DASHBOARD_API_PASSWORD=<openssl rand -hex 16>
    DASHBOARD_ID_SALT=<openssl rand -hex 16>
+   DASHBOARD_ACCOUNTS_PASSWORD=<openssl rand -hex 16>
    ```
    `DASHBOARD_ID_SALT` must never change: public player ids (`/players/p…`) are derived from it.
    Back it up with `.env`. On the production VPS these values were generated on 2026-11-06; the previous
@@ -58,6 +59,31 @@ read-only mount and connection, the NEX tables through a role limited to the tab
 
 Without `COMPOSE_PROFILES=portal` the stack runs exactly as before; capture still happens, so history is
 kept from the day the capture-enabled game servers are deployed.
+
+## Azahar accounts (Play online page)
+
+The site's **Play online** page (`web/src/pages/Play.tsx`) issues accounts for Azahar without Pretendo
+(see [re/notes/azahar_hle_identity.md](../re/notes/azahar_hle_identity.md)):
+
+1. The browser downloads the release Azahar patch of the chosen language from `web/public/patches/`
+   (`azahar-jp.ips` = no translation and English Fixed, `azahar-it.ips` = Italian).
+2. It creates a random 16-character secret and sends only `MD5(salt + secret)[:16]` to
+   `POST /api/v1/azahar/accounts`.
+3. The API stores a random free PID of the reserved range (from `0xF0000000`) with that password in
+   `accounts.passwords` and returns the PID.
+4. The browser writes PID and secret into the patch (`web/src/azahar.ts`, the same records as
+   `make_url_patch.py --identity`) and downloads `code.ips`. The **Update** section rebuilds a personal
+   patch on a newer or different base without calling the server.
+
+The API uses its own database role, `dashboard_accounts`, which can only `INSERT (pid, password)` into
+`accounts.passwords`: it cannot read, change or delete accounts. `dashboard-migrate` creates it when
+`DASHBOARD_ACCOUNTS_PASSWORD` is set. Without that value the endpoint answers 503 and the page says
+account creation is unavailable. Limits: 3 accounts per client address and 200 in total per UTC day
+(`DASHBOARD_ACCOUNTS_PER_CLIENT_DAY`, `DASHBOARD_ACCOUNTS_PER_DAY`), kept in memory.
+
+When a new release changes the Azahar patches, copy them into `web/public/patches/` and update the
+expected hashes in `web/scripts/check-azahar.ts`, which `npm run check` compares with the Python tool.
+Personal patches built from the old base keep working until players rebuild them on the page.
 
 ## Monster catalog and portraits
 

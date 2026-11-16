@@ -88,7 +88,9 @@ Issuing (`azahar_identity.py`):
 - Appends PID and secret to a private registry TSV (`azahar_accounts*.tsv`, git-ignored). With
   `--pid`, the tool writes the same patch again, for example on another translation's base.
 
-A portal page ("create Azahar account", with a rate limit) can call the same code later.
+Players get accounts from the portal's **Play online** page instead (docs/dashboard.md, "Azahar
+accounts"). The browser builds the same records (`web/src/azahar.ts`, checked against this tool), and
+the server only receives the derived password.
 
 ## Limits and risks
 

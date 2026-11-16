@@ -2,7 +2,8 @@
 
   serve [--host H] [--port P]   public API, with the importer in the same process (one worker)
   migrate [--wait T1,T2]        apply migrations and grants (DASHBOARD_ADMIN_DB_URL, run as the DB owner;
-                                DASHBOARD_IMPORTER_PASSWORD / DASHBOARD_API_PASSWORD create the two roles)
+                                DASHBOARD_IMPORTER_PASSWORD / DASHBOARD_API_PASSWORD create the two roles,
+                                DASHBOARD_ACCOUNTS_PASSWORD the Azahar accounts role)
   import-once                   one import cycle (sources -> dashboard tables), then exit
   revise CHAMPIONSHIP REASON    recompute a final GP edition; a new revision only if the standings change
   rename-alias PLAYER OLD NEW   correct a public name (audited in the log; result snapshots keep theirs)
@@ -48,7 +49,8 @@ def main(argv=None):
             raise SystemExit("DASHBOARD_ADMIN_DB_URL is not set")
         if args.wait:
             db.wait_for_tables(admin, [t for t in args.wait.split(",") if t], args.timeout)
-        db.migrate(admin, os.environ.get("DASHBOARD_IMPORTER_PASSWORD"), os.environ.get("DASHBOARD_API_PASSWORD"))
+        db.migrate(admin, os.environ.get("DASHBOARD_IMPORTER_PASSWORD"), os.environ.get("DASHBOARD_API_PASSWORD"),
+                   accounts_password=os.environ.get("DASHBOARD_ACCOUNTS_PASSWORD"))
         return
 
     settings = Settings.from_env()

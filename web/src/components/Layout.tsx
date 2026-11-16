@@ -9,7 +9,7 @@ import { Icon } from "./Icon";
 import { L, useLocale } from "./L";
 
 const NAV = [["", "nav.overview"], ["/championships", "nav.championships"], ["/players", "nav.players"],
-  ["/battles", "nav.battles"], ["/monsters", "nav.monsters"], ["/records", "nav.records"]] as const;
+  ["/battles", "nav.battles"], ["/monsters", "nav.monsters"], ["/records", "nav.records"], ["/play", "nav.play"]] as const;
 
 export function Layout() {
   const locale = useLocale();

@@ -1,6 +1,10 @@
-"""Public read-only API (/api/v1). Every response is built from explicit field lists: no source row
+"""Public API (/api/v1). Every response is built from explicit field lists: no source row
 is serialized as-is, and friend codes, PIDs, save data, tokens and addresses never leave the
-database (players are opaque ids, see decode.public_id)."""
+database (players are opaque ids, see decode.public_id).
+
+The one write is POST /azahar/accounts: it issues a NEX account for Azahar without Pretendo. The site
+builds the personal patch in the browser (web/src/azahar.ts) and sends only the derived player
+password; the secret in the patch never reaches the server."""
 import base64
 import csv
 import datetime
@@ -8,6 +12,7 @@ import hashlib
 import io
 import json
 import logging
+import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -16,6 +21,8 @@ from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+import psycopg
+from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException
 
 from . import db, queries
@@ -26,6 +33,14 @@ PREFIX = "/api/v1"
 MODES = ("grade", "limit", "gcup")
 STATUSES = ("upcoming", "open", "finalizing", "final")
 MAX_EXPORT = 5000
+# Issued accounts (re/tools/azahar_identity.py): the NEX server accepts these PIDs only with a row in
+# accounts.passwords (server/nex/globals/accounts.go IssuedPIDMin). Pretendo uses 1,000,000,000-1,799,999,999.
+ISSUED_PID_MIN, ISSUED_PID_MAX = 0xF0000000, 0xFFFFFFFE
+
+
+class NewAccount(BaseModel):
+    # MD5(salt + secret)[:16] in hex, what the patched game sends as its NEX and SIL token
+    password: str = Field(pattern="^[0-9a-f]{16}$")
 
 
 def catalog_version(path):
@@ -133,6 +148,25 @@ class RateLimiter:
             return self.hits[key] <= self.per_minute
 
 
+class DailyLimiter:
+    """Accounts per client address and in total, per UTC day. In memory: a restart forgets the counts."""
+
+    def __init__(self, per_client, total):
+        self.per_client, self.total, self.lock = per_client, total, threading.Lock()
+        self.day, self.hits, self.count = None, {}, 0
+
+    def allow(self, key):
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        with self.lock:
+            if day != self.day:
+                self.day, self.hits, self.count = day, {}, 0
+            if self.count >= self.total or self.hits.get(key, 0) >= self.per_client:
+                return False
+            self.hits[key] = self.hits.get(key, 0) + 1
+            self.count += 1
+            return True
+
+
 # --- application ----------------------------------------------------------------------------
 def create_app(settings, start_importer=True, now=None):
     """now: fixed clock for tests."""
@@ -159,16 +193,20 @@ def create_app(settings, start_importer=True, now=None):
     app = FastAPI(title="DQMJ3P Online statistics", lifespan=lifespan, docs_url=f"{PREFIX}/docs",
                   openapi_url=f"{PREFIX}/openapi.json", redoc_url=None)
     if settings.allowed_origins:
-        app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["GET"],
-                           allow_headers=["If-None-Match"], expose_headers=["ETag"], max_age=3600)
+        app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["GET", "POST"],
+                           allow_headers=["If-None-Match", "Content-Type"], expose_headers=["ETag"], max_age=3600)
     limiter = RateLimiter(settings.rate_limit)
+    account_limiter = DailyLimiter(settings.accounts_per_client_day, settings.accounts_per_day)
 
-    @app.middleware("http")
-    async def guard(request: Request, call_next):
+    def client_of(request):
         client = request.client.host if request.client else "-"
         if settings.trust_proxy:
             client = request.headers.get("x-forwarded-for", client).split(",")[0].strip()
-        if not limiter.allow(client):
+        return client
+
+    @app.middleware("http")
+    async def guard(request: Request, call_next):
+        if not limiter.allow(client_of(request)):
             return JSONResponse({"error": "rate_limited"}, status_code=429, headers={"Retry-After": "60"})
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -347,8 +385,32 @@ def create_app(settings, start_importer=True, now=None):
                     "current": {m: champ_out(r, now) if r else None for m, r in current.items()},
                     "time_zones": {"gp_utc_offset_minutes": gp["utc_offset_minutes"] if gp else None,
                                    "gcup_utc_offset_minutes": 0},
-                    "catalog_version": state["catalog_version"], "freshness": freshness(c, now), "now": iso(now)}
+                    "catalog_version": state["catalog_version"], "freshness": freshness(c, now), "now": iso(now),
+                    "azahar_accounts": bool(settings.accounts_db_url)}
         return reply(request, data, 30)
+
+    @app.post(f"{PREFIX}/azahar/accounts", status_code=201)
+    def azahar_account(request: Request, account: NewAccount):
+        """Registers a random free PID of the issued range with the player password. An existing PID
+        is never taken over: another one is drawn instead."""
+        if not settings.accounts_db_url:
+            raise HTTPException(503, "accounts_disabled")
+        if not account_limiter.allow(client_of(request)):
+            return JSONResponse({"error": "account_limit"}, status_code=429, headers={"Retry-After": "3600"})
+        try:
+            with psycopg.connect(settings.accounts_db_url, autocommit=True, connect_timeout=5) as c:
+                for _ in range(8):
+                    pid = ISSUED_PID_MIN + secrets.randbelow(ISSUED_PID_MAX - ISSUED_PID_MIN + 1)
+                    try:  # the role has INSERT only: a taken PID is a unique violation, not a skipped row
+                        c.execute("INSERT INTO accounts.passwords (pid, password) VALUES (%s, %s)", (pid, account.password))
+                    except psycopg.errors.UniqueViolation:
+                        continue
+                    log.info("issued an Azahar account")
+                    return JSONResponse({"pid": pid}, status_code=201)
+        except psycopg.Error as e:
+            log.error("Azahar account not issued: %s", type(e).__name__)
+            raise HTTPException(503, "accounts_unavailable")
+        raise HTTPException(503, "accounts_unavailable")
 
     @app.get(f"{PREFIX}/overview")
     def overview(request: Request):

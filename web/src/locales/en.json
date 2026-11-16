@@ -16,7 +16,8 @@
     "monsters": "Monsters",
     "records": "Records",
     "status": "Status",
-    "about": "About"
+    "about": "About",
+    "play": "Play online"
   },
   "theme": {
     "label": "Theme: {{theme}}. Change theme",
@@ -448,6 +449,63 @@
       "names": "Monster names: the game's texts and the Italian and French fan translations.",
       "game": "Dragon Quest Monsters: Joker 3 Professional, its characters, monster artwork and the Slime logo © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. All rights reserved. This fan project is not affiliated with or endorsed by Square Enix or Nintendo.",
       "source": "Source code"
+    }
+  },
+  "play": {
+    "title": "Play online",
+    "lede": "Which account you need depends on where you play and on whether you use Pretendo Network. If you play on Azahar without Pretendo, you can create your account here.",
+    "types": {
+      "title": "Account types",
+      "feature": "Feature",
+      "t3ds": "3DS with Pretendo",
+      "azahar": "Azahar with Pretendo",
+      "personal": "Azahar without Pretendo",
+      "patch": "Patch",
+      "patchRelease": "Release patch",
+      "patchPersonal": "Personal patch from this page",
+      "needs": "You need",
+      "needs3ds": "A Pretendo account set up with Nimbus",
+      "needsAzahar": "A Pretendo account and Azahar's online system modules (LLE)",
+      "needsPersonal": "Nothing else",
+      "online": "Wi-Fi battles, communities, G-Cup, Grand Prix",
+      "friend": "Friend Battle",
+      "spotpass": "SpotPass",
+      "yes": "Yes",
+      "no": "No",
+      "note": "With Pretendo, the friends login gives every player their own ID. Without it, Azahar gives all players the same ID, so this page issues one for you and writes it into a personal patch. A personal account is separate from a Pretendo one: if you switch between them, your online progress does not carry over.",
+      "guide": "Installation guide for 3DS and for Azahar with Pretendo"
+    },
+    "variant": {
+      "jp": "Japanese, or English Fixed v2.21",
+      "it": "Italian fan translation 1.1.9"
+    },
+    "create": {
+      "title": "Create an account for Azahar without Pretendo",
+      "variant": "Your game",
+      "button": "Create the account and download code.ips",
+      "working": "Creating the account…",
+      "done": "Account created: player ID {{pid}}, friend code {{code}}. The download of code.ips has started.",
+      "again": "Download code.ips again",
+      "keep": "The file is your account: keep a copy and do not share it, because whoever has it plays as you. If you lose it, the account cannot be recovered.",
+      "off": "Account creation is not available right now.",
+      "limit": "Too many accounts were created from your connection today. Try again tomorrow.",
+      "error": "Something went wrong. Try again later."
+    },
+    "update": {
+      "title": "Update your patch or change its language",
+      "body": "When a new version of the patch comes out, or you switch translation, choose your current personal code.ips here: the page builds the new one with the same account. The file is not sent anywhere.",
+      "file": "Your personal code.ips",
+      "button": "Build the new code.ips",
+      "notPersonal": "This file is not a personal patch made on this page.",
+      "done": "New code.ips for player ID {{pid}} downloaded."
+    },
+    "install": {
+      "title": "Installation",
+      "step1": "Update the game to v1.3. If you play a translation, install it first, following its guide.",
+      "step2": "Copy code.ips to this path, replacing any existing file (on Windows the user folder is usually %APPDATA%\\Azahar):",
+      "step3": "In Emulation > Configure > System, turn on New 3DS mode and turn off \"Enable required LLE modules for online features\".",
+      "step4": "Turn off any VPN, start the game and enter the Wi-Fi Plaza.",
+      "gp": "Grand Prix: a save that already played the Grand Prix with another account keeps that account's friend code, and the server refuses it. In that case, open an issue on GitHub."
     }
   },
   "footer": {

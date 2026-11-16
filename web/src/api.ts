@@ -88,6 +88,25 @@ async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   }
 }
 
+/** Issues an Azahar account (server/dashboard POST /azahar/accounts) for this player password. */
+export async function createAzaharAccount(password: string): Promise<{ pid: number }> {
+  let res: Response;
+  try {
+    res = await fetch(apiUrl("/azahar/accounts"), {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ password }), signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch {
+    throw new ApiError(0, "network");
+  }
+  if (!res.ok) {
+    let code = `http_${res.status}`;
+    try { code = (await res.json()).error ?? code; } catch { /* not JSON */ }
+    throw new ApiError(res.status, code);
+  }
+  return (await res.json()) as { pid: number };
+}
+
 const cache = new Map<string, { data: unknown; at: number }>();
 
 export interface ApiState<T> {

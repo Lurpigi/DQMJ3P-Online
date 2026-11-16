@@ -26,31 +26,71 @@ See [PLAN.md](PLAN.md) for details.
 
 ## Player guide
 
-### Requirements
+### Accounts
 
-- Version 1.3 of the game, with or without a translation patch.
-- A [Pretendo Network](https://pretendo.network) account for friends login, which gives each player a
-  unique ID. The game does not use any other Pretendo services.
-- The DQMJ3P Online `code.ips` for your platform (3DS or Azahar), built on top of your translation's
-  `code.ips` if it has one: see [Building the patch](#building-the-patch).
+Every player needs their own player ID. There are three kinds of account:
+
+| | 3DS with Pretendo | Azahar with Pretendo | Azahar without Pretendo |
+|---|---|---|---|
+| Where the ID comes from | Pretendo friends login | Pretendo friends login | A personal account from the [portal](https://lurpigi.github.io/DQMJ3P-Online/#/en/play) |
+| Patch | 3DS patch | Azahar patch | Personal Azahar patch, made by the portal |
+| You need | A Pretendo account, Nimbus | A Pretendo account, Azahar's online system modules (LLE) | Nothing else |
+| Wi-Fi battles, communities, G-Cup, Grand Prix, present codes | Yes | Yes | Yes |
+| Friend Battle | Yes | Yes | No (needs a friends list) |
+| SpotPass (gift discs, coin shop, field events) | Yes | Yes | No (needs Azahar's LLE modules) |
+
+- **With Pretendo**, the friends login gives every player a unique ID. The game uses no other Pretendo
+  services.
+- **Without Pretendo**, Azahar gives every player the same ID (0) and no password, so the server refuses
+  them. The portal issues an ID instead: it writes the ID and a random secret into a personal `code.ips`.
+  The secret is created in your browser and never reaches the server, which only stores a password
+  derived from it.
+- **The personal file is the account.** Whoever has it plays as you, so do not share it. Keep a copy: a lost
+  file cannot be recovered.
+- **The two kinds of account are separate.** Switching between Pretendo and a personal account does not
+  carry over your online progress: NEX rankings and communities belong to the ID, and the Grand Prix
+  account belongs to the password.
+
+All players need version 1.3 of the game, with or without a translation. If you play a translation,
+install it first. The 3DS and Azahar patches are in the
+[releases](https://github.com/Lurpigi/DQMJ3P-Online/releases), or you can build them yourself
+(see [Building the patch](#building-the-patch)).
 
 ### On 3DS (Luma3DS)
 
 1. Set up Pretendo with [Nimbus](https://pretendo.network/docs/install/3ds) and activate your Pretendo account.
-2. Copy the patch to `SD:/luma/titles/00040000001ACB00/code.ips`, replacing the translation's `code.ips`
+2. Copy the 3DS patch to `SD:/luma/titles/00040000001ACB00/code.ips`, replacing the translation's `code.ips`
    (the online patch already contains it). Leave the translation's other files where they are.
 3. In the Luma configuration menu (hold SELECT while powering on), enable **Enable game patching**.
 4. Launch the game and enter the Wi-Fi Plaza.
 
-Use a patch built without `--azahar` on a real console.
+Never use an Azahar patch on a real console: it can crash the game at startup.
 
-### On Azahar
+### On Azahar with Pretendo
 
 1. Set up Pretendo using the [Azahar guide](https://pretendo.network/docs/install/citra):
    you need the online system modules (LLE) and a Pretendo account.
-2. Copy the patch to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`
+2. Copy the Azahar patch to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`
    (on Windows, the user directory is usually `%APPDATA%\Azahar`), replacing the translation's `code.ips`.
-3. Launch the game.
+3. Turn on New 3DS mode (Emulation > Configure > System) and launch the game.
+
+### On Azahar without Pretendo
+
+1. Open the [Play online](https://lurpigi.github.io/DQMJ3P-Online/#/en/play) page of the portal.
+2. Choose your game (Japanese or English Fixed v2.21, or the Italian translation) and press **Create the
+   account and download code.ips**. Keep the file somewhere safe.
+3. Copy it to `<Azahar user directory>/load/mods/00040000001ACB00/exefs/code.ips`, replacing any existing
+   `code.ips`.
+4. In Emulation > Configure > System, turn on New 3DS mode and turn off **Enable required LLE modules for
+   online features**.
+5. Launch the game and enter the Wi-Fi Plaza.
+
+When a new patch version comes out, or you change translation, load your current personal `code.ips`
+in the **Update your patch** section of the same page. It builds the new file with the same account,
+in the browser, without sending anything.
+
+The page allows a few accounts per connection per day. Server administrators can also issue accounts
+by hand with `re/tools/azahar_identity.py` (see [re/notes/azahar_hle_identity.md](re/notes/azahar_hle_identity.md)).
 
 ### Troubleshooting
 
@@ -61,6 +101,9 @@ Use a patch built without `--azahar` on a real console.
   with no relay server. Some networks (CGNAT, symmetric NAT) may not work.
 - **NEX login rejected after changing Pretendo accounts:** the server binds each ID to the first password
   it receives. Ask the administrator to reset it.
+- **Grand Prix: "Download failed" with a personal account on an old save:** a save that already played
+  the Grand Prix with another account keeps that account's Grand Prix friend code, and the server refuses
+  it. Ask the administrator to move it to your personal account.
 
 ## Server administration
 

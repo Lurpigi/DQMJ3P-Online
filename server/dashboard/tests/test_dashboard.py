@@ -304,3 +304,49 @@ def test_roles(env):
         c.execute("SELECT application_buffer FROM matchmaking.persistent_gatherings")
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             c.execute("SELECT password FROM matchmaking.persistent_gatherings")
+
+
+def test_azahar_accounts(env):
+    """POST /azahar/accounts: random PID of the issued range, INSERT-only role, limits, CORS."""
+    from dataclasses import replace
+
+    from dashboard.api import ISSUED_PID_MAX, ISSUED_PID_MIN
+    with psycopg.connect(DSN, autocommit=True) as c:
+        c.execute("DROP SCHEMA IF EXISTS accounts CASCADE")
+        c.execute("CREATE SCHEMA accounts")
+        c.execute("CREATE TABLE accounts.passwords (pid bigint PRIMARY KEY, password text NOT NULL, "
+                  "created timestamp NOT NULL DEFAULT now())")  # server/nex/globals/password_from_pid.go
+        c.execute("INSERT INTO accounts.passwords (pid, password) VALUES (1446573338, 'aaaaaaaaaaaaaaaa')")
+    db.migrate(DSN, log=lambda *_: None, accounts_password="accounts-pass")
+    url = re.sub(r"//[^@]+@", "//dashboard_accounts:accounts-pass@", DSN)
+    with psycopg.connect(url, autocommit=True) as c:
+        for query in ("SELECT password FROM accounts.passwords", "UPDATE accounts.passwords SET password = 'x'",
+                      "DELETE FROM accounts.passwords", "SELECT 1 FROM dashboard.championships"):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                c.execute(query)
+
+    good = {"password": "0123456789abcdef"}
+    with env.client(DURING) as c:  # no accounts URL: the page is off
+        assert c.get("/api/v1/meta").json()["azahar_accounts"] is False
+        assert c.post("/api/v1/azahar/accounts", json=good).json() == {"error": "accounts_disabled"}
+
+    settings = replace(env.settings, accounts_db_url=url, accounts_per_client_day=2)
+    with TestClient(create_app(settings, start_importer=False, now=lambda: DURING)) as c:
+        assert c.get("/api/v1/meta").json()["azahar_accounts"] is True
+        for body in ({"password": "0123456789ABCDEF"}, {"password": "0123456789abcde"}, {}, {"password": 5}):
+            assert c.post("/api/v1/azahar/accounts", json=body).status_code == 400, body
+        pids = []
+        for _ in range(2):
+            r = c.post("/api/v1/azahar/accounts", json=good)
+            assert r.status_code == 201, r.text
+            pids.append(r.json()["pid"])
+            assert ISSUED_PID_MIN <= pids[-1] <= ISSUED_PID_MAX
+        r = c.post("/api/v1/azahar/accounts", json=good)
+        assert (r.status_code, r.json()) == (429, {"error": "account_limit"})
+        pre = c.options("/api/v1/azahar/accounts", headers={
+            "Origin": "https://example.github.io", "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type"})
+        assert pre.status_code == 200 and "POST" in pre.headers["access-control-allow-methods"]
+    rows = env.sql("SELECT pid, password FROM accounts.passwords WHERE pid >= %s ORDER BY pid", ISSUED_PID_MIN)
+    assert sorted(pids) == [r["pid"] for r in rows] and {r["password"] for r in rows} == {good["password"]}
+    assert env.sql("SELECT password FROM accounts.passwords WHERE pid = 1446573338")[0]["password"] == "a" * 16

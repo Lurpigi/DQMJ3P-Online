@@ -16,7 +16,8 @@
     "monsters": "Mostri",
     "records": "Record",
     "status": "Stato",
-    "about": "Informazioni"
+    "about": "Informazioni",
+    "play": "Gioca online"
   },
   "theme": {
     "label": "Tema: {{theme}}. Cambia tema",
@@ -458,6 +459,63 @@
       "names": "Nomi dei mostri: i testi del gioco e le traduzioni amatoriali italiana e francese.",
       "game": "Dragon Quest Monsters: Joker 3 Professional, i suoi personaggi, le immagini dei mostri e il logo dello Slime © ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX. Tutti i diritti riservati. Questo progetto amatoriale non è affiliato né approvato da Square Enix o Nintendo.",
       "source": "Codice sorgente"
+    }
+  },
+  "play": {
+    "title": "Gioca online",
+    "lede": "L'account che ti serve dipende da dove giochi e da se usi Pretendo Network. Se giochi su Azahar senza Pretendo, puoi creare qui il tuo account.",
+    "types": {
+      "title": "Tipi di account",
+      "feature": "Funzione",
+      "t3ds": "3DS con Pretendo",
+      "azahar": "Azahar con Pretendo",
+      "personal": "Azahar senza Pretendo",
+      "patch": "Patch",
+      "patchRelease": "Patch della release",
+      "patchPersonal": "Patch personale da questa pagina",
+      "needs": "Ti serve",
+      "needs3ds": "Un account Pretendo configurato con Nimbus",
+      "needsAzahar": "Un account Pretendo e i moduli di sistema online di Azahar (LLE)",
+      "needsPersonal": "Nient'altro",
+      "online": "Battaglie Wi-Fi, community, G-Cup, Grand Prix",
+      "friend": "Battaglie amico",
+      "spotpass": "SpotPass",
+      "yes": "Sì",
+      "no": "No",
+      "note": "Con Pretendo, il login amici dà a ogni giocatore un ID tutto suo. Senza, Azahar dà lo stesso ID a tutti, quindi questa pagina te ne assegna uno e lo scrive in una patch personale. Un account personale è separato da quello Pretendo: se passi dall'uno all'altro, i progressi online non si trasferiscono.",
+      "guide": "Guida di installazione per 3DS e per Azahar con Pretendo"
+    },
+    "variant": {
+      "jp": "Giapponese, oppure English Fixed v2.21",
+      "it": "Traduzione italiana 1.1.9"
+    },
+    "create": {
+      "title": "Crea un account per Azahar senza Pretendo",
+      "variant": "Il tuo gioco",
+      "button": "Crea l'account e scarica code.ips",
+      "working": "Creo l'account…",
+      "done": "Account creato: ID giocatore {{pid}}, codice amico {{code}}. Il download di code.ips è partito.",
+      "again": "Scarica di nuovo code.ips",
+      "keep": "Il file è il tuo account: tienine una copia e non condividerlo, perché chi lo ha gioca al posto tuo. Se lo perdi, l'account non si recupera.",
+      "off": "Al momento la creazione degli account non è disponibile.",
+      "limit": "Oggi dalla tua connessione sono stati creati troppi account. Riprova domani.",
+      "error": "Qualcosa è andato storto. Riprova più tardi."
+    },
+    "update": {
+      "title": "Aggiorna la patch o cambiane la lingua",
+      "body": "Quando esce una nuova versione della patch, o cambi traduzione, scegli qui la tua code.ips personale attuale: la pagina crea quella nuova con lo stesso account. Il file non viene inviato da nessuna parte.",
+      "file": "La tua code.ips personale",
+      "button": "Crea la nuova code.ips",
+      "notPersonal": "Questo file non è una patch personale creata da questa pagina.",
+      "done": "Scaricata la nuova code.ips per l'ID giocatore {{pid}}."
+    },
+    "install": {
+      "title": "Installazione",
+      "step1": "Aggiorna il gioco alla v1.3. Se giochi una traduzione, installala prima, seguendo la sua guida.",
+      "step2": "Copia code.ips in questo percorso, sostituendo l'eventuale file esistente (su Windows la cartella utente di solito è %APPDATA%\\Azahar):",
+      "step3": "In Emulazione > Configura > Sistema, attiva la modalità New 3DS e disattiva \"Enable required LLE modules for online features\".",
+      "step4": "Disattiva eventuali VPN, avvia il gioco ed entra nella Piazza Wi-Fi.",
+      "gp": "Grand Prix: un salvataggio che ha già giocato il Grand Prix con un altro account conserva il codice amico di quell'account, e il server lo rifiuta. In quel caso apri una issue su GitHub."
     }
   },
   "footer": {
