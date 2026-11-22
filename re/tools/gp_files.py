@@ -170,14 +170,16 @@ def make_news(text):
 def make_monster(species=1, level=10, hp=100, mp=30, atk=50, dfn=50, agi=50, wis=50):
     """0xf0 save-format monster record.  Only the fields proven by the client are set:
     +0x1c s16 species [CERTO], +0x1e HP, +0x20 MP, +0x22/+0x24 current HP/MP, +0x26 ATK,
-    +0x28 DEF, +0x2a AGI, +0x2c WIS (s16) [PROBABILE], +0x3c u8 level [PROBABILE].
+    +0x28 DEF, +0x2a AGI, +0x2c WIS (s16) [PROBABILE], +0x2e u8 level [CERTO], +0x3c u8 level cap
+    byte (>= 10: cap 100; bit 0x400 of the u16 at +0x40: cap 120, FUN_00246858).
     Everything else (skills at +0x44.., traits, name at +0x72?, ...) is zero: GUESS that the
     battle engine tolerates it.  Prefer real records (see server logic in the notes)."""
     b = bytearray(MONSTER_SIZE)
     struct.pack_into("<h", b, 0x1C, species)
     struct.pack_into("<6h", b, 0x1E, hp, mp, hp, mp, atk, dfn)
     struct.pack_into("<hh", b, 0x2A, agi, wis)
-    b[0x3C] = level
+    b[0x2E] = level
+    b[0x3C] = 100
     return bytes(b)
 
 

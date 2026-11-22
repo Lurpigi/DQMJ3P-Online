@@ -143,7 +143,7 @@
   },
   "validation": {
     "malformed": "Cet envoi est incomplet : il ne compte pas.", "source_lost": "Le serveur de jeu n'a plus ce résultat (sauvegarde restaurée) : il ne compte pas.",
-    "other_cup": "Envoyé pour une autre coupe : il ne compte pas ici.", "unverified": "Envoyé par le jeu"
+    "other_cup": "Envoyé pour une autre coupe : il ne compte pas ici.", "rejected": "Cette équipe dépasse les limites du jeu (monstre modifié) : elle ne compte pas.", "unverified": "Envoyé par le jeu"
   },
   "provenance": {
     "reconstructed": "Nom tiré du profil actuel : ce résultat a été enregistré avant que les noms le soient.",

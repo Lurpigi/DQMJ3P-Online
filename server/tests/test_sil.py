@@ -6,6 +6,7 @@ usage: python -I test_sil.py
 """
 import hashlib
 import hmac
+import importlib.util
 import os
 import socket
 import sqlite3
@@ -87,8 +88,9 @@ def logged_in_client(base):
     return c
 
 
-def result_pack(pop=0, strength=0, evaluation=0, win=0, wins=0, level=50):
-    """GradeResultPack: points, `wins` rounds won out of 3, a team of 4 monsters of `level`."""
+def result_pack(pop=0, strength=0, evaluation=0, win=0, wins=0, level=50, stat=None):
+    """GradeResultPack: points, `wins` rounds won out of 3, a team of 4 Geodraco Baugaia (species
+    71, max stats 1900/320/970/730/600/610) of `level`, every stat 10 * level (or `stat`)."""
     pack = bytearray(0x540)
     pack[0] = 3
     struct.pack_into("<4H2xI", pack, 2, pop, strength, evaluation, win, pop + strength + evaluation + win)
@@ -96,8 +98,9 @@ def result_pack(pop=0, strength=0, evaluation=0, win=0, wins=0, level=50):
         pack[0x14 + i * 0x78 + 0x40] = 1
     for i in range(4):
         m = 0x17c + i * 0xf0
-        struct.pack_into("<h8h", pack, m + 0x1c, 0x47, *[10 * level] * 8)
-        pack[m + 0x3c] = level
+        struct.pack_into("<h8h", pack, m + 0x1c, 0x47, *[stat or 10 * level] * 8)
+        pack[m + 0x2e] = level
+        pack[m + 0x3c] = 100  # level cap 100
     return bytes(pack)
 
 
@@ -108,6 +111,34 @@ def player_files(name, location, level):
     user_data[0xc:0xc + 2 * len(name)] = name.encode("utf-16-le")
     user_data[0xb9] = 1
     return bytes(user_data), result_pack(win=1000, wins=3, level=level)
+
+
+def check_older_results():
+    """Results stored before the team check (or under another TEAM_CHECK_VERSION) are checked at start."""
+    spec = importlib.util.spec_from_file_location("sil_server_test", SERVER)
+    sil = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sil)
+    caps = sil.load_species_caps()
+    level_121 = bytearray(result_pack())
+    level_121[0x17c + 0x40:0x17c + 0x42] = struct.pack("<H", 0x400)  # two stars: cap 120
+    level_121[0x17c + 0x2e] = 120
+    assert sil.gp_result_problems(bytes(level_121), caps) is None
+    level_121[0x17c + 0x2e] = 121
+    assert sil.gp_result_problems(bytes(level_121), caps) == "slot 0 species 71: level 121 (cap 120)"
+    path = os.path.join(tempfile.mkdtemp(prefix="sil-check-"), "sil.sqlite3")
+    store = sil.Store(path)
+    store.db.execute("DROP TABLE gp_results")  # the table as before the check
+    store.db.execute("CREATE TABLE gp_results (id INTEGER PRIMARY KEY, friend_code TEXT, mode TEXT, score INTEGER, "
+                     "data BLOB, uploaded INTEGER, day TEXT)")
+    for data in (result_pack(stat=8000), result_pack(), bytes(level_121)):
+        store.db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day) VALUES ('1', 'grade', 0, ?, '2026-01-01')", (data,))
+    store.db.commit()
+    store.db.close()
+    store = sil.Store(path)  # reopen: adds the columns
+    check = lambda data: sil.gp_result_problems(data, caps)
+    assert [rid for rid, _ in store.check_gp_results(check)] == [1, 3]
+    assert store.q("SELECT id, rejected IS NOT NULL, checked FROM gp_results ORDER BY id") == [(1, 1, 1), (2, 0, 1), (3, 1, 1)]
+    assert store.check_gp_results(check) == []  # already decided
 
 
 def free_port():
@@ -232,6 +263,18 @@ def main():
         r = c.call("file/upload", {"File-Name": b"18_Limit_PrivateDlBattle.bin", "Friend-Code": fc, "Data": b"Download_Code"})
         assert r["Add-Data"] == bytes(0x297c), r["Result"]  # nobody played Limit yet
 
+        # a modified team (every stat 8000) is stored and answered OK, but nobody gets it as an opponent
+        cheater = logged_in_client(c.base)
+        user_data, _ = player_files("Cheater", 12, 50)
+        for name, data in ((b"00_UserData.bin", user_data), (b"GradeResultPack.bin", result_pack(win=5000, wins=3, stat=8000))):
+            r = cheater.call("file/upload", {"File-Name": name, "Friend-Code": cheater.friend_code.encode(), "Data": data})
+            assert r["Result"] == b"OK", r
+        r = c.call("file/upload", {"File-Name": b"09_Grade_PrivateDlBattle.bin", "Friend-Code": fc, "Data": b"Download_Code"})
+        assert r["Add-Data"] == pack, "a rejected team was offered as an opponent"
+        rejected = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3")).execute(
+            "SELECT rejected FROM gp_results WHERE friend_code = ?", (cheater.friend_code,)).fetchone()[0]
+        assert rejected.startswith("slot 0 species 71: HP 8000 (limit 4750)"), rejected
+
         # Grand Prix rankings, from results of earlier days (today's uploads above do not count yet)
         r = c.call("file/download", {"File-Name": b"003_Held_Record.bin"})
         assert struct.unpack("<IHBBIII", r["Data"]) == (2, 2026, 1, 14, 1, 2, 0), r["Data"].hex()
@@ -247,6 +290,9 @@ def main():
                                  (rival.friend_code, "2026-01-12", result_pack(win=600, wins=2)),
                                  (c.friend_code, "2026-01-13", result_pack(win=150, wins=1))):
             db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day) VALUES (?, 'grade', 0, ?, ?)", (owner, pack, day))
+        # rejected results count nowhere (the cheater would be first with 5000 points)
+        db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day, rejected) VALUES (?, 'grade', 0, ?, ?, ?)",
+                   (cheater.friend_code, result_pack(win=5000, wins=3, stat=8000), "2026-01-12", "test"))
         db.commit()
         r = c.call("file/download", {"File-Name": b"089_Grade_Ranking_Pack.bin"})
         pack = r["Data"]
@@ -277,13 +323,15 @@ def main():
         assert struct.unpack("<I", r["File-Size"])[0] == 1234 and len(r["Content-Code"]) == 16, r
 
         db = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3"))
-        assert db.execute("SELECT mode, score, day FROM gp_results ORDER BY id LIMIT 2").fetchall() == [
-            ("grade", 4321, "2026-01-14"), ("grade", 1000, "2026-01-14")]
+        assert db.execute("SELECT mode, score, day, rejected, checked FROM gp_results ORDER BY id LIMIT 2").fetchall() == [
+            ("grade", 4321, "2026-01-14", None, 1), ("grade", 1000, "2026-01-14", None, 1)]
         # portal capture: each uploaded result has its snapshot (name/location at upload, calendar, contest)
         snaps = db.execute("SELECT g.friend_code, s.calendar, s.contest, s.day, s.name, s.location, s.decoder "
                            "FROM gp_snapshots s JOIN gp_results g ON g.id = s.result_id ORDER BY s.result_id").fetchall()
         assert snaps == [(c.friend_code, 1, 2, "2026-01-14", bytes(0x24), 0, 1),
-                         (rival.friend_code, 1, 2, "2026-01-14", "Rival".encode("utf-16-le").ljust(0x24, b"\0"), 76, 1)], snaps
+                         (rival.friend_code, 1, 2, "2026-01-14", "Rival".encode("utf-16-le").ljust(0x24, b"\0"), 76, 1),
+                         # a rejected result is kept too, with its snapshot
+                         (cheater.friend_code, 1, 2, "2026-01-14", "Cheater".encode("utf-16-le").ljust(0x24, b"\0"), 12, 1)], snaps
         assert db.execute("SELECT start, days, offset_source FROM gp_calendars").fetchall() == [("2026-01-05", 7, "local")]
         assert len(db.execute("SELECT value FROM meta WHERE key = 'generation'").fetchone()[0]) == 16
         db.execute("INSERT INTO present_codes (code, package_id) VALUES ('DQMJ3PTEST', 7)")
@@ -321,6 +369,7 @@ def main():
             raise AssertionError("wrong digest accepted")
         except AssertionError as e:
             assert "bad response digest" in str(e), e
+        check_older_results()
         print("SIL TEST OK")
     finally:
         proc.terminate()

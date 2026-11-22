@@ -334,6 +334,7 @@
     "malformed": "Questo caricamento è incompleto: non conta.",
     "source_lost": "Il server di gioco non ha più questo risultato (backup ripristinato): non conta.",
     "other_cup": "Caricato per un'altra coppa: qui non conta.",
+    "rejected": "Questa squadra va oltre i limiti del gioco (mostro modificato): non conta.",
     "unverified": "Caricato dal gioco"
   },
   "provenance": {

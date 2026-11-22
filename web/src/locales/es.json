@@ -143,7 +143,7 @@
   },
   "validation": {
     "malformed": "Esta subida está incompleta: no cuenta.", "source_lost": "El servidor de juego ya no tiene este resultado (copia restaurada): no cuenta.",
-    "other_cup": "Subido para otra copa: aquí no cuenta.", "unverified": "Subido por el juego"
+    "other_cup": "Subido para otra copa: aquí no cuenta.", "rejected": "Este equipo supera los límites del juego (monstruo modificado): no cuenta.", "unverified": "Subido por el juego"
   },
   "provenance": {
     "reconstructed": "Nombre tomado del perfil actual: este resultado se guardó antes de registrar los nombres.",
