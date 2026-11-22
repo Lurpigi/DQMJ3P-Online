@@ -47,7 +47,8 @@ def result_pack(rng, team, opponents):
     for slot, sp in enumerate(team):
         m = 0x17C + slot * 0xF0
         struct.pack_into("<h8h", pack, m + 0x1C, sp, *[rng.randint(300, 999) for _ in range(8)])
-        pack[m + 0x3C] = rng.randint(30, 100)
+        pack[m + 0x2E] = rng.randint(30, 100)  # level
+        pack[m + 0x3C] = 100                   # level cap 100
     return bytes(pack)
 
 

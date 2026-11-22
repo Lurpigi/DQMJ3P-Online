@@ -23,8 +23,8 @@ import time
 from psycopg.types.json import Jsonb
 
 from . import db, queries
-from .decode import (UTC, GP_MODES, GpCalendarVersion, gcup_bounds, gcup_definition, gcup_team_name, gcup_week,
-                     gp_result, gp_rewards, gp_rules, load_sil, public_id, search_key, utf16_name)
+from .decode import (UTC, GP_MODES, TEAM_LAYOUT, GpCalendarVersion, gcup_bounds, gcup_definition, gcup_team_name,
+                     gcup_week, gp_result, gp_rewards, gp_rules, load_sil, public_id, search_key, utf16_name)
 
 log = logging.getLogger("dashboard.importer")
 LOCK_KEY = 0x44514D4A  # pg advisory lock: one active importer
@@ -108,15 +108,15 @@ class Importer:
             """INSERT INTO dashboard.entries (source_generation, source_ns, source_key, source_hash, championship_id,
                  player_id, kind, received_at, contest_day, points, points_win, points_pop, points_strength, points_eval,
                  rounds, rounds_won, frames, improved, observed_name, observed_location, name_provenance, validation,
-                 signature, decoder_version)
+                 signature, decoder_version, team_layout)
                VALUES (%(generation)s, %(ns)s, %(key)s, %(hash)s, %(championship)s, %(player)s, %(kind)s, %(received)s,
                  %(day)s, %(points)s, %(points_win)s, %(points_pop)s, %(points_strength)s, %(points_eval)s, %(rounds)s,
                  %(rounds_won)s, %(frames)s, %(improved)s, %(name)s, %(location)s, %(provenance)s, %(validation)s,
-                 %(signature)s, %(decoder)s)
+                 %(signature)s, %(decoder)s, %(team_layout)s)
                ON CONFLICT (source_generation, source_ns, source_key) DO NOTHING RETURNING id""",
             {"points": None, "points_win": None, "points_pop": None, "points_strength": None, "points_eval": None,
              "rounds": None, "rounds_won": None, "frames": None, "improved": None, "day": None, "location": None,
-             "signature": None, "decoder": None, **values}).fetchone()
+             "signature": None, "decoder": None, "team_layout": TEAM_LAYOUT if team else None, **values}).fetchone()
         if row is None:
             return None
         if self.hidden(conn, values["player"]):
@@ -212,8 +212,9 @@ class Importer:
                         for cid in affected:
                             self.revise(conn, cid, "source_reconciled")
                         cursor = 0
+                    rejected = "g.rejected" if self._sil_checks(src) else "NULL AS rejected"
                     rows = src.execute(
-                        """SELECT g.id, g.friend_code, g.mode, g.data, g.uploaded, g.day, s.calendar, s.contest,
+                        f"""SELECT g.id, g.friend_code, g.mode, g.data, g.uploaded, g.day, {rejected}, s.calendar, s.contest,
                                   s.name AS snap_name, s.location AS snap_location, s.decoder, s.result_id AS snap,
                                   u.data AS user_data
                            FROM gp_results g LEFT JOIN gp_snapshots s ON s.result_id = g.id
@@ -236,7 +237,52 @@ class Importer:
                 src.execute("COMMIT") if src.in_transaction else None
                 src.close()
             if done:
+                self.sync_gp_checks(conn)
                 return
+
+    @staticmethod
+    def _sil_checks(src):
+        """Whether this SIL database has the Grand Prix team check (gp_results.rejected)."""
+        return "rejected" in {r[1] for r in src.execute("PRAGMA table_info(gp_results)")}
+
+    def sync_gp_checks(self, conn, batch=500):
+        """Follows SIL's team check on imported entries: SIL can decide after the import (it checks
+        older results again at start when the rules change). Also re-decodes, in batches, the teams
+        imported when the level was read from the wrong byte (team_layout NULL)."""
+        src = self._sil_open()
+        try:
+            if not self._sil_checks(src):
+                return
+            generation = src.execute("SELECT value FROM meta WHERE key = 'generation'").fetchone()
+            generation = generation[0] if generation else None
+            rejected = [str(r[0]) for r in src.execute("SELECT id FROM gp_results WHERE rejected IS NOT NULL")]
+            with conn.transaction():
+                rows = conn.execute(
+                    """SELECT id, source_key, championship_id, validation FROM dashboard.entries
+                       WHERE source_ns = 'sil-gp' AND source_generation = %s AND validation IN ('unverified', 'rejected')
+                         AND (validation = 'rejected' OR source_key = ANY(%s))""", (generation, rejected)).fetchall()
+                affected = set()
+                for r in rows:
+                    want = "rejected" if r["source_key"] in rejected else "unverified"
+                    if want != r["validation"]:
+                        conn.execute("UPDATE dashboard.entries SET validation = %s WHERE id = %s", (want, r["id"]))
+                        affected.add(r["championship_id"])
+                for cid in affected:
+                    self.revise(conn, cid, "team_check")
+                old = conn.execute(
+                    """SELECT e.id, e.source_key FROM dashboard.entries e
+                       WHERE e.source_ns = 'sil-gp' AND e.source_generation = %s AND e.team_layout IS NULL
+                         AND EXISTS (SELECT 1 FROM dashboard.team_members t WHERE t.entry_id = e.id)
+                       ORDER BY e.id LIMIT %s""", (generation, batch)).fetchall()
+                for r in old:
+                    row = src.execute("SELECT data FROM gp_results WHERE id = ?", (int(r["source_key"]),)).fetchone()
+                    decoded = gp_result(self.sil, row[0] or b"") if row else None
+                    for m in decoded["team"] if decoded else ():
+                        conn.execute("UPDATE dashboard.team_members SET level = %s WHERE entry_id = %s AND slot = %s",
+                                     (m["level"], r["id"], m["slot"]))
+                    conn.execute("UPDATE dashboard.entries SET team_layout = %s WHERE id = %s", (TEAM_LAYOUT, r["id"]))
+        finally:
+            src.close()
 
     @staticmethod
     def _row_hash(friend_code, mode, day, data):
@@ -301,7 +347,8 @@ class Importer:
             rounds.append(r)
         self.insert_entry(conn, {**values, "points": t["total"], "points_win": t["win"], "points_pop": t["pop"],
                                  "points_strength": t["strength"], "points_eval": t["eval"], "rounds": t["battles"],
-                                 "rounds_won": t["wins"], "validation": "unverified", "signature": decoded["signature"]},
+                                 "rounds_won": t["wins"], "validation": "rejected" if row["rejected"] else "unverified",
+                                 "signature": decoded["signature"]},
                           rounds, decoded["team"])
 
     # --- G-Cup (NEX) ----------------------------------------------------------------------

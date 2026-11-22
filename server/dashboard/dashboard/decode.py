@@ -18,6 +18,8 @@ LANGUAGES = ("en", "it", "es", "fr", "ja")
 RESULT_SIZE = 0x540
 ROUND_SUMMARY, ROUND_SUMMARY_SIZE, ROUNDS = 0x14, 0x78, 3
 RESULT_TEAM, MONSTER, TEAM_SLOTS = 0x17C, 0xF0, 4
+MONSTER_LEVEL = 0x2E  # u8 level (FUN_002467dc); +0x3c only sets the level cap (sil_server.monster_level_cap)
+TEAM_LAYOUT = 2       # entries.team_layout: teams decoded with the level at MONSTER_LEVEL (NULL: +0x3c)
 # HMAC-SHA256 key of the round summaries (FUN_002f5fa0, re/tools/gp_files.py). The check follows the
 # reverse engineering and has not been confirmed on real uploads: it is reported, never enforced.
 RESULT_HMAC_KEY = struct.pack("<8I", 0x56C4A85F, 0x120A04C0, 0x838D9CB1, 0xF3C72986,
@@ -95,7 +97,7 @@ def gp_result(sil, data):
         if species <= 0:
             continue
         hp, mp, _hp, _mp, atk, dfn, agi, wis = struct.unpack_from("<8h", m, 0x1E)
-        team.append({"slot": slot, "species": species, "level": m[0x3C],
+        team.append({"slot": slot, "species": species, "level": m[MONSTER_LEVEL],
                      "hp": hp, "mp": mp, "atk": atk, "def": dfn, "agi": agi, "wis": wis})
     return {"totals": totals, "rounds": rounds, "team": team,
             "signature": "valid" if all(signatures) else "invalid",

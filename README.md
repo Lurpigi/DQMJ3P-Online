@@ -113,6 +113,27 @@ by hand with `re/tools/azahar_identity.py` (see [re/notes/azahar_hle_identity.md
   the Grand Prix with another account keeps that account's Grand Prix friend code, and the server refuses
   it. Ask the administrator to move it to your personal account.
 
+### Cheats and modified monsters
+
+Play with monsters you raised in an unmodified game. Cheat codes, save editors and memory editors
+are not allowed in online modes.
+
+- **Grand Prix:** the server checks every team it receives. A team is rejected when a monster has a
+  level above its cap (50, 75, 100 or 120), stats far beyond its species maximum, or a species that
+  does not exist. The limits leave room for everything the game allows: seeds, levels above 100,
+  equipment and items. A rejected result is kept but counts nowhere:
+  - it gets no points in the standings, the rankings or the prizes;
+  - other players never get its team as an opponent;
+  - the portal shows it as rejected.
+
+  The game has no message for this, so the upload looks normal on the console. Each rule change
+  checks the older results again.
+- **Wi-Fi battles:** battles connect the consoles directly, so the server never sees the teams and
+  cannot check them.
+- **G-Cup:** not checked yet.
+- **Players who cheat on purpose** can be hidden from the portal or removed from the server. If you
+  think a legitimate team was rejected, open an issue with the result's portal link.
+
 ## Server administration
 
 - [Stack setup and usage](server/README.md): Docker Compose on a VPS with two IPv4 addresses.

@@ -6,6 +6,9 @@ Sources (all local files, nothing is fetched from the network):
   --kindparam   romfs:/data/Parameter/KindParam.tp: per species id (MK%04d) the Japanese name
                 (Shift-JIS, +0x00), rank (+0x22, 1..8 = F..SS), family (+0x23), max stats (+0x24,
                 6 x u16: HP MP ATK DEF AGI WIS) and size (+0x30, 0/1 small, 2 medium, 3 giga, 4 mega)
+  --kindparam-update  the v1.3 update's KindParam.tp (patch:/data/Parameter/KindParam.tp, what the
+                game loads): its rank, family, size and max stats replace the base ones. The base
+                file only has placeholders for species 901-907. Rows are still matched on the base.
   --translation a DQMJ3P-IT-FanTranslation checkout: update/{it,eng}/Message/MonsterKindMessage.mes
                 (the v1.3 update texts, newer than it/ and eng/), it|eng/Message/LocationMessage.mes
   --french      a French MonsterKindMessage.mes (optional)
@@ -28,7 +31,8 @@ wide tiles: large monsters are 2-4 tiles stacked vertically, as in the game's pa
 usage: python -I tools/import-monsters/import_monsters.py --sheet GUIDE.zip --kindparam KindParam.tp
          --translation ../DQMJ3P-IT-FanTranslation [--french fr/Message/MonsterKindMessage.mes]
          [--japanese-locations fr/Message/LocationMessage.mes]
-         [--catalog server/dashboard/data/monsters.json] [--images web/public/monsters]
+         [--kindparam-update UPDATE/KindParam.tp] [--catalog server/dashboard/data/monsters.json]
+         [--images web/public/monsters] [--caps server/sil/species_caps.json]
 """
 import argparse
 import collections
@@ -242,10 +246,21 @@ def portrait(data):
     return out.getvalue(), tiles
 
 
+def write_caps(species, version, path):
+    """Max stats per species for the SIL server's Grand Prix team check (server/sil/sil_server.py)."""
+    caps = {"catalog_version": version, "stats": "HP MP ATK DEF AGI WIS (KindParam max stats)",
+            "species": {str(s["id"]): s["stats"] for s in species if any(s["stats"])}}
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(caps, f, separators=(",", ":"))
+        f.write("\n")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sheet", required=True)
     ap.add_argument("--kindparam", required=True)
+    ap.add_argument("--kindparam-update")
     ap.add_argument("--translation", required=True)
     ap.add_argument("--french")
     ap.add_argument("--japanese-locations")
@@ -254,10 +269,12 @@ def main():
     ap.add_argument("--catalog", default=os.path.join(root, "server", "dashboard", "data", "monsters.json"))
     ap.add_argument("--images", default=os.path.join(root, "web", "public", "monsters"))
     ap.add_argument("--report", default=os.path.join(root, "tools", "import-monsters", "report.md"))
+    ap.add_argument("--caps", default=os.path.join(root, "server", "sil", "species_caps.json"))
     ap.add_argument("--no-images", action="store_true", help="only write the catalog")
     args = ap.parse_args()
 
     kinds = parse_kindparam(open(args.kindparam, "rb").read())
+    params = parse_kindparam(open(args.kindparam_update, "rb").read()) if args.kindparam_update else kinds
     t = args.translation
     message = os.path.join("Message", "MonsterKindMessage.mes")
     italian, it_path = read_mes(os.path.join(t, "update", "it", message), os.path.join(t, "it", message))
@@ -319,8 +336,9 @@ def main():
         names = {k: v for k, v in names.items() if v and v != "-"}
         if s == 0 or not (names.get("en") or names.get("it")):
             continue
-        species.append({"id": s, "names": names, "rank": kind["rank"] or None, "family": kind["family"] or None,
-                        "size": kind["size"], "stats": list(kind["stats"]), "art": species_art.get(s),
+        p = params.get(s, kind)
+        species.append({"id": s, "names": names, "rank": p["rank"] or None, "family": p["family"] or None,
+                        "size": p["size"], "stats": list(p["stats"]), "art": species_art.get(s),
                         "story_copy": bool(BOSS_JA.match(kind["ja"]))})
 
     locations = {}
@@ -349,7 +367,7 @@ def main():
             "artwork": "DQM J3 Professional Master's guide IT V1.0 by StrangeServer & Yggdrasil (spreadsheet export)",
             "names": {"it": os.path.relpath(it_path, t), "en": os.path.relpath(en_path, t),
                       "fr": "French fan translation" if fr_path else None, "ja": "KindParam.tp"},
-            "parameters": "KindParam.tp (rank, family, size, max stats)",
+            "parameters": "KindParam.tp (rank, family, size, max stats; v1.3 update when given)",
         },
         "families": {"1": "slime", "2": "dragon", "3": "beast", "4": "nature", "5": "demon",
                      "6": "undead", "7": "material", "8": "corrupted", "9": "unknown"},
@@ -359,6 +377,8 @@ def main():
     with open(args.catalog, "w", encoding="utf-8") as f:
         json.dump(catalog, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
+
+    write_caps(species, version, args.caps)
 
     how = collections.Counter(h for _, _, h in links)
     lines = [

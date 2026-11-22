@@ -196,6 +196,26 @@ class Store:
             self.db.execute("ALTER TABLE gp_results ADD COLUMN day TEXT")
         if "secret" not in [c[1] for c in self.db.execute("PRAGMA table_info(users)")]:
             self.db.execute("ALTER TABLE users ADD COLUMN secret TEXT")
+        # Grand Prix team check (team_problems): rejected = reasons (NULL = counts), checked = the
+        # TEAM_CHECK_VERSION that decided it (NULL = not checked yet)
+        columns = [c[1] for c in self.db.execute("PRAGMA table_info(gp_results)")]
+        if "rejected" not in columns:
+            self.db.execute("ALTER TABLE gp_results ADD COLUMN rejected TEXT")
+        if "checked" not in columns:
+            self.db.execute("ALTER TABLE gp_results ADD COLUMN checked INTEGER")
+        self.db.commit()
+
+    def check_gp_results(self, check):
+        """Applies `check` (data -> reasons) to the results the current TEAM_CHECK_VERSION has not
+        decided yet, so a stricter or looser rule also covers older uploads."""
+        changed = []
+        for rid, data, rejected in self.q("SELECT id, data, rejected FROM gp_results "
+                                          "WHERE checked IS NULL OR checked <> ?", TEAM_CHECK_VERSION):
+            reasons = check(data or b"")
+            self.q("UPDATE gp_results SET rejected = ?, checked = ? WHERE id = ?", reasons, TEAM_CHECK_VERSION, rid)
+            if reasons != rejected:
+                changed.append((rid, reasons))
+        return changed
 
     def date_gp_results(self, calendar):
         """Results stored before gp_results.day existed count for the day they were uploaded."""
@@ -220,17 +240,19 @@ class Store:
             self.db.commit()
             return calendar_id
 
-    def add_gp_result(self, friend_code, mode, data, day, calendar_id, contest):
+    def add_gp_result(self, friend_code, mode, data, day, calendar_id, contest, rejected=None):
         """Stores a Grand Prix result and its snapshot (name/location from the current 00_UserData)
-        atomically: the portal never sees a result without the data observed with it."""
+        atomically: the portal never sees a result without the data observed with it. `rejected`:
+        the team check's reasons (the result is kept but counts nowhere)."""
         (score,) = struct.unpack_from("<I", data, 0xC)
         with self.lock:
             try:
                 user = self.db.execute("SELECT data FROM private_files WHERE friend_code = ? AND name = ?",
                                        (friend_code, GP_REGISTRATION_FILE)).fetchone()
                 user_data = user[0] if user and user[0] and len(user[0]) >= 0x30 else None
-                rid = self.db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day) VALUES (?, ?, ?, ?, ?)",
-                                      (friend_code, mode, score, data, day)).lastrowid
+                rid = self.db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day, rejected, checked) "
+                                      "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                      (friend_code, mode, score, data, day, rejected, TEAM_CHECK_VERSION)).lastrowid
                 self.db.execute(
                     "INSERT INTO gp_snapshots (result_id, calendar, contest, day, name, location, decoder) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (rid, calendar_id, contest, day, user_data[0xC:0x30] if user_data else None,
@@ -273,6 +295,9 @@ TEAM_RECORD = 0x3C4    # the mode's registered team in the save: 4 monsters of 0
 MONSTER = 0xF0
 RESULT_TEAM = 0x17C    # team record inside Grade/LimitResultPack
 ENTRIES, ROUNDS = 3, 3
+# Monster record (0xf0, save format): +0x1c s16 species, +0x1e s16 max HP, MP, current HP, MP, ATK,
+# DEF, AGI, WIS, +0x2e u8 level, +0x3c u8 and +0x40 u16 bit 0x400: the level cap (monster_level_cap)
+MONSTER_LEVEL = 0x2E
 
 
 def team_strength(record):
@@ -284,8 +309,74 @@ def team_strength(record):
         if len(m) < MONSTER or struct.unpack_from("<h", m, 0x1C)[0] <= 0:  # no species
             continue
         hp, mp, _hp, _mp, atk, dfn, agi, wis = struct.unpack_from("<8h", m, 0x1E)
-        total += hp + mp + atk + dfn + agi + wis + 10 * m[0x3C]
+        total += hp + mp + atk + dfn + agi + wis + 10 * m[MONSTER_LEVEL]
     return total
+
+
+# --- Grand Prix team check (README "Cheats") -----------------------------------------------
+# A result whose team cannot come from an unmodified game is stored but counts nowhere: not in the
+# standings, the champion records or the user packs, and its team is never another player's
+# opponent. The game has no message for this, so the client gets OK like any upload.
+# Limits are loose on purpose: seeds raise a stat by up to 10% over the species maximum (every
+# team seen so far), levels above 100 raise HP and MP further (up to 1.65x seen), and accessories
+# count only in battle. Bump TEAM_CHECK_VERSION when a rule changes: old results are checked again.
+TEAM_CHECK_VERSION = 1
+SPECIES_CAPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "species_caps.json")
+STAT_LIMIT = 9999            # what the game's 4-digit stat fields can show
+HP_MP_FACTOR = 2.5           # max HP/MP <= species maximum * this
+STAT_FACTOR = 1.5            # ATK, DEF, AGI, WIS <= species maximum * this
+STAT_NAMES = ("HP", "MP", "ATK", "DEF", "AGI", "WIS")
+
+
+def load_species_caps(path=SPECIES_CAPS_FILE):
+    """{species: (HP, MP, ATK, DEF, AGI, WIS) max stats} from tools/import-monsters (KindParam of the
+    v1.3 update), or None when the file is missing (then only levels and STAT_LIMIT are checked)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return {int(k): tuple(v) for k, v in json.load(f)["species"].items()}
+    except FileNotFoundError:
+        return None
+
+
+def monster_level_cap(m):
+    """FUN_00246858: 120 when bit 0x400 of the u16 at +0x40 is set, else 50 / 75 / 100 when the
+    byte at +0x3c is below 4 / below 10 / higher."""
+    if struct.unpack_from("<H", m, 0x40)[0] & 0x400:
+        return 120
+    return 50 if m[0x3C] < 4 else 75 if m[0x3C] < 10 else 100
+
+
+def team_problems(record, caps):
+    """Reasons why a team record (4 monsters of 0xf0) cannot come from an unmodified game; [] if none."""
+    problems = []
+    for slot in range(4):
+        m = record[slot * MONSTER:(slot + 1) * MONSTER]
+        if len(m) < MONSTER:
+            break
+        (species,) = struct.unpack_from("<h", m, 0x1C)
+        if species == 0:
+            continue
+        where = f"slot {slot} species {species}"
+        if species < 0 or (caps is not None and species not in caps):
+            problems.append(f"{where}: unknown species")
+            continue
+        level, cap = m[MONSTER_LEVEL], monster_level_cap(m)
+        if not 1 <= level <= cap:
+            problems.append(f"{where}: level {level} (cap {cap})")
+        hp, mp, _hp, _mp, atk, dfn, agi, wis = struct.unpack_from("<8h", m, 0x1E)
+        base = caps[species] if caps is not None else (None,) * 6
+        for name, value, top, factor in zip(STAT_NAMES, (hp, mp, atk, dfn, agi, wis), base,
+                                            (HP_MP_FACTOR,) * 2 + (STAT_FACTOR,) * 4):
+            limit = min(STAT_LIMIT, int(top * factor)) if top is not None else STAT_LIMIT
+            if not 0 <= value <= limit:
+                problems.append(f"{where}: {name} {value} (limit {limit})")
+    return problems
+
+
+def gp_result_problems(data, caps):
+    """team_problems of a Grade/LimitResultPack, as one text (None = the result counts)."""
+    problems = team_problems(data[RESULT_TEAM:RESULT_TEAM + TEAM_RECORD], caps)
+    return "; ".join(problems)[:500] if problems else None
 
 
 def make_team_block(friend_code, user_data, record):
@@ -524,6 +615,7 @@ class Handler(BaseHTTPRequestHandler):
     coins_champion = coins_top10 = None  # (bronze, silver, gold, platinum) Network Coins, None = none
     present_codes, present_packages = load_present_codes()
     limit_rotation = True  # Challengers GP rules from LIMIT_RULE_SETS (False: public 018_LimitSetting.bin)
+    species_caps = None  # load_species_caps(): max stats for the Grand Prix team check
     timeout = 15  # seconds; a stuck read must not outlive the client's 60 s request timeout
 
     def log_message(self, fmt, *args):
@@ -718,8 +810,11 @@ class Handler(BaseHTTPRequestHandler):
 
         if name in GP_RESULT_FILES and len(data) >= 0x10:
             day = self.calendar.today()
+            rejected = gp_result_problems(data, self.species_caps)
+            if rejected:
+                self.log_message("Grand Prix result of %s rejected: %s", owner, rejected)
             self.store.add_gp_result(owner, GP_RESULT_FILES[name], data, day.isoformat(),
-                                     self.calendar_id, self.calendar.contest(day)[0])
+                                     self.calendar_id, self.calendar.contest(day)[0], rejected)
 
         self.store.q("INSERT INTO private_files (friend_code, name, data) VALUES (?, ?, ?) "
                      "ON CONFLICT(friend_code, name) DO UPDATE SET data = excluded.data, updated = strftime('%s','now')",
@@ -745,7 +840,7 @@ class Handler(BaseHTTPRequestHandler):
         for owner, data, user_data in self.store.q(
                 "SELECT g.friend_code, g.data, u.data FROM gp_results g "
                 "LEFT JOIN private_files u ON u.friend_code = g.friend_code AND u.name = ? "
-                "WHERE g.mode = ? AND g.day >= ? AND g.day < ? ORDER BY g.id",
+                "WHERE g.mode = ? AND g.day >= ? AND g.day < ? AND g.rejected IS NULL ORDER BY g.id",
                 GP_REGISTRATION_FILE, mode, first.isoformat(), end.isoformat()):
             if len(data) < RESULT_TEAM:
                 continue
@@ -849,7 +944,8 @@ class Handler(BaseHTTPRequestHandler):
             since = self.calendar.first_day(self.calendar.contest(self.calendar.today())[0]).isoformat()
         rows = self.store.q(
             "SELECT g.friend_code, g.data, u.data FROM gp_results g "
-            "JOIN (SELECT friend_code, MAX(id) AS id FROM gp_results WHERE mode = ? AND day >= ? GROUP BY friend_code) last ON g.id = last.id "
+            "JOIN (SELECT friend_code, MAX(id) AS id FROM gp_results WHERE mode = ? AND day >= ? AND rejected IS NULL "
+            "GROUP BY friend_code) last ON g.id = last.id "
             "LEFT JOIN private_files u ON u.friend_code = g.friend_code AND u.name = ?", mode, since, GP_REGISTRATION_FILE)
         own, pool = None, []
         for owner, result, user_data in rows:
@@ -1007,6 +1103,12 @@ def main():
     Handler.self_opponents = args.self_opponents
     Handler.calendar = GpCalendar(args.gp_start, args.gp_days, args.gp_utc_offset, args.gp_today)
     Handler.store.date_gp_results(Handler.calendar)
+    Handler.species_caps = load_species_caps()
+    if Handler.species_caps is None:
+        print(f"warning: {SPECIES_CAPS_FILE} missing, the Grand Prix team check only checks levels and {STAT_LIMIT}",
+              flush=True)
+    for rid, reasons in Handler.store.check_gp_results(lambda data: gp_result_problems(data, Handler.species_caps)):
+        print(f"Grand Prix result {rid}: {'rejected: ' + reasons if reasons else 'counts again'}", flush=True)
     Handler.prize_champion, Handler.prize_top10 = args.gp_prize_champion, args.gp_prize_top10
     Handler.coins_champion, Handler.coins_top10 = args.gp_coins_champion, args.gp_coins_top10
     Handler.limit_rotation = not args.gp_limit_static

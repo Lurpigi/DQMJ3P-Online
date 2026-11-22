@@ -90,7 +90,7 @@ Personal patches built from the old base keep working until players rebuild them
 ```bash
 python -I tools/import-monsters/import_monsters.py \
   --sheet "DQM_J3Professional Master's guide IT V1.0 by StrangeServer & Yggdrasil.zip" \
-  --kindparam romfs/data/Parameter/KindParam.tp \
+  --kindparam romfs/data/Parameter/KindParam.tp   --kindparam-update update-romfs/data/Parameter/KindParam.tp \
   --translation ../DQMJ3P-IT-FanTranslation \
   --french fr/Message/MonsterKindMessage.mes --french-items fr/Message/ItemMessage.mes \
   --japanese-locations fr/Message/LocationMessage.mes
@@ -99,7 +99,12 @@ python -I tools/import-monsters/import_monsters.py \
 It matches every sheet row to game species ids by name and max stats (never by row order) and writes
 `server/dashboard/data/monsters.json` (names in it/en/fr/ja, rank, family, size, stats, locations, items),
 `web/public/monsters/s####.webp` and `tools/import-monsters/report.md` (match evidence, the rows it could
-not match). Large monsters keep their 2–4 stacked tiles, as in the game's party list.
+not match). Large monsters keep their 2–4 stacked tiles, as in the game's party list. It also writes
+`server/sil/species_caps.json`, the max stats the SIL server's Grand Prix team check uses.
+
+Rank, family, size and max stats come from the v1.3 update's KindParam (`--kindparam-update`), the one
+the game loads: the base romfs only has placeholder stats for species 901–907. On 2026-11-22 the catalog
+was corrected for those seven species without rerunning the import (same values the command above gives).
 
 The 720 portraits are committed in `web/public/monsters/` (about 2.7 MB, published with the site). Each
 catalog `art` entry records the guide row and the SHA-256 of the source image, so a rerun on another
@@ -126,6 +131,12 @@ Final standings are revision 1 at closing; corrections add revisions and never r
 If SIL's database is restored from an older backup, the importer notices (fingerprint of the row at its
 cursor), marks the entries the source no longer has as `source_lost` (kept, out of the standings) and
 adds a `source_reconciled` revision to the final editions that change.
+
+Grand Prix results that fail SIL's team check (`gp_results.rejected`, README "Cheats and modified
+monsters") are imported as `rejected`: listed with a notice, out of the standings and the usage stats.
+SIL checks older results again when its rules change, and the importer follows those decisions, adding a
+`team_check` revision to the final editions that change. Entries imported before migration 002 read the
+monster level from the level cap byte (+0x3c): the importer decodes their teams again from SIL, 500 per cycle.
 
 `/api/v1/status` is the public summary (import freshness, editions waiting for finalization). An import
 lag above 10 minutes marks it *degraded*; internal errors stay in the logs and in

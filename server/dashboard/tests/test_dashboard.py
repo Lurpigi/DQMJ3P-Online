@@ -45,7 +45,8 @@ def result_pack(points, wins, species=(1, 25, 0, 0), opponent=None):
     for slot, sp in enumerate(species):
         m = 0x17C + slot * 0xF0
         struct.pack_into("<h8h", pack, m + 0x1C, sp, *[100] * 8)
-        pack[m + 0x3C] = 40
+        pack[m + 0x2E] = 40   # level
+        pack[m + 0x3C] = 100  # level cap 100
     return bytes(pack)
 
 
@@ -208,6 +209,43 @@ def test_restored_source_is_reconciled(env):
     assert [r["reason"] for r in revs] == ["closing", "source_reconciled"]
     rev1 = env.sql("SELECT points FROM dashboard.standings WHERE championship_id = %s AND revision = 1 ORDER BY position", cid)
     assert rev1[0]["points"] == 1000  # revision 1 is never rewritten
+
+
+def test_rejected_teams_do_not_count(env):
+    seed_contest2(env)
+    env.register("X", "Cheater")
+    env.store.add_gp_result(CODES["X"], "grade", result_pack(5000, 3), "2026-01-13", env.cal_id, 2, "test: modified team")
+    env.run(AFTER)
+    cid = f"gp-grade-cal{env.cal_id}-n2"
+    assert env.sql("SELECT validation FROM dashboard.entries WHERE player_id = %s", env.pid("X")) == [{"validation": "rejected"}]
+    final = env.sql("SELECT name, points FROM dashboard.standings WHERE championship_id = %s ORDER BY position", cid)
+    assert [r["name"] for r in final] == ["Chiara", "Alice", "Bob"]
+    with env.client(AFTER) as c:  # listed, marked, but out of the standings
+        items = c.get(f"/api/v1/championships/{cid}/results", params={"player": env.pid("X")}).json()["items"]
+        assert [i["validation"] for i in items] == ["rejected"]
+    # SIL can decide after the import (rules checked again at start): a new revision each time
+    (chiara,) = env.store.q("SELECT max(id) FROM gp_results WHERE friend_code = ?", CODES["C"])[0]
+    env.store.q("UPDATE gp_results SET rejected = 'test', checked = 1 WHERE id = ?", chiara)
+    env.run(AFTER)
+    revs = env.sql("SELECT revision, reason FROM dashboard.revisions WHERE championship_id = %s ORDER BY revision", cid)
+    assert [r["reason"] for r in revs] == ["closing", "team_check"]
+    rev2 = env.sql("SELECT name, points FROM dashboard.standings WHERE championship_id = %s AND revision = 2 ORDER BY position", cid)
+    assert rev2[0]["points"] == 500 and {"name": "Chiara", "points": 100} in rev2
+    env.store.q("UPDATE gp_results SET rejected = NULL WHERE id = ?", chiara)
+    env.run(AFTER)
+    assert env.sql("SELECT validation FROM dashboard.entries WHERE source_key = %s", str(chiara)) == [{"validation": "unverified"}]
+    assert len(env.sql("SELECT 1 FROM dashboard.revisions WHERE championship_id = %s", cid)) == 3
+
+
+def test_old_team_levels_are_decoded_again(env):
+    seed_contest2(env)
+    env.run(DURING)
+    assert {r["level"] for r in env.sql("SELECT level FROM dashboard.team_members")} == {40}
+    env.sql("UPDATE dashboard.team_members SET level = 100 RETURNING 1")  # read from the level cap byte
+    env.sql("UPDATE dashboard.entries SET team_layout = NULL RETURNING 1")
+    env.run(DURING)
+    assert {r["level"] for r in env.sql("SELECT level FROM dashboard.team_members")} == {40}
+    assert {r["team_layout"] for r in env.sql("SELECT team_layout FROM dashboard.entries")} == {decode.TEAM_LAYOUT}
 
 
 def test_gcup_history(env):

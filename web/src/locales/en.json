@@ -325,6 +325,7 @@
     "malformed": "This upload is incomplete: it does not count.",
     "source_lost": "The game server no longer has this result (restored backup): it does not count.",
     "other_cup": "Uploaded for another cup: it does not count here.",
+    "rejected": "This team is beyond what the game allows (modified monster): it does not count.",
     "unverified": "Uploaded by the game"
   },
   "provenance": {
