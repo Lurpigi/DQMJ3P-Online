@@ -124,7 +124,7 @@ Server (`sil_server.py`, `GpCalendar`): `--gp-start` (default 2026-10-26), `--gp
 
 Entry (menu `FUN_005b8d24`, righe 0..2): 0 = "Sfida un avversario difficile", 1 = "simile", 2 = "facile" [CERTO testo menu IT]. Il gioco valuta da solo la forza (messaggio "sembra un avversario molto impegnativo"). Server: `sil_server.py` costruisce `09/18_*_PrivateDlBattle` dalle ultime squadre (`gp_results`) degli altri giocatori dello stesso modo, ordinate per una forza approssimata (stat + livello; quella del gioco, `FUN_00247444`, usa anche specie/abilita'); i round senza squadre restano quelli di `Def_DLBattle`. Verificato in gioco: nome, bandiera e mostri caricati e combattono.
 
-Mostro (0xf0, formato save): `+0x1c s16 specie` (valida se `MonsterParam[specie]+0x32 != 0`), `+0x1e HP max, +0x20 MP max, +0x22 HP att, +0x24 MP att, +0x26 ATK, +0x28 DEF, +0x2a AGI, +0x2c WIS` (s16), `+0x2e u8 livello` [CERTO 2026-11-22: 120 nei save con due stelle], `+0x3c u8` e bit `0x400` di `+0x40 u16`: tetto del livello (`FUN_00246858`/`FUN_002467dc`: bit 0x400 => 120, altrimenti `+0x3c` < 4 => 50, < 10 => 75, altrimenti 100; prima lo leggevamo come livello), `+0x44` 9 s16 (tratti/abilita'), `+0x72` nome [PROBABILE], `+0xe0/+0xe4` equip. Le stat dell'avversario sono scalate in `FUN_003e8d88` (se la tua forza < avversario) e modificate da accessori/abilita'. Il generatore crea mostri con solo specie/livello/stat (**GUESS** che bastino); per dati reali: costruire il team dal `ResultPack` (3.10) del giocatore (ultimo 0x3c4 byte) + nome da `00_UserData`.
+Mostro (0xf0, formato save): `+0x1c s16 specie` (valida se `MonsterParam[specie]+0x32 != 0`), `+0x1e HP, +0x20 MP, +0x26 ATK, +0x28 DEF, +0x2a AGI, +0x2c WIS` (s16, valori base; `+0x22`/`+0x24` non usati dalla forza, significato ignoto), `+0x2e u8 livello` [CERTO 2026-11-22: 120 nei save con due stelle], `+0x3c u8` e bit `0x400` di `+0x40 u16`: tetto del livello (`FUN_00246858`/`FUN_002467dc`: bit 0x400 => 120, altrimenti `+0x3c` < 4 => 50, < 10 => 75, altrimenti 100; prima lo leggevamo come livello), `+0x44` 9 u16 tratti, `+0x56` coppie (abilita', punti), `+0x84..+0x8e` bonus per stat, `+0xe0/+0xe4` equip (dettagli in 3.11). Le stat dell'avversario sono scalate in `FUN_003e8d88` (se la tua forza < avversario) e modificate da accessori/abilita'. Il generatore crea mostri con solo specie/livello/stat (**GUESS** che bastino); per dati reali: costruire il team dal `ResultPack` (3.10) del giocatore (ultimo 0x3c4 byte) + nome da `00_UserData`.
 `PrivateDlBattle`: se tutto zero (primi 16 byte della entry 1) viene ignorato e si usa Def.
 
 ### 3.9 23_UserPackData.bin (0x2698, privato) [PARZIALE]
@@ -140,6 +140,32 @@ Header 0x110 + 2 blocchi modo da 0x12c4 (Grade a +0x110, Limit a +0x13d4):
 - **00_UserData.bin (0xc4)** (`FUN_002f7618`) [CERTO layout]: `+0` 0, `+4` u32 localita' `loc_NNN` (u16 profilo+0x58, `FUN_006b6238`), `+8` u32 (modo==Limit), `+0xc` nome 0x24 B (da `save+0x3c` [0]), `+0x30` Mii 0x88 B (profilo+100), `+0xb8` u8 principiante (rec+0x3c3<4), `+0xb9` u8=1, `+0xba` u8 Mii presente (profilo+0x60), `+0xbb` 5 byte (profilo+0xc4), resto 0.
 - **Grade/LimitResultPack.bin (0x540)** (`FUN_002f7c64`): `0x17c` risultato + `0x3c4` record squadra del giocatore. Risultato: `+0 u8 =3`, `+2/+4/+6/+8 u16` somme punti (popolarita', forza, valutazione, vittoria), `+0xc u32` totale (somma delle 4 voci su 3 team = PUNTEGGIO), `+0x10 u16`, e a `+0x14 + i*0x78` 3 riepiloghi team da 0x78 (`FUN_002f5fa0`): `+0` nome avversario 0x24, `+0x24` testata avversario 0x1c (contiene il friend code messo dal server), `+0x40 u32` 1 = round vinto, `+0x44 u32` punti vittoria, `+0x48/4a/4c u16` punti pop/forza/valutazione, `+0x4e u8`, `+0x50/+0x54 u32`, `+0x58` **HMAC-SHA256** di 0x58 byte con chiave `RESULT_HMAC_KEY` (nel gp_files.py; `FUN_001628b0`+`FUN_002f5fa0`). Il client non verifica nulla in ricezione: la HMAC serve al server anti-cheat (opzionale).
 - **04_UpdateSaveData.bin (0x19b98)** (`FUN_002f7444`): regioni del save, offset buffer <- offset save (len): 0x0<-0x8 (0x2c0); 0x2c0<-0x1de44 (0x208); 0x4c8<-0x1e04c (0x92e); 0xdf8<-0x1e97c (0xc88); 0x1a80<-0x1f604 (0x51c); 0x1f9c<-0x1fb20 (0x68); 0x2004<-0x1fb88 (0x88c); 0x2890<-0x20418 (0xb20); 0x33b0<-0x20f38 (0x20); 0x33d0<-0x20f58 (100); 0x3434<-0x20fbc (0x20); 0x3458<-0x20fe0 (0x13c08); 0x17060<-0x34be8 (0x1e44); 0x18ea4<-0x36afc (0x2a0); 0x19148<-0x36da0 (0x18); 0x19160<-0x36db8 (0xa34). Il server puo' semplicemente memorizzarlo.
+
+
+### 3.11 Tratti, abilita' e bonus del mostro [CERTO 2026-11-22]
+
+Verificato sui 4 mostri reali di `server/data/sil.sqlite3` (nomi dai `.mes` della traduzione, `update/eng/Message/`) e
+in Ghidra (`FUN_00247444`, forza del mostro, e i getter che chiama).
+
+- `+0x44` 9 u16: id dei tratti (`FeatFndMessage%03d`). I tratti di taglia `0x46..0x4a` (Small, Normal, Mega,
+  Giga, Ultra Body) prevalgono sulla taglia della specie (`FUN_006bfe90`, altrimenti `FUN_0066173c(specie)`): un
+  Geodraco Baugaia rimpicciolito ha `0x47` Normal Body. Esempio reale (Gem Slime): Normal Body, Escape Artist, Hard
+  Metal Body, Act 1-2x, Heal Meister, Bouncer.
+- `+0x56` 4 coppie u16 (id abilita' `SkillName%04d`, punti): ad es. (Attack Boost EX, 250), (Ladja, 250),
+  (Fire & Ice Breath SP, 200), (Enfeebler, 150). Gli id 0 = slot vuoto.
+- Stat in battaglia = base (`+0x1e`, `+0x20`, `+0x26`..`+0x2c`) + bonus (`+0x84` HP, `+0x86` MP, `+0x88` ATK, `+0x8a`
+  DEF, `+0x8c` AGI, `+0x8e` WIS, s16) + tabelle dei tratti (`DAT_007c417e` ecc., 10 voci id/bonus per stat) +
+  equipaggiamento se `+0xe0 != 0` (`FUN_00203f40` ecc.). Getter: `FUN_006c0028` HP, `FUN_006c0114` MP, `FUN_006c09b4`
+  ATK, `FUN_006bed98` DEF, `FUN_006c01f4` AGI, `FUN_006bff0c` WIS. Nei 4 mostri reali i bonus sono tutti 0.
+- Forza (`FUN_00247444`, usata dal gioco per "avversario difficile/simile/facile"): HP x2..5 secondo i corpi
+  metallici (`0x4b..0x4e`), MP con i tratti di resistenza/risparmio MP, ATK e WIS moltiplicati per il numero di
+  azioni (`0x01..0x07` Act 1-2x .. Act 4x), + DEF + AGI x2, poi scalata per taglia; piu' la somma dei valori dei
+  tratti (`FUN_002530c4`) e delle abilita' (`FUN_002530dc`), anch'essi scalati per taglia.
+
+Conseguenze: il controllo squadra di `sil_server.py` confronta base + bonus `+0x84..+0x8e` con i limiti
+(`TEAM_CHECK_VERSION = 2`; la versione 1 guardava solo la base e un salvataggio modificato poteva alzare i bonus
+senza essere respinto). Una squadra CPU si costruisce con specie, livello, stat base,
+tratti a `+0x44` e abilita' a `+0x56`.
 
 ## 4. Minimo per usare la feature [PROBABILE]
 

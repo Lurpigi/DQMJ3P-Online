@@ -295,9 +295,18 @@ TEAM_RECORD = 0x3C4    # the mode's registered team in the save: 4 monsters of 0
 MONSTER = 0xF0
 RESULT_TEAM = 0x17C    # team record inside Grade/LimitResultPack
 ENTRIES, ROUNDS = 3, 3
-# Monster record (0xf0, save format): +0x1c s16 species, +0x1e s16 max HP, MP, current HP, MP, ATK,
-# DEF, AGI, WIS, +0x2e u8 level, +0x3c u8 and +0x40 u16 bit 0x400: the level cap (monster_level_cap)
+# Monster record (0xf0, save format): +0x1c s16 species, s16 base stats HP +0x1e, MP +0x20, ATK +0x26,
+# DEF +0x28, AGI +0x2a, WIS +0x2c (+0x22/+0x24 unknown), +0x2e u8 level, +0x3c u8 and +0x40 u16 bit
+# 0x400: the level cap (monster_level_cap), +0x84 6 s16 bonuses added to those stats in the same order
+# (the game's stat getters FUN_006c0028 and siblings, re/notes/grandprix_formats.md 3.11).
 MONSTER_LEVEL = 0x2E
+MONSTER_BONUS = 0x84
+
+
+def monster_stats(m):
+    """(base, bonus) stats of a monster record, each (HP, MP, ATK, DEF, AGI, WIS)."""
+    hp, mp, _a, _b, atk, dfn, agi, wis = struct.unpack_from("<8h", m, 0x1E)
+    return (hp, mp, atk, dfn, agi, wis), struct.unpack_from("<6h", m, MONSTER_BONUS)
 
 
 def team_strength(record):
@@ -308,8 +317,8 @@ def team_strength(record):
         m = record[i * MONSTER:(i + 1) * MONSTER]
         if len(m) < MONSTER or struct.unpack_from("<h", m, 0x1C)[0] <= 0:  # no species
             continue
-        hp, mp, _hp, _mp, atk, dfn, agi, wis = struct.unpack_from("<8h", m, 0x1E)
-        total += hp + mp + atk + dfn + agi + wis + 10 * m[MONSTER_LEVEL]
+        base, bonus = monster_stats(m)
+        total += sum(base) + sum(bonus) + 10 * m[MONSTER_LEVEL]
     return total
 
 
@@ -319,8 +328,9 @@ def team_strength(record):
 # opponent. The game has no message for this, so the client gets OK like any upload.
 # Limits are loose on purpose: seeds raise a stat by up to 10% over the species maximum (every
 # team seen so far), levels above 100 raise HP and MP further (up to 1.65x seen), and accessories
-# count only in battle. Bump TEAM_CHECK_VERSION when a rule changes: old results are checked again.
-TEAM_CHECK_VERSION = 1
+# count only in battle. Each stat is checked with its bonus (+0x84), which a save editor can raise
+# as well. Bump TEAM_CHECK_VERSION when a rule changes: old results are checked again.
+TEAM_CHECK_VERSION = 2
 SPECIES_CAPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "species_caps.json")
 STAT_LIMIT = 9999            # what the game's 4-digit stat fields can show
 HP_MP_FACTOR = 2.5           # max HP/MP <= species maximum * this
@@ -363,13 +373,14 @@ def team_problems(record, caps):
         level, cap = m[MONSTER_LEVEL], monster_level_cap(m)
         if not 1 <= level <= cap:
             problems.append(f"{where}: level {level} (cap {cap})")
-        hp, mp, _hp, _mp, atk, dfn, agi, wis = struct.unpack_from("<8h", m, 0x1E)
-        base = caps[species] if caps is not None else (None,) * 6
-        for name, value, top, factor in zip(STAT_NAMES, (hp, mp, atk, dfn, agi, wis), base,
-                                            (HP_MP_FACTOR,) * 2 + (STAT_FACTOR,) * 4):
+        stats, bonuses = monster_stats(m)
+        tops = caps[species] if caps is not None else (None,) * 6
+        for name, value, bonus, top, factor in zip(STAT_NAMES, stats, bonuses, tops,
+                                                   (HP_MP_FACTOR,) * 2 + (STAT_FACTOR,) * 4):
             limit = min(STAT_LIMIT, int(top * factor)) if top is not None else STAT_LIMIT
-            if not 0 <= value <= limit:
-                problems.append(f"{where}: {name} {value} (limit {limit})")
+            if not (0 <= value and 0 <= bonus and value + bonus <= limit):
+                shown = f"{value}+{bonus}" if bonus else f"{value}"
+                problems.append(f"{where}: {name} {shown} (limit {limit})")
     return problems
 
 
