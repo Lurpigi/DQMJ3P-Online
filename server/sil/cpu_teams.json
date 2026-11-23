@@ -1,0 +1,3345 @@
+{
+ "comment": "Grand Prix CPU teams (sil_server.py load_cpu_teams). Traits: [FeatFndMessage id, name], skills: [SkillName id, points, name], names from the English fan translation (update/eng). family/rank: KindParam via server/dashboard/data/monsters.json; slots: battle slots after the body traits; small: size S (Small Body, or species size 0 with no body trait), not N. main/sub: team record +0x3c0/+0x3c1 (-1 = none). Base stats come from species_caps.json (sil_server.CPU_STAT_FACTORS).",
+ "teams": [
+  {
+   "name": "CPU WORLD",
+   "inspiration": "gaaaaaame.info (ikdhkr), 2枠最強WORLD, https://www.gaaaaaame.info/entry/2017/05/06/141500",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 858,
+     "species_name": "Royal Flush",
+     "nickname": "WORLD",
+     "level": 120,
+     "family": 9,
+     "rank": 8,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       6,
+       "Act 3-4x"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       452,
+       "Divine Protection"
+      ]
+     ],
+     "skills": [
+      [
+       259,
+       200,
+       "Fire & Ice Breath SP"
+      ],
+      [
+       323,
+       250,
+       "Archfiend Zoma"
+      ],
+      [
+       341,
+       250,
+       "Baboodread"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 457,
+     "species_name": "Archfiend Zoma",
+     "nickname": "Zoma",
+     "level": 120,
+     "family": 9,
+     "rank": 8,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ]
+     ],
+     "skills": [
+      [
+       511,
+       250,
+       "Bjørn the Behemoose"
+      ],
+      [
+       323,
+       250,
+       "Archfiend Zoma"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    }
+   ],
+   "fusion": "fused WORLD as main, Zoma alongside"
+  },
+  {
+   "name": "CPU Boshock",
+   "inspiration": "gaaaaaame.info (ikdhkr), 4枠マダンテじごくの踊りボーショック, https://www.gaaaaaame.info/entry/2017/02/23/160106",
+   "main": 0,
+   "sub": -1,
+   "monsters": [
+    {
+     "species": 531,
+     "species_name": "Boshock",
+     "nickname": "Boshock",
+     "level": 120,
+     "family": 8,
+     "rank": 8,
+     "slots": 4,
+     "small": false,
+     "traits": [
+      [
+       74,
+       "Ultra Body"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       25,
+       "Chance Skipper"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ],
+      [
+       470,
+       "Cloak of Darkness"
+      ],
+      [
+       150,
+       "HP Gambit"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ],
+      [
+       413,
+       "MP Regenerator"
+      ],
+      [
+       173,
+       "Giant Killer"
+      ]
+     ],
+     "skills": [
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       381,
+       250,
+       "Doom Groom"
+      ],
+      [
+       325,
+       250,
+       "Malroth"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Roulette",
+   "inspiration": "gaaaaaame.info (ikdhkr), 呪いのルーレットリバースパーティ, https://www.gaaaaaame.info/entry/2017/02/21/155036",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 241,
+     "species_name": "Gigantes",
+     "nickname": "Gigante",
+     "level": 100,
+     "family": 5,
+     "rank": 5,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       23,
+       "Chance Reverser"
+      ],
+      [
+       5,
+       "Act 3x"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       554,
+       250,
+       "Murdaw"
+      ],
+      [
+       522,
+       200,
+       "Slime Family Reunion"
+      ],
+      [
+       325,
+       250,
+       "Malroth"
+      ],
+      [
+       317,
+       150,
+       "Gigantes"
+      ]
+     ]
+    },
+    {
+     "species": 242,
+     "species_name": "Cyclops",
+     "nickname": "Ciclope",
+     "level": 100,
+     "family": 5,
+     "rank": 4,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       23,
+       "Chance Reverser"
+      ],
+      [
+       5,
+       "Act 3x"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       554,
+       250,
+       "Murdaw"
+      ],
+      [
+       325,
+       250,
+       "Malroth"
+      ],
+      [
+       167,
+       200,
+       "Curse SP"
+      ],
+      [
+       302,
+       150,
+       "Fear-monger"
+      ]
+     ]
+    },
+    {
+     "species": 243,
+     "species_name": "Queen Ferz",
+     "nickname": "Ferz",
+     "level": 100,
+     "family": 5,
+     "rank": 6,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       23,
+       "Chance Reverser"
+      ],
+      [
+       5,
+       "Act 3x"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       554,
+       250,
+       "Murdaw"
+      ],
+      [
+       325,
+       250,
+       "Malroth"
+      ],
+      [
+       205,
+       150,
+       "Thief"
+      ],
+      [
+       211,
+       150,
+       "Dancer"
+      ]
+     ]
+    },
+    {
+     "species": 244,
+     "species_name": "Atlas",
+     "nickname": "Atlas",
+     "level": 100,
+     "family": 5,
+     "rank": 7,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       23,
+       "Chance Reverser"
+      ],
+      [
+       5,
+       "Act 3x"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       554,
+       250,
+       "Murdaw"
+      ],
+      [
+       205,
+       150,
+       "Thief"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       310,
+       150,
+       "Giant Crusher"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Cancerio",
+   "inspiration": "gaaaaaame.info (ikdhkr), 最強合体4枠スラキャンサー, https://www.gaaaaaame.info/entry/2017/03/09/111754",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 783,
+     "species_name": "Slime Cancer",
+     "nickname": "Cancerio",
+     "level": 100,
+     "family": 1,
+     "rank": 7,
+     "slots": 3,
+     "small": false,
+     "traits": [
+      [
+       73,
+       "Giga Body"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       485,
+       "Mirror of the Sun"
+      ],
+      [
+       484,
+       "Soul of the Great Bird"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       229,
+       "Tit-for-Tat"
+      ]
+     ],
+     "skills": [
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       426,
+       250,
+       "Resistance Ward EX"
+      ],
+      [
+       325,
+       250,
+       "Malroth"
+      ]
+     ]
+    },
+    {
+     "species": 244,
+     "species_name": "Atlas",
+     "nickname": "Atlas",
+     "level": 100,
+     "family": 5,
+     "rank": 7,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       484,
+       "Soul of the Great Bird"
+      ],
+      [
+       485,
+       "Mirror of the Sun"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ],
+      [
+       145,
+       "Gamble Counter"
+      ]
+     ],
+     "skills": [
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       343,
+       250,
+       "He Who Bears no Name"
+      ],
+      [
+       215,
+       150,
+       "Priest"
+      ],
+      [
+       242,
+       200,
+       "Break SP"
+      ]
+     ]
+    }
+   ],
+   "fusion": "fused Slime Cancer as main fusion; fused Atlas against standard teams"
+  },
+  {
+   "name": "CPU Metallo",
+   "inspiration": "archetype: metal wall (metal bodies, high DEF)",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 880,
+     "species_name": "Liquid Metal Slime King",
+     "nickname": "ReMetal",
+     "level": 100,
+     "family": 1,
+     "rank": 8,
+     "slots": 3,
+     "small": false,
+     "traits": [
+      [
+       73,
+       "Giga Body"
+      ],
+      [
+       78,
+       "Ultra-Hard Metal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       452,
+       "Divine Protection"
+      ]
+     ],
+     "skills": [
+      [
+       183,
+       250,
+       "Defense Boost EX"
+      ],
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ]
+     ]
+    },
+    {
+     "species": 38,
+     "species_name": "Gem Slime",
+     "nickname": "Gemma",
+     "level": 100,
+     "family": 1,
+     "rank": 7,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       77,
+       "Hard Metal Body"
+      ],
+      [
+       1,
+       "Act 1-2x"
+      ],
+      [
+       130,
+       "Escape Artist"
+      ],
+      [
+       40,
+       "Heal Meister"
+      ],
+      [
+       158,
+       "Bouncer"
+      ]
+     ],
+     "skills": [
+      [
+       179,
+       250,
+       "Attack Boost EX"
+      ],
+      [
+       553,
+       250,
+       "Ladja"
+      ],
+      [
+       259,
+       200,
+       "Fire & Ice Breath SP"
+      ],
+      [
+       322,
+       150,
+       "Enfeebler"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Slime",
+   "inspiration": "archetype: Slime family",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 41,
+     "species_name": "Platinum King",
+     "nickname": "Platino",
+     "level": 100,
+     "family": 1,
+     "rank": 8,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       76,
+       "Metal Body"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       158,
+       "Bouncer"
+      ]
+     ],
+     "skills": [
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ]
+     ]
+    },
+    {
+     "species": 818,
+     "species_name": "Premium Slime",
+     "nickname": "Premium",
+     "level": 100,
+     "family": 1,
+     "rank": 7,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       1,
+       "Act 1-2x"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ],
+      [
+       187,
+       "Last Stand"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       550,
+       250,
+       "Premium Slime"
+      ],
+      [
+       279,
+       150,
+       "Cure-All+"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ]
+     ]
+    },
+    {
+     "species": 785,
+     "species_name": "Slamen Rider",
+     "nickname": "Rider",
+     "level": 100,
+     "family": 1,
+     "rank": 7,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       394,
+       "Critical Focus"
+      ],
+      [
+       135,
+       "Early Bird"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ]
+     ],
+     "skills": [
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       455,
+       200,
+       "Fighter SP"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Draghi",
+   "inspiration": "archetype: Dragon family",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 723,
+     "species_name": "Dragonlord",
+     "nickname": "Dragon",
+     "level": 100,
+     "family": 2,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       41,
+       "Breath Meister"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       425,
+       "Dragon Beat"
+      ]
+     ],
+     "skills": [
+      [
+       324,
+       250,
+       "Dragonlord"
+      ],
+      [
+       259,
+       200,
+       "Fire & Ice Breath SP"
+      ],
+      [
+       224,
+       200,
+       "Dragon SP"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 96,
+     "species_name": "Illusionist Fazma",
+     "nickname": "Fazma",
+     "level": 100,
+     "family": 2,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       30,
+       "Frizz Meister"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ]
+     ],
+     "skills": [
+      [
+       368,
+       250,
+       "Illusionist Fazma"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       43,
+       200,
+       "Frizz & Bang SP"
+      ],
+      [
+       224,
+       200,
+       "Dragon SP"
+      ]
+     ]
+    },
+    {
+     "species": 748,
+     "species_name": "Shen Long",
+     "nickname": "ShenLong",
+     "level": 100,
+     "family": 2,
+     "rank": 8,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       4,
+       "Act 2-3x"
+      ],
+      [
+       394,
+       "Critical Focus"
+      ],
+      [
+       187,
+       "Last Stand"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ]
+     ],
+     "skills": [
+      [
+       526,
+       250,
+       "Shen Long"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       224,
+       200,
+       "Dragon SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Demoni",
+   "inspiration": "archetype: Demon family, small",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 286,
+     "species_name": "Zeldorado",
+     "nickname": "Zeldo",
+     "level": 100,
+     "family": 5,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       394,
+       "Critical Focus"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       187,
+       "Last Stand"
+      ]
+     ],
+     "skills": [
+      [
+       387,
+       150,
+       "Zeldorado"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       233,
+       200,
+       "Devil SP"
+      ],
+      [
+       446,
+       200,
+       "Warrior SP"
+      ]
+     ]
+    },
+    {
+     "species": 287,
+     "species_name": "Enchantress Gretel",
+     "nickname": "Gretel",
+     "level": 100,
+     "family": 5,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       39,
+       "Zam Meister"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ]
+     ],
+     "skills": [
+      [
+       388,
+       250,
+       "Enchantress Gretel"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       39,
+       200,
+       "Zam SP"
+      ],
+      [
+       233,
+       200,
+       "Devil SP"
+      ]
+     ]
+    },
+    {
+     "species": 284,
+     "species_name": "Guardian Lazuvann",
+     "nickname": "Lazuvan",
+     "level": 100,
+     "family": 5,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       40,
+       "Heal Meister"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       187,
+       "Last Stand"
+      ]
+     ],
+     "skills": [
+      [
+       391,
+       250,
+       "Guardian Lazuvann"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       233,
+       200,
+       "Devil SP"
+      ]
+     ]
+    },
+    {
+     "species": 481,
+     "species_name": "Metabode",
+     "nickname": "Metabod",
+     "level": 100,
+     "family": 5,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       135,
+       "Early Bird"
+      ],
+      [
+       15,
+       "Chance Accelerater"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       187,
+       250,
+       "Speed Boost EX"
+      ],
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       233,
+       200,
+       "Devil SP"
+      ],
+      [
+       211,
+       150,
+       "Dancer"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Piccoli",
+   "inspiration": "archetype: small SS rank (Jester, Psaro, Wildcard, Zoma)",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 804,
+     "species_name": "Jester",
+     "nickname": "Jester",
+     "level": 120,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       394,
+       "Critical Focus"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       187,
+       "Last Stand"
+      ]
+     ],
+     "skills": [
+      [
+       542,
+       250,
+       "JESTER"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       446,
+       200,
+       "Warrior SP"
+      ]
+     ]
+    },
+    {
+     "species": 805,
+     "species_name": "Psaro of the Demon Clan",
+     "nickname": "Psaro",
+     "level": 120,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ]
+     ],
+     "skills": [
+      [
+       543,
+       250,
+       "Psaro of the Demon Clan"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       19,
+       200,
+       "Bang SP"
+      ],
+      [
+       7,
+       200,
+       "Fizz SP"
+      ]
+     ]
+    },
+    {
+     "species": 453,
+     "species_name": "Wildcard",
+     "nickname": "Joker",
+     "level": 120,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       135,
+       "Early Bird"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       452,
+       "Divine Protection"
+      ]
+     ],
+     "skills": [
+      [
+       336,
+       250,
+       "Wildcard"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ]
+     ]
+    },
+    {
+     "species": 457,
+     "species_name": "Archfiend Zoma",
+     "nickname": "Zoma",
+     "level": 120,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ],
+      [
+       158,
+       "Bouncer"
+      ]
+     ],
+     "skills": [
+      [
+       323,
+       250,
+       "Archfiend Zoma"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       257,
+       200,
+       "Icy Breather SP"
+      ],
+      [
+       291,
+       200,
+       "Netherworld Mister SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Nikoroto",
+   "inspiration": "Square Enix official blog, Great Masters' GP 2017, national final winner にころと, https://blog.jp.square-enix.com/dqm-j3/2017/08/great-masters-gp-18.html",
+   "main": 2,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 528,
+     "species_name": "Itaburu",
+     "nickname": "Itaburu",
+     "level": 100,
+     "family": 8,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       494,
+       "Garden of Eden"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ],
+      [
+       413,
+       "MP Regenerator"
+      ]
+     ],
+     "skills": [
+      [
+       399,
+       250,
+       "Itaburu"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       426,
+       250,
+       "Resistance Ward EX"
+      ]
+     ]
+    },
+    {
+     "species": 456,
+     "species_name": "Malroth",
+     "nickname": "Sidoh",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ],
+      [
+       234,
+       "Buff Benefaction"
+      ]
+     ],
+     "skills": [
+      [
+       325,
+       250,
+       "Malroth"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       426,
+       250,
+       "Resistance Ward EX"
+      ]
+     ]
+    },
+    {
+     "species": 152,
+     "species_name": "Hog Hat",
+     "nickname": "Cappello",
+     "level": 100,
+     "family": 7,
+     "rank": 2,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       1,
+       "Act 1-2x"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ],
+      [
+       413,
+       "MP Regenerator"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ]
+     ],
+     "skills": [
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       15,
+       200,
+       "Quake SP"
+      ],
+      [
+       174,
+       200,
+       "MP Boost SP"
+      ],
+      [
+       449,
+       200,
+       "Wizard SP"
+      ]
+     ]
+    },
+    {
+     "species": 902,
+     "species_name": "Vearn, the Beholder",
+     "nickname": "Vearn",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       75,
+       "Light Metal Body"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ],
+      [
+       413,
+       "MP Regenerator"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ]
+     ],
+     "skills": [
+      [
+       580,
+       250,
+       "Vearn, The Beholder"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       426,
+       250,
+       "Resistance Ward EX"
+      ]
+     ]
+    }
+   ],
+   "fusion": "Hog Hat fused first (Kafrizzle-like nuke), then Malroth for the damage cap"
+  },
+  {
+   "name": "CPU Masahiro",
+   "inspiration": "Square Enix official blog, Great Masters' GP 2017, East Japan final winner まさひろ, https://blog.jp.square-enix.com/dqm-j3/2017/05/great-masters-gp-13.html",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 841,
+     "species_name": "Chibi Heroines",
+     "nickname": "Chibi",
+     "level": 100,
+     "family": 5,
+     "rank": 6,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       211,
+       150,
+       "Dancer"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ],
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 840,
+     "species_name": "Slamen Rider Girl",
+     "nickname": "Rider",
+     "level": 100,
+     "family": 1,
+     "rank": 7,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       135,
+       "Early Bird"
+      ]
+     ],
+     "skills": [
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ],
+      [
+       455,
+       200,
+       "Fighter SP"
+      ]
+     ]
+    },
+    {
+     "species": 31,
+     "species_name": "Pink Triplets",
+     "nickname": "Rosa",
+     "level": 100,
+     "family": 1,
+     "rank": 4,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       210,
+       150,
+       "Troubadour"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Pachon",
+   "inspiration": "Square Enix official blog, Great Masters' GP 2017, East Japan final runner-up ぱちょん, https://blog.jp.square-enix.com/dqm-j3/2017/05/great-masters-gp-13.html",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 42,
+     "species_name": "Metal Goddess",
+     "nickname": "Goddess",
+     "level": 100,
+     "family": 1,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       76,
+       "Metal Body"
+      ],
+      [
+       158,
+       "Bouncer"
+      ]
+     ],
+     "skills": [
+      [
+       183,
+       250,
+       "Defense Boost EX"
+      ],
+      [
+       277,
+       200,
+       "Healer SP"
+      ],
+      [
+       221,
+       200,
+       "Slime SP"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 858,
+     "species_name": "Royal Flush",
+     "nickname": "WORLD",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       6,
+       "Act 3-4x"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ]
+     ],
+     "skills": [
+      [
+       564,
+       250,
+       "WORLD"
+      ],
+      [
+       259,
+       200,
+       "Fire & Ice Breath SP"
+      ],
+      [
+       341,
+       250,
+       "Baboodread"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 864,
+     "species_name": "Vera",
+     "nickname": "Vera",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       394,
+       "Critical Focus"
+      ],
+      [
+       187,
+       "Last Stand"
+      ]
+     ],
+     "skills": [
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       186,
+       200,
+       "Speed Boost SP"
+      ],
+      [
+       216,
+       150,
+       "Champion"
+      ],
+      [
+       446,
+       200,
+       "Warrior SP"
+      ]
+     ]
+    },
+    {
+     "species": 475,
+     "species_name": "Madesgora",
+     "nickname": "Madesgo",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ]
+     ],
+     "skills": [
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       291,
+       200,
+       "Netherworld Mister SP"
+      ],
+      [
+       174,
+       200,
+       "MP Boost SP"
+      ],
+      [
+       19,
+       200,
+       "Bang SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Yumekui",
+   "inspiration": "Square Enix official blog, Great Masters' GP 2017, West Japan final winner ゆめくい, https://blog.jp.square-enix.com/dqm-j3/2017/05/great-masters-gp-12.html",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 464,
+     "species_name": "Corvus the Fallen",
+     "nickname": "Corvus",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ]
+     ],
+     "skills": [
+      [
+       332,
+       250,
+       "Corvus the Fallen"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 858,
+     "species_name": "Royal Flush",
+     "nickname": "WORLD",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       6,
+       "Act 3-4x"
+      ],
+      [
+       12,
+       "Pre-Psycher"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ]
+     ],
+     "skills": [
+      [
+       564,
+       250,
+       "WORLD"
+      ],
+      [
+       259,
+       200,
+       "Fire & Ice Breath SP"
+      ],
+      [
+       323,
+       250,
+       "Archfiend Zoma"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 854,
+     "species_name": "Fowleye",
+     "nickname": "Fowleye",
+     "level": 100,
+     "family": 5,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       158,
+       "Bouncer"
+      ]
+     ],
+     "skills": [
+      [
+       563,
+       250,
+       "Fowleye"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       285,
+       150,
+       "Black Mister+"
+      ],
+      [
+       287,
+       200,
+       "Red Mister SP"
+      ]
+     ]
+    },
+    {
+     "species": 874,
+     "species_name": "Zoma's Little Devil",
+     "nickname": "Diavolo",
+     "level": 100,
+     "family": 9,
+     "rank": 6,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       323,
+       250,
+       "Archfiend Zoma"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       257,
+       200,
+       "Icy Breather SP"
+      ],
+      [
+       174,
+       200,
+       "MP Boost SP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Gen",
+   "inspiration": "Square Enix official blog, Great Masters' GP 2017, West Japan final runner-up Gen, https://blog.jp.square-enix.com/dqm-j3/2017/05/great-masters-gp-12.html",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 462,
+     "species_name": "Demonking Orgodemir",
+     "nickname": "Orgo",
+     "level": 100,
+     "family": 9,
+     "rank": 8,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       221,
+       "Disruptive Wave"
+      ]
+     ],
+     "skills": [
+      [
+       330,
+       250,
+       "Orgodemir"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ],
+      [
+       19,
+       200,
+       "Bang SP"
+      ],
+      [
+       174,
+       200,
+       "MP Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 84,
+     "species_name": "Drakulurch",
+     "nickname": "Behidos",
+     "level": 100,
+     "family": 2,
+     "rank": 6,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       394,
+       "Critical Focus"
+      ],
+      [
+       187,
+       "Last Stand"
+      ]
+     ],
+     "skills": [
+      [
+       224,
+       200,
+       "Dragon SP"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       254,
+       200,
+       "Fire Breather SP"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 322,
+     "species_name": "Zepling",
+     "nickname": "Bubblin",
+     "level": 100,
+     "family": 6,
+     "rank": 3,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       3,
+       "Act 2x"
+      ],
+      [
+       40,
+       "Heal Meister"
+      ],
+      [
+       201,
+       "Lovely"
+      ]
+     ],
+     "skills": [
+      [
+       277,
+       200,
+       "Healer SP"
+      ],
+      [
+       279,
+       150,
+       "Cure-All+"
+      ],
+      [
+       236,
+       200,
+       "Zombie SP"
+      ],
+      [
+       190,
+       200,
+       "Wisdom Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 528,
+     "species_name": "Itaburu",
+     "nickname": "Itaburu",
+     "level": 100,
+     "family": 8,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       68,
+       "All Ward+"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       134,
+       "Last Word"
+      ],
+      [
+       412,
+       "HP Regenerator"
+      ]
+     ],
+     "skills": [
+      [
+       399,
+       250,
+       "Itaburu"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       426,
+       250,
+       "Resistance Ward EX"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Dragbeat",
+   "inspiration": "gaaaaaame.info (ikdhkr), ドラゴンビート不屈の闘志ライドインパクト, https://www.gaaaaaame.info/entry/2017/03/22/111802",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 544,
+     "species_name": "Battle Axesaurus",
+     "nickname": "Destroy",
+     "level": 100,
+     "family": 2,
+     "rank": 8,
+     "slots": 3,
+     "small": false,
+     "traits": [
+      [
+       73,
+       "Giga Body"
+      ],
+      [
+       202,
+       "Scare Stare"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       495,
+       "Fusion Expert"
+      ],
+      [
+       136,
+       "Early Bird+"
+      ],
+      [
+       209,
+       "Fanatic"
+      ]
+     ],
+     "skills": [
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       216,
+       150,
+       "Champion"
+      ],
+      [
+       224,
+       200,
+       "Dragon SP"
+      ],
+      [
+       227,
+       200,
+       "Beast SP"
+      ]
+     ]
+    },
+    {
+     "species": 442,
+     "species_name": "Ironclad Wartoise",
+     "nickname": "Tartaru",
+     "level": 100,
+     "family": 2,
+     "rank": 6,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       25,
+       "Chance Skipper"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       202,
+       "Scare Stare"
+      ],
+      [
+       219,
+       "Ripple of Light"
+      ]
+     ],
+     "skills": [
+      [
+       522,
+       200,
+       "Slime Family Reunion"
+      ],
+      [
+       170,
+       200,
+       "HP Boost SP"
+      ],
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       432,
+       250,
+       "Stasis Ward EX"
+      ]
+     ]
+    }
+   ],
+   "fusion": "fused Battle Axesaurus (Dragon Beat)"
+  },
+  {
+   "name": "CPU Madante",
+   "inspiration": "gaaaaaame.info (ikdhkr), 合体4枠マダンテぶっぱなし, https://www.gaaaaaame.info/entry/2017/03/16/113120",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 531,
+     "species_name": "Boshock",
+     "nickname": "Boshock",
+     "level": 100,
+     "family": 8,
+     "rank": 8,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       197,
+       "Moody"
+      ],
+      [
+       151,
+       "MP Gambit"
+      ]
+     ],
+     "skills": [
+      [
+       174,
+       200,
+       "MP Boost SP"
+      ],
+      [
+       275,
+       200,
+       "Collossus SP"
+      ],
+      [
+       348,
+       250,
+       "Great Empyrea"
+      ],
+      [
+       381,
+       250,
+       "Doom Groom"
+      ]
+     ]
+    },
+    {
+     "species": 279,
+     "species_name": "Devil Dog Brenda",
+     "nickname": "Brenda",
+     "level": 100,
+     "family": 5,
+     "rank": 8,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       197,
+       "Moody"
+      ],
+      [
+       151,
+       "MP Gambit"
+      ]
+     ],
+     "skills": [
+      [
+       174,
+       200,
+       "MP Boost SP"
+      ],
+      [
+       200,
+       150,
+       "Wise Man"
+      ],
+      [
+       348,
+       250,
+       "Great Empyrea"
+      ],
+      [
+       506,
+       200,
+       "Demonking SP"
+      ]
+     ]
+    }
+   ],
+   "fusion": "both fuse: Boshock, then Brenda"
+  },
+  {
+   "name": "CPU Tensione",
+   "inspiration": "gaaaaaame.info (ikdhkr), 合体4枠テンションサゲサゲチョップ＆ライドインパクト, https://www.gaaaaaame.info/entry/2017/03/15/063227",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 548,
+     "species_name": "Maniacal Mole",
+     "nickname": "Piccone",
+     "level": 100,
+     "family": 3,
+     "rank": 6,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       184,
+       "Essence Sucker"
+      ],
+      [
+       196,
+       "Grumbler"
+      ],
+      [
+       254,
+       "Flurry ×6"
+      ],
+      [
+       136,
+       "Early Bird+"
+      ],
+      [
+       226,
+       "Runaway Train"
+      ]
+     ],
+     "skills": [
+      [
+       197,
+       150,
+       "Barnstormer"
+      ],
+      [
+       494,
+       200,
+       "Wonder West"
+      ],
+      [
+       289,
+       200,
+       "White Mister SP"
+      ],
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ]
+     ]
+    },
+    {
+     "species": 339,
+     "species_name": "Stone Golem",
+     "nickname": "Golem",
+     "level": 100,
+     "family": 7,
+     "rank": 3,
+     "slots": 2,
+     "small": false,
+     "traits": [
+      [
+       72,
+       "Mega Body"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ],
+      [
+       226,
+       "Runaway Train"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ]
+     ],
+     "skills": [
+      [
+       182,
+       200,
+       "Defense Boost SP"
+      ],
+      [
+       426,
+       250,
+       "Resistance Ward EX"
+      ],
+      [
+       575,
+       250,
+       "Nochora Alloy"
+      ],
+      [
+       343,
+       250,
+       "He Who Bears no Name"
+      ]
+     ]
+    }
+   ],
+   "fusion": "both fuse: Maniacal Mole, then Stone Golem"
+  },
+  {
+   "name": "CPU Zantetsu",
+   "inspiration": "gaaaaaame.info (ikdhkr), 合体4枠斬鉄幻魔, https://www.gaaaaaame.info/entry/2017/03/13/104607",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 820,
+     "species_name": "Goresby-Purrvis",
+     "nickname": "Gyumei",
+     "level": 100,
+     "family": 3,
+     "rank": 6,
+     "slots": 3,
+     "small": false,
+     "traits": [
+      [
+       73,
+       "Giga Body"
+      ],
+      [
+       5,
+       "Act 3x"
+      ],
+      [
+       136,
+       "Early Bird+"
+      ],
+      [
+       485,
+       "Mirror of the Sun"
+      ],
+      [
+       226,
+       "Runaway Train"
+      ],
+      [
+       251,
+       "Flurry ×3"
+      ]
+     ],
+     "skills": [
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       432,
+       250,
+       "Stasis Ward EX"
+      ],
+      [
+       216,
+       150,
+       "Champion"
+      ],
+      [
+       177,
+       100,
+       "Attack Boost+"
+      ]
+     ]
+    },
+    {
+     "species": 502,
+     "species_name": "Δ Atlas",
+     "nickname": "D Atlas",
+     "level": 100,
+     "family": 8,
+     "rank": 8,
+     "slots": 1,
+     "small": false,
+     "traits": [
+      [
+       71,
+       "Normal Body"
+      ],
+      [
+       87,
+       "Miracle Body"
+      ],
+      [
+       145,
+       "Gamble Counter"
+      ]
+     ],
+     "skills": [
+      [
+       178,
+       200,
+       "Attack Boost SP"
+      ],
+      [
+       205,
+       150,
+       "Thief"
+      ],
+      [
+       343,
+       250,
+       "He Who Bears no Name"
+      ],
+      [
+       242,
+       200,
+       "Break SP"
+      ]
+     ]
+    }
+   ],
+   "fusion": "fused Goresby-Purrvis (Zantetsu)"
+  },
+  {
+   "name": "CPU Skip",
+   "inspiration": "gaaaaaame.info (ikdhkr), ぼやきやみのはどうスキップパーティ, https://www.gaaaaaame.info/entry/2017/03/12/105730",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 412,
+     "species_name": "Squid kid",
+     "nickname": "Kid",
+     "level": 100,
+     "family": 4,
+     "rank": 2,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       234,
+       "Buff Benefaction"
+      ],
+      [
+       196,
+       "Grumbler"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ]
+     ],
+     "skills": [
+      [
+       414,
+       250,
+       "Quake Ward EX"
+      ],
+      [
+       432,
+       250,
+       "Stasis Ward EX"
+      ],
+      [
+       209,
+       150,
+       "Seer"
+      ],
+      [
+       341,
+       250,
+       "Baboodread"
+      ]
+     ]
+    },
+    {
+     "species": 743,
+     "species_name": "Ram-tam Tanuki",
+     "nickname": "Ponpoko",
+     "level": 100,
+     "family": 3,
+     "rank": 1,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       196,
+       "Grumbler"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ],
+      [
+       25,
+       "Chance Skipper"
+      ]
+     ],
+     "skills": [
+      [
+       414,
+       250,
+       "Quake Ward EX"
+      ],
+      [
+       432,
+       250,
+       "Stasis Ward EX"
+      ],
+      [
+       494,
+       200,
+       "Wonder West"
+      ],
+      [
+       513,
+       250,
+       "Nokturnus"
+      ]
+     ]
+    },
+    {
+     "species": 773,
+     "species_name": "Blue Minx",
+     "nickname": "Minx",
+     "level": 100,
+     "family": 3,
+     "rank": 3,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       234,
+       "Buff Benefaction"
+      ],
+      [
+       196,
+       "Grumbler"
+      ],
+      [
+       25,
+       "Chance Skipper"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ]
+     ],
+     "skills": [
+      [
+       414,
+       250,
+       "Quake Ward EX"
+      ],
+      [
+       432,
+       250,
+       "Stasis Ward EX"
+      ],
+      [
+       209,
+       150,
+       "Seer"
+      ],
+      [
+       569,
+       250,
+       "Chibi Threes"
+      ]
+     ]
+    },
+    {
+     "species": 782,
+     "species_name": "Gold Tanuki",
+     "nickname": "Tanu",
+     "level": 100,
+     "family": 3,
+     "rank": 5,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       196,
+       "Grumbler"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       447,
+       "Always Counter PHY"
+      ]
+     ],
+     "skills": [
+      [
+       414,
+       250,
+       "Quake Ward EX"
+      ],
+      [
+       432,
+       250,
+       "Stasis Ward EX"
+      ],
+      [
+       532,
+       250,
+       "Topo"
+      ],
+      [
+       345,
+       250,
+       "Shadroth"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CPU Change",
+   "inspiration": "gaaaaaame.info (ikdhkr), 合体4枠最弱だいおうキッズチェンジ, https://www.gaaaaaame.info/entry/2017/03/11/202546",
+   "main": 0,
+   "sub": 1,
+   "monsters": [
+    {
+     "species": 412,
+     "species_name": "Squid kid",
+     "nickname": "Kid",
+     "level": 100,
+     "family": 4,
+     "rank": 2,
+     "slots": 1,
+     "small": true,
+     "traits": [
+      [
+       70,
+       "Small Body"
+      ],
+      [
+       6,
+       "Act 3-4x"
+      ],
+      [
+       148,
+       "Magic Miser"
+      ],
+      [
+       171,
+       "Metal Killer"
+      ],
+      [
+       207,
+       "Indomitable Spirit"
+      ],
+      [
+       234,
+       "Buff Benefaction"
+      ],
+      [
+       484,
+       "Soul of the Great Bird"
+      ]
+     ],
+     "skills": [
+      [
+       205,
+       150,
+       "Thief"
+      ],
+      [
+       206,
+       150,
+       "Merchant"
+      ],
+      [
+       209,
+       150,
+       "Seer"
+      ],
+      [
+       118,
+       200,
+       "Essence Drain Ward SP"
+      ]
+     ]
+    },
+    {
+     "species": 367,
+     "species_name": "Demon Cloud",
+     "nickname": "Nuvola",
+     "level": 100,
+     "family": 7,
+     "rank": 4,
+     "slots": 3,
+     "small": false,
+     "traits": [
+      [
+       73,
+       "Giga Body"
+      ],
+      [
+       5,
+       "Act 3x"
+      ],
+      [
+       132,
+       "Artful Dodger"
+      ],
+      [
+       158,
+       "Bouncer"
+      ],
+      [
+       188,
+       "Vengeful Spirit"
+      ],
+      [
+       229,
+       "Tit-for-Tat"
+      ],
+      [
+       232,
+       "Perfect Critical Guard"
+      ]
+     ],
+     "skills": [
+      [
+       262,
+       200,
+       "Putrid Breath SP"
+      ],
+      [
+       343,
+       250,
+       "He Who Bears no Name"
+      ],
+      [
+       381,
+       250,
+       "Doom Groom"
+      ],
+      [
+       375,
+       250,
+       "Devil Dog Brenda"
+      ]
+     ]
+    }
+   ],
+   "fusion": "both fuse: Squid kid, then Demon Cloud"
+  }
+ ]
+}

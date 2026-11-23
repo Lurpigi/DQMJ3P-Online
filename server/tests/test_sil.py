@@ -7,6 +7,7 @@ usage: python -I test_sil.py
 import hashlib
 import hmac
 import importlib.util
+import json
 import os
 import socket
 import sqlite3
@@ -148,6 +149,91 @@ def check_older_results():
     assert store.check_gp_results(check) == []  # already decided
 
 
+def load_server():
+    spec = importlib.util.spec_from_file_location("sil_server_cpu", SERVER)
+    sil = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sil)
+    return sil
+
+
+def check_cpu_teams():
+    """cpu_teams.json: every team loads, passes the team check, fits in 4 slots and matches the catalog."""
+    sil = load_server()
+    caps = sil.load_species_caps()
+    teams = sil.load_cpu_teams(caps)
+    with open(sil.CPU_TEAMS_FILE, encoding="utf-8") as f:
+        assert len(teams) == len(json.load(f)["teams"]) > 0, "a CPU team was left out"
+    with open(os.path.join(HERE, "..", "dashboard", "data", "monsters.json"), encoding="utf-8") as f:
+        catalog = {m["id"]: m for m in json.load(f)["species"]}
+    bodies = {70: 1, 71: 1, 72: 2, 73: 3, 74: 4}  # Small, Normal, Mega, Giga, Ultra Body
+    for team in teams:
+        assert team["name"].startswith("CPU ") and sil.team_problems(team["record"], caps) == []
+        assert sum(m["slots"] for m in team["monsters"]) <= 4, team["name"]
+        for i, m in enumerate(team["monsters"]):
+            kind = catalog[m["species"]]
+            size = [bodies[t] for t, _ in m["traits"] if t in bodies]
+            assert (m["family"], m["rank"]) == (kind["family"], kind["rank"]) and not kind["story_copy"], m
+            assert m["slots"] == (size[0] if size else max(1, kind["size"])), m
+            body = [t for t, _ in m["traits"] if t in bodies]
+            assert m["small"] == (body[:1] == [70] or (not body and kind["size"] == 0)), m
+            rec = team["record"][i * 0xf0:(i + 1) * 0xf0]
+            assert struct.unpack_from("<h", rec, 0x1c)[0] == m["species"] and rec[0x2e] == m["level"]
+            assert sil.monster_level_cap(rec) == (120 if m["level"] > 100 else 100)
+            assert list(struct.unpack_from("<9H", rec, 0x44))[:len(m["traits"])] == [t for t, _ in m["traits"]]
+        main, sub = team["record"][0x3c0], team["record"][0x3c1]  # main and sub: two different monsters
+        single = len(team["monsters"]) == 1
+        assert main < len(team["monsters"]) and (sub == 0xff if single else sub != main), team["name"]
+        block = sil.cpu_team_block(team)
+        assert len(block) == 0x49c and block[:5] == team["id"].encode() and block[0xd8:0xd8 + 0x3c4] == team["record"]
+        assert block[0x20:0x44].decode("utf-16-le").rstrip("\0") == team["name"]
+    names = lambda rules: {t["name"] for t in teams if sil.cpu_team_allowed(t, rules)}
+    assert names([(1, 1), (9, 0), (9, 0)]) == {"CPU Metallo", "CPU Slime"}  # Slime family
+    assert names([(0, 0)]) == {"CPU Roulette", "CPU Demoni", "CPU Piccoli", "CPU Skip"}  # size S only, not N
+    assert names([(5, 4)]) == set() and len(names([])) == len(teams)  # strength limit: no CPU team
+
+
+def check_cpu_opponents():
+    """With CPU teams on, a registered player gets them as opponents even when nobody else played,
+    and in Challengers GP only the teams that meet the rules (contest 2: Slime family only)."""
+    data_dir = tempfile.mkdtemp(prefix="sil-cpu-")
+    port = free_port()
+    log = open(os.path.join(data_dir, "server.log"), "w+b")
+    proc = subprocess.Popen([sys.executable, "-I", SERVER, "--port", str(port), "--data", data_dir,
+                             "--gp-start", "2026-01-05", "--gp-today", "2026-01-14"],
+                            stdout=log, stderr=subprocess.STDOUT)
+    try:
+        for _ in range(50):
+            try:
+                socket.create_connection(("127.0.0.1", port), 0.2).close()
+                break
+            except OSError:
+                time.sleep(0.1)
+        c = logged_in_client(f"http://127.0.0.1:{port}/00300701/")
+        fc = c.friend_code.encode()
+        user_data, _ = player_files("Solo", 76, 50)
+        assert c.call("file/upload", {"File-Name": b"00_UserData.bin", "Friend-Code": fc, "Data": user_data})["Result"] == b"OK"
+        owners = {}
+        for name, mode in ((b"09_Grade_PrivateDlBattle.bin", "grade"), (b"18_Limit_PrivateDlBattle.bin", "limit")):
+            r = c.call("file/upload", {"File-Name": name, "Friend-Code": fc, "Data": b"Download_Code"})
+            pack = r["Add-Data"]
+            assert r["Result"] == b"OK" and len(pack) == 0x297c, r["Result"]
+            teams = [pack[i * 0x49c:(i + 1) * 0x49c] for i in range(9)]
+            owners[mode] = {t[0x20:0x44].decode("utf-16-le").split("\0")[0] for t in teams if t[:3] == b"CPU"}
+            # rounds with no team keep Def_DLBattle (no public files here: all zero)
+            full = mode == "grade"  # 9 CPU teams for 3 rounds; only 2 meet the Slime rule
+            assert all(t[:3] == b"CPU" or (not full and t == bytes(0x49c)) for t in teams), mode
+        assert len(owners["grade"]) >= 3, owners
+        assert owners["limit"] == {"CPU Metallo", "CPU Slime"}, owners  # the only Slime family teams
+    finally:
+        proc.terminate()
+        proc.wait(timeout=5)
+        log.seek(0)
+        text = log.read().decode(errors="replace")
+        with open(os.path.join(HERE, "..", "sil", "cpu_teams.json"), encoding="utf-8") as f:
+            count = len(json.load(f)["teams"])
+        assert f"Grand Prix CPU teams: {count}" in text, text[-1500:]
+
+
 def free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -166,7 +252,7 @@ def main():
     # Grand Prix calendar: contest 1 = Jan 5-11, contest 2 = Jan 12-18, today = its 3rd day
     proc = subprocess.Popen([sys.executable, "-I", SERVER, "--port", str(port), "--data", data_dir,
                              "--gp-start", "2026-01-05", "--gp-today", "2026-01-14",
-                             "--gp-prize-champion", "47", "--gp-prize-top10", "66"],
+                             "--gp-prize-champion", "47", "--gp-prize-top10", "66", "--no-cpu-teams"],
                             stdout=log, stderr=subprocess.STDOUT)
     try:
         for _ in range(50):
@@ -377,6 +463,8 @@ def main():
         except AssertionError as e:
             assert "bad response digest" in str(e), e
         check_older_results()
+        check_cpu_teams()
+        check_cpu_opponents()
         print("SIL TEST OK")
     finally:
         proc.terminate()

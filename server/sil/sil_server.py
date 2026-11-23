@@ -421,6 +421,99 @@ def pick_opponents(pool, own_strength):
     return [[block for _, block in sorted(entry, key=lambda t: t[0])] for entry in entries]
 
 
+# --- Grand Prix CPU teams (cpu_teams.json) -------------------------------------------------
+# Built-in opponents, mixed into every player's opponent pool so that the Grand Prix has strong
+# teams even with few players. Teams copy parties published online or a family/size theme; their
+# names start with "CPU". They are never stored as results: no standings, no champion records.
+CPU_TEAMS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cpu_teams.json")
+# Base stats = species maximum * factor: seeds add up to ~10%, and levels above 100 add HP/MP.
+# Both stay well inside the team check limits (HP_MP_FACTOR, STAT_FACTOR).
+CPU_STAT_FACTORS = {100: (1.1, 1.05), 120: (1.3, 1.05)}  # level -> (HP/MP, other stats)
+CPU_LOCATION = 0  # loc_000, the Japanese flag: most teams come from Japanese guides
+
+
+def cpu_monster(spec, caps):
+    """0xf0 monster record: +0x04 nickname (UTF-16LE), species, base stats (+0x1e/+0x20 max HP/MP,
+    +0x22/+0x24 current HP/MP = full), level, +0x3c 100 and +0x40 bit 0x400 for the level cap
+    (monster_level_cap), traits at +0x44, (skill, points) at +0x56. Other fields stay 0 (no family
+    tree); the game loads such records (the generated Def_DLBattle teams)."""
+    m = bytearray(MONSTER)
+    level = spec["level"]
+    hp_mp, other = CPU_STAT_FACTORS[100 if level <= 100 else 120]
+    tops = caps[spec["species"]]
+    hp, mp, atk, dfn, agi, wis = (int(t * f) for t, f in zip(tops, (hp_mp,) * 2 + (other,) * 4))
+    m[0x04:0x1C] = spec["nickname"].encode("utf-16-le")[:0x16].ljust(0x18, b"\0")
+    struct.pack_into("<h8h", m, 0x1C, spec["species"], hp, mp, hp, mp, atk, dfn, agi, wis)
+    m[MONSTER_LEVEL] = level
+    m[0x3C] = 100
+    if level > 100:
+        struct.pack_into("<H", m, 0x40, 0x400)
+    traits = [t for t, _name in spec["traits"]][:9]
+    struct.pack_into("<9H", m, 0x44, *(traits + [0] * (9 - len(traits))))
+    skills = [(s, p) for s, p, _name in spec["skills"]][:4]
+    for i, (skill, points) in enumerate(skills):
+        struct.pack_into("<HH", m, 0x56 + 4 * i, skill, points)
+    return bytes(m)
+
+
+def load_cpu_teams(caps, path=CPU_TEAMS_FILE):
+    """[{name, record, strength, monsters}] from cpu_teams.json; [] when the file or the species
+    maximums (load_species_caps) are missing. A team the check would reject is left out."""
+    if caps is None:
+        return []
+    try:
+        with open(path, encoding="utf-8") as f:
+            teams = json.load(f)["teams"]
+    except FileNotFoundError:
+        return []
+    out = []
+    for i, team in enumerate(teams):
+        monsters = team["monsters"][:4]
+        record = bytearray(b"".join(cpu_monster(m, caps) for m in monsters).ljust(TEAM_RECORD, b"\0"))
+        # +0x3c0 main, +0x3c1 sub monster index (-1 = none), as FUN_00290834 saves the party
+        record[0x3C0] = team.get("main", 0) & 0xFF
+        record[0x3C1] = team.get("sub", 1 if len(monsters) > 1 else -1) & 0xFF
+        record = bytes(record)
+        problems = team_problems(record, caps)
+        if problems:
+            print(f"CPU team {team['name']} left out: {'; '.join(problems)}", flush=True)
+            continue
+        out.append({"id": f"CPU{i + 1:02d}", "name": team["name"], "record": record,
+                    "strength": team_strength(record), "monsters": monsters})
+    return out
+
+
+def cpu_team_block(team):
+    """make_team_block for a CPU team: owner id "CPUnn" (non-zero, see make_team_block), the
+    team name as trainer name, no Mii."""
+    user_data = bytearray(0xC4)
+    struct.pack_into("<H", user_data, 0x4, CPU_LOCATION)
+    user_data[0xC:0x30] = team["name"].encode("utf-16-le")[:0x22].ljust(0x24, b"\0")
+    return make_team_block(team["id"], bytes(user_data), team["record"])
+
+
+def cpu_team_allowed(team, rules):
+    """Whether a CPU team meets Challengers GP rules [(type, value)] (018_LimitSetting, type 9 =
+    none): 0 size (value 0 = small: size S, Normal Body monsters are N), 1 family, 4 rank (or level 100).
+    Rule 5 (team strength under a limit) uses the game's measure, which the server does not
+    compute: CPU teams sit those contests out, as they do any unknown rule."""
+    for kind, value in rules:
+        monsters = team["monsters"]
+        if kind == 9:
+            continue
+        if kind == 0 and value == 0:
+            ok = all(m["small"] for m in monsters)
+        elif kind == 1:
+            ok = all(m["family"] == value for m in monsters)
+        elif kind == 4:
+            ok = all(m["rank"] >= value or m["level"] >= 100 for m in monsters)
+        else:
+            ok = False
+        if not ok:
+            return False
+    return True
+
+
 # --- Grand Prix contests and rankings (re/notes/grandprix_formats.md 2, 3.2, 3.6, 3.7, 3.9) -----
 GP_MODES = ("grade", "limit")
 GP_HELD_FILE = "003_Held_Record.bin"
@@ -627,6 +720,7 @@ class Handler(BaseHTTPRequestHandler):
     present_codes, present_packages = load_present_codes()
     limit_rotation = True  # Challengers GP rules from LIMIT_RULE_SETS (False: public 018_LimitSetting.bin)
     species_caps = None  # load_species_caps(): max stats for the Grand Prix team check
+    cpu_teams = []  # load_cpu_teams(): built-in Grand Prix opponents
     timeout = 15  # seconds; a stuck read must not outlive the client's 60 s request timeout
 
     def log_message(self, fmt, *args):
@@ -944,7 +1038,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _opponent_pack(self, friend_code, mode):
         """*_PrivateDlBattle built from the teams other players used in their last Grand Prix
-        battle of this mode; rounds with no player team keep the public Def_DLBattle team.
+        battle of this mode and the CPU teams (cpu_teams.json, for Challengers GP only those that meet
+        the current rules); rounds with no team keep the public Def_DLBattle team.
         None (=> stored file or template, i.e. the client falls back to Def_DLBattle) when the
         user is not registered or there is no team to offer. Challengers GP teams only count from
         the current contest: earlier ones were built for other rules."""
@@ -968,6 +1063,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not self.self_opponents:
                     continue
             pool.append((team_strength(record), make_team_block(owner, user_data or b"", record)))
+        rules = self._limit_rules() if mode == "limit" else []
+        pool += [(t["strength"], cpu_team_block(t)) for t in self.cpu_teams if cpu_team_allowed(t, rules)]
         if not pool:
             return None
         if own is None:  # first battle: no team on record yet, aim at the middle of the pool
@@ -983,6 +1080,17 @@ class Handler(BaseHTTPRequestHandler):
         if not any(out[ROUNDS * TEAM_BLOCK:ROUNDS * TEAM_BLOCK + 0x10]):  # see make_team_block
             return None
         return bytes(out)
+
+    def _limit_rules(self):
+        """The current Challengers GP rules [(type, value)], as 018_LimitSetting sends them."""
+        if self.limit_rotation:
+            data = limit_setting(self.calendar.contest(self.calendar.today())[0])
+        else:
+            path = os.path.join(self.public_dir, GP_LIMIT_FILE)
+            data = open(path, "rb").read() if os.path.isfile(path) else b""
+        if len(data) < 0x18:
+            return [(-1, 0)]  # unknown rules: no CPU team
+        return [struct.unpack_from("<II", data, 8 * i) for i in range(3)]
 
     def _redeem(self, data, friend_code):
         code = normalize_code(data.decode("utf-16-le", "replace").split("\0", 1)[0])
@@ -1078,6 +1186,8 @@ def main():
                     help="accept any Authentication-Token (patches without --nex-player-password, local tests)")
     ap.add_argument("--self-opponents", action="store_true",
                     help="Grand Prix: also offer players their own last team as an opponent (single-player tests)")
+    ap.add_argument("--no-cpu-teams", action="store_true",
+                    help="Grand Prix: offer only players' teams, not the CPU teams of cpu_teams.json")
     day = datetime.date.fromisoformat
     ap.add_argument("--gp-start", type=day, default=datetime.date(2026, 10, 26),
                     help="Grand Prix: first day of contest 1 (YYYY-MM-DD, default %(default)s)")
@@ -1118,6 +1228,8 @@ def main():
     if Handler.species_caps is None:
         print(f"warning: {SPECIES_CAPS_FILE} missing, the Grand Prix team check only checks levels and {STAT_LIMIT}",
               flush=True)
+    Handler.cpu_teams = [] if args.no_cpu_teams else load_cpu_teams(Handler.species_caps)
+    print(f"Grand Prix CPU teams: {len(Handler.cpu_teams)}", flush=True)
     for rid, reasons in Handler.store.check_gp_results(lambda data: gp_result_problems(data, Handler.species_caps)):
         print(f"Grand Prix result {rid}: {'rejected: ' + reasons if reasons else 'counts again'}", flush=True)
     Handler.prize_champion, Handler.prize_top10 = args.gp_prize_champion, args.gp_prize_top10
