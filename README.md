@@ -113,6 +113,16 @@ by hand with `re/tools/azahar_identity.py` (see [re/notes/azahar_hle_identity.md
   the Grand Prix with another account keeps that account's Grand Prix friend code, and the server refuses
   it. Ask the administrator to move it to your personal account.
 
+### Grand Prix CPU teams
+
+Grand Prix opponents are the teams other players used in their last battle, mixed with 20 CPU
+teams. Their trainer names start with "CPU". Some are named after the 2017 official tournament
+finalists whose teams they copy, such as "CPU Nikoroto". Others copy parties from a Japanese
+strategy blog, such as "CPU WORLD". The rest have a theme, such as "CPU Draghi" and "CPU Piccoli".
+In Challenger, only the CPU teams that meet the contest's rules take part. CPU teams never appear
+in the standings. The list is in [server/sil/cpu_teams.json](server/sil/cpu_teams.json), with the
+source of each team.
+
 ### Cheats and modified monsters
 
 Play with monsters you raised in an unmodified game. Cheat codes, save editors and memory editors
