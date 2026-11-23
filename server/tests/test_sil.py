@@ -125,19 +125,26 @@ def check_older_results():
     assert sil.gp_result_problems(bytes(level_121), caps) is None
     level_121[0x17c + 0x2e] = 121
     assert sil.gp_result_problems(bytes(level_121), caps) == "slot 0 species 71: level 121 (cap 120)"
+    bonus = bytearray(result_pack())  # base stats fine, the bonus at +0x84 inflated (ATK 500+4000)
+    bonus[0x17c + 0x88:0x17c + 0x8a] = struct.pack("<h", 4000)
+    assert sil.gp_result_problems(bytes(bonus), caps) == "slot 0 species 71: ATK 500+4000 (limit 1455)"
+    bonus[0x17c + 0x88:0x17c + 0x8a] = struct.pack("<h", 900)  # 500+900 is within the limit
+    assert sil.gp_result_problems(bytes(bonus), caps) is None
+    bonus[0x17c + 0x88:0x17c + 0x8a] = struct.pack("<h", 4000)
     path = os.path.join(tempfile.mkdtemp(prefix="sil-check-"), "sil.sqlite3")
     store = sil.Store(path)
     store.db.execute("DROP TABLE gp_results")  # the table as before the check
     store.db.execute("CREATE TABLE gp_results (id INTEGER PRIMARY KEY, friend_code TEXT, mode TEXT, score INTEGER, "
                      "data BLOB, uploaded INTEGER, day TEXT)")
-    for data in (result_pack(stat=8000), result_pack(), bytes(level_121)):
+    for data in (result_pack(stat=8000), result_pack(), bytes(level_121), bytes(bonus)):
         store.db.execute("INSERT INTO gp_results (friend_code, mode, score, data, day) VALUES ('1', 'grade', 0, ?, '2026-01-01')", (data,))
     store.db.commit()
     store.db.close()
     store = sil.Store(path)  # reopen: adds the columns
     check = lambda data: sil.gp_result_problems(data, caps)
-    assert [rid for rid, _ in store.check_gp_results(check)] == [1, 3]
-    assert store.q("SELECT id, rejected IS NOT NULL, checked FROM gp_results ORDER BY id") == [(1, 1, 1), (2, 0, 1), (3, 1, 1)]
+    assert [rid for rid, _ in store.check_gp_results(check)] == [1, 3, 4]
+    v = sil.TEAM_CHECK_VERSION
+    assert store.q("SELECT id, rejected IS NOT NULL, checked FROM gp_results ORDER BY id") == [(1, 1, v), (2, 0, v), (3, 1, v), (4, 1, v)]
     assert store.check_gp_results(check) == []  # already decided
 
 
@@ -324,7 +331,7 @@ def main():
 
         db = sqlite3.connect(os.path.join(data_dir, "sil.sqlite3"))
         assert db.execute("SELECT mode, score, day, rejected, checked FROM gp_results ORDER BY id LIMIT 2").fetchall() == [
-            ("grade", 4321, "2026-01-14", None, 1), ("grade", 1000, "2026-01-14", None, 1)]
+            ("grade", 4321, "2026-01-14", None, 2), ("grade", 1000, "2026-01-14", None, 2)]
         # portal capture: each uploaded result has its snapshot (name/location at upload, calendar, contest)
         snaps = db.execute("SELECT g.friend_code, s.calendar, s.contest, s.day, s.name, s.location, s.decoder "
                            "FROM gp_snapshots s JOIN gp_results g ON g.id = s.result_id ORDER BY s.result_id").fetchall()
